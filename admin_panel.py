@@ -435,8 +435,10 @@ def users_api():
 
 
 def main() -> None:
+    import os
     init_logs_db()
-    app.run(host="0.0.0.0", port=8080, debug=False)
+    port = int(os.getenv("PORT", "8080"))
+    app.run(host="0.0.0.0", port=port, debug=False)
 
 
 if __name__ == "__main__":
