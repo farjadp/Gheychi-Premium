@@ -655,6 +655,9 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
 async def post_init(application: Application) -> None:
     await application.bot.set_my_commands(BOT_COMMANDS)
+    # Drop any pending updates from a previous instance so we start clean
+    # and avoid Conflict errors during restarts on Railway
+    await application.bot.delete_webhook(drop_pending_updates=True)
 
 
 def main():
