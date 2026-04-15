@@ -88,7 +88,7 @@ def _download_file(url: str, destination: Path, progress_callback: Optional[Call
 
 def _base_ydl_opts(output_template: str) -> dict:
     max_file_size_bytes = get_max_file_size_bytes()
-    return {
+    opts = {
         "outtmpl": output_template,
         "ignoreconfig": True,
         "quiet": True,
@@ -97,6 +97,11 @@ def _base_ydl_opts(output_template: str) -> dict:
         "noplaylist": True,
         "max_filesize": max_file_size_bytes,
     }
+    # Use cookies file if provided (needed for Twitter/X and Instagram private content)
+    cookies_file = os.environ.get("COOKIES_FILE")
+    if cookies_file and os.path.exists(cookies_file):
+        opts["cookiefile"] = cookies_file
+    return opts
 
 
 async def get_video_info(url: str) -> VideoInfo:
@@ -262,6 +267,13 @@ async def download_video(
                 success=False,
                 error=f"فایل بزرگتر از {max_file_size_bytes // (1024*1024)} مگابایت است.",
             )
+        if "guest token" in msg.lower() or "bad guest token" in msg.lower():
+            return DownloadResult(
+                success=False,
+                error="دانلود از Twitter/X نیاز به احراز هویت دارد.\nلطفاً با پشتیبانی تماس بگیر تا کوکی تنظیم شود.",
+            )
+        if "login required" in msg.lower() or "loginrequired" in msg.lower():
+            return DownloadResult(success=False, error="این ویدئو نیاز به لاگین دارد.")
         return DownloadResult(success=False, error=f"خطا در دانلود: {msg[:200]}")
     except Exception as e:
         return DownloadResult(success=False, error=f"خطای غیرمنتظره: {str(e)[:200]}")
