@@ -86,7 +86,34 @@ def _download_file(url: str, destination: Path, progress_callback: Optional[Call
                 progress_callback(pct)
 
 
-def _base_ydl_opts(output_template: str) -> dict:
+PLATFORM_COOKIE_ENV = {
+    "youtube":   "COOKIES_YOUTUBE",
+    "instagram": "COOKIES_INSTAGRAM",
+    "twitter":   "COOKIES_TWITTER",
+    "tiktok":    "COOKIES_TIKTOK",
+    "facebook":  "COOKIES_FACEBOOK",
+    "soundcloud":"COOKIES_SOUNDCLOUD",
+    "vimeo":     "COOKIES_VIMEO",
+}
+
+
+def _get_cookies_file(platform: str | None) -> str | None:
+    """Return path to cookies file for the given platform, or global fallback."""
+    key = (platform or "").lower()
+    # Try platform-specific first
+    for pname, env_var in PLATFORM_COOKIE_ENV.items():
+        if pname in key:
+            path = os.environ.get(env_var)
+            if path and os.path.exists(path):
+                return path
+    # Fall back to global COOKIES_FILE
+    global_path = os.environ.get("COOKIES_FILE")
+    if global_path and os.path.exists(global_path):
+        return global_path
+    return None
+
+
+def _base_ydl_opts(output_template: str, platform: str | None = None) -> dict:
     max_file_size_bytes = get_max_file_size_bytes()
     opts = {
         "outtmpl": output_template,
@@ -97,9 +124,8 @@ def _base_ydl_opts(output_template: str) -> dict:
         "noplaylist": True,
         "max_filesize": max_file_size_bytes,
     }
-    # Use cookies file if provided (needed for Twitter/X and Instagram private content)
-    cookies_file = os.environ.get("COOKIES_FILE")
-    if cookies_file and os.path.exists(cookies_file):
+    cookies_file = _get_cookies_file(platform)
+    if cookies_file:
         opts["cookiefile"] = cookies_file
     return opts
 
@@ -127,6 +153,9 @@ async def get_video_info(url: str) -> VideoInfo:
         "skip_download": True,
         "noplaylist": True,
     }
+    cookies_file = _get_cookies_file(url)
+    if cookies_file:
+        opts["cookiefile"] = cookies_file
 
     loop = asyncio.get_running_loop()
 
@@ -206,7 +235,7 @@ async def download_video(
                 pct = int(downloaded / total * 100)
                 loop.call_soon_threadsafe(progress_callback, pct)
 
-    opts = _base_ydl_opts(output_template)
+    opts = _base_ydl_opts(output_template, platform=url)
     opts["format"] = format_selector
     opts["progress_hooks"] = [_progress_hook]
     opts["merge_output_format"] = "mp4"
@@ -317,7 +346,7 @@ async def download_audio(url: str) -> DownloadResult:
         except Exception as e:
             return DownloadResult(success=False, error=f"خطا در دانلود RadioJavan: {str(e)[:200]}")
 
-    opts = _base_ydl_opts(output_template)
+    opts = _base_ydl_opts(output_template, platform=url)
     opts["format"] = "bestaudio/best"
     opts["postprocessors"] = [
         {
