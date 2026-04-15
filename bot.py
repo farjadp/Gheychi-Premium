@@ -642,6 +642,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    from telegram.error import Conflict
+    if isinstance(context.error, Conflict):
+        logger.critical(
+            "Conflict: another bot instance is running. "
+            "Stop the other instance (Railway / another terminal) before running locally."
+        )
+        return
     logger.error("Unhandled error: %s", context.error, exc_info=context.error)
     add_log("ERROR", "unhandled_error", str(context.error)[:300])
 
