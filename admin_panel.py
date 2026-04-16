@@ -2,6 +2,8 @@ from functools import wraps
 import asyncio
 import threading
 from telegram import Bot
+import stripe
+from config import STRIPE_WEBHOOK_SECRET, BOT_TOKEN
 
 from flask import Flask, Response, jsonify, redirect, render_template_string, request, url_for
 
@@ -893,6 +895,66 @@ def send_broadcast():
     
     threading.Thread(target=_send_broadcast_background, args=(text, user_ids), daemon=True).start()
     return redirect(url_for("index", saved="1"))
+
+
+@app.post("/webhook/stripe")
+def stripe_webhook():
+    payload = request.get_data(as_text=True)
+    sig_header = request.headers.get("Stripe-Signature", "")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError as e:
+        # Invalid payload
+        return "Invalid payload", 400
+    except stripe.error.SignatureVerificationError as e:
+        # Invalid signature
+        return "Invalid signature", 400
+
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        client_reference_id = session.get('client_reference_id')
+        
+        if client_reference_id:
+            try:
+                user_id_str, plan_code = client_reference_id.split("_")
+                user_id = int(user_id_str)
+                
+                # Activate plan
+                user = assign_user_plan(
+                    user_id,
+                    plan_code,
+                    months=1,
+                    note="Stripe Auto-Payment"
+                )
+                
+                # Log it
+                add_log(
+                    "INFO",
+                    "payment_success",
+                    f"اشتراک {plan_code} از طریق استرایپ فعال شد.",
+                    metadata={"telegram_user_id": user_id, "plan_code": plan_code}
+                )
+                
+                # Send confirmation message
+                import asyncio
+                bot = Bot(token=BOT_TOKEN)
+                loop = asyncio.new_event_loop()
+                loop.run_until_complete(
+                    bot.send_message(
+                        chat_id=user_id,
+                        text=f"🎉 پرداخت شما با موفقیت انجام شد!\\n\\nاشتراک *{user['effective_plan']['name']}* برای شما تا ۳۰ روز آینده فعال گردید. از امکانات ربات لذت ببرید.",
+                        parse_mode="Markdown"
+                    )
+                )
+                loop.close()
+                
+            except Exception as e:
+                add_log("ERROR", "webhook_process_error", str(e)[:300], metadata={"client_reference_id": client_reference_id})
+                
+    return jsonify(success=True), 200
 
 def main() -> None:
     import os

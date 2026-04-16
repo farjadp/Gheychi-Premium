@@ -23,7 +23,8 @@ from telegram.ext import (
 from telegram.constants import ParseMode, ChatAction
 from telegram.error import BadRequest
 
-from config import ALLOWED_PLATFORMS, BOT_TOKEN, SUPPORT_CONTACT
+import stripe
+from config import STRIPE_SECRET_KEY,  ALLOWED_PLATFORMS, BOT_TOKEN, SUPPORT_CONTACT
 from downloader import (
     get_video_info,
     download_video,
@@ -259,7 +260,13 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = build_plan_catalog_text()
-    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+    keyboard = [
+        [InlineKeyboardButton("📦 خرید استارتر ($5)", callback_data="buy_starter")],
+        [InlineKeyboardButton("🔥 خرید استاندارد ($13)", callback_data="buy_standard")],
+        [InlineKeyboardButton("💎 خرید حرفه‌ای ($23)", callback_data="buy_pro")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
 
 
 async def myplan_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
