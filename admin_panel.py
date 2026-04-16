@@ -1245,63 +1245,87 @@ def send_broadcast():
 
 @app.post("/webhook/stripe")
 def stripe_webhook():
-    payload = request.get_data(as_text=True)
-    sig_header = request.headers.get("Stripe-Signature", "")
+    payload = request.data
+    sig_header = request.headers.get("Stripe-Signature")
+    
+    if not sig_header:
+        add_log("ERROR", "webhook_failed", "Missing Stripe signature")
+        return "Missing signature", 400
 
     settings = load_settings()
     active_webhook_secret = settings.get("stripe_webhook_secret") or STRIPE_WEBHOOK_SECRET
+    
+    if not active_webhook_secret:
+        add_log("ERROR", "webhook_failed", "Stripe webhook secret not configured")
+        return "Webhook secret missing", 500
+
     try:
         event = stripe.Webhook.construct_event(
             payload, sig_header, active_webhook_secret
         )
     except ValueError as e:
-        # Invalid payload
+        add_log("ERROR", "webhook_failed", f"Invalid payload: {e}")
         return "Invalid payload", 400
     except stripe.error.SignatureVerificationError as e:
-        # Invalid signature
+        add_log("ERROR", "webhook_failed", f"Invalid signature: {e}")
         return "Invalid signature", 400
 
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         client_reference_id = session.get('client_reference_id')
         
-        if client_reference_id:
-            try:
-                user_id_str, plan_code = client_reference_id.split("_")
-                user_id = int(user_id_str)
+        if not client_reference_id:
+            add_log("ERROR", "webhook_failed", "Missing client_reference_id in session")
+            return "Missing client_reference_id", 400
+            
+        try:
+            parts = client_reference_id.split("_", 1)
+            if len(parts) != 2:
+                raise ValueError(f"Malformed client_reference_id: {client_reference_id}")
                 
-                # Activate plan
-                user = assign_user_plan(
-                    user_id,
-                    plan_code,
-                    months=1,
-                    note="Stripe Auto-Payment"
+            user_id_str, plan_code = parts
+            user_id = int(user_id_str)
+            
+            # Verify plan exists before assign
+            from plans import get_plan
+            plan = get_plan(plan_code)
+            if not plan:
+                raise ValueError(f"Unknown plan_code: {plan_code}")
+            
+            # Activate plan
+            user = assign_user_plan(
+                user_id,
+                plan_code,
+                months=1,
+                note="Stripe Auto-Payment"
+            )
+            
+            # Log it
+            add_log(
+                "INFO",
+                "payment_success",
+                f"اشتراک {plan_code} از طریق استرایپ فعال شد.",
+                metadata={"telegram_user_id": user_id, "plan_code": plan_code}
+            )
+            
+            # Send confirmation message
+            import asyncio
+            bot = Bot(token=BOT_TOKEN)
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(
+                bot.send_message(
+                    chat_id=user_id,
+                    text=f"🎉 ترکنش استرایپ موفق بود!\n\nاشتراک *{plan['name']}* شما برای ۱ ماه فعال گردید.",
+                    parse_mode="Markdown"
                 )
-                
-                # Log it
-                add_log(
-                    "INFO",
-                    "payment_success",
-                    f"اشتراک {plan_code} از طریق استرایپ فعال شد.",
-                    metadata={"telegram_user_id": user_id, "plan_code": plan_code}
-                )
-                
-                # Send confirmation message
-                import asyncio
-                bot = Bot(token=BOT_TOKEN)
-                loop = asyncio.new_event_loop()
-                loop.run_until_complete(
-                    bot.send_message(
-                        chat_id=user_id,
-                        text=f"🎉 پرداخت شما با موفقیت انجام شد!\\n\\nاشتراک *{user['effective_plan']['name']}* برای شما تا ۳۰ روز آینده فعال گردید. از امکانات ربات لذت ببرید.",
-                        parse_mode="Markdown"
-                    )
-                )
-                loop.close()
-                
-            except Exception as e:
-                add_log("ERROR", "webhook_process_error", str(e)[:300], metadata={"client_reference_id": client_reference_id})
-                
+            )
+            loop.close()
+            
+        except Exception as e:
+            error_msg = str(e)[:300]
+            add_log("ERROR", "webhook_process_error", error_msg, metadata={"client_reference_id": client_reference_id})
+            return f"Processing error: {error_msg}", 500
+            
     return jsonify(success=True), 200
 
 def main() -> None:
