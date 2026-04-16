@@ -611,17 +611,36 @@ PAGE_TEMPLATE = """
     <div class="tab-panel" id="tab-plans">
       <div class="grid-2">
         <div class="card" style="grid-column: 1 / -1;">
-          <div class="card-title"><span class="icon">📦</span> ویرایشگر داینامیک پکیج‌ها و محدودیت‌ها</div>
-          <p style="font-size:13px; color:var(--muted); margin-bottom:15px;">شما می‌توانید نام، قیمت دلاری، دیسکریپشن و محدودیت پلتفرم‌ها (rules) را در کادر زیر ویرایش کنید. دقت کنید که ساختار JSON نامعتبر نشود.</p>
-          <form method="post" action="{{ url_for('update_plans') }}">
-            <div class="field">
-              <textarea name="plans_json" style="font-family: monospace; direction: ltr; text-align: left; min-height: 400px; line-height: 1.4; background:#1e1e1e; color:#d4d4d4; padding:15px; border-radius:10px; width:100%;">{{ plans_json_str }}</textarea>
+          <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+            <span><span class="icon">📦</span> تنظیمات و محدودیت پکیج‌ها</span>
+            <button type="button" class="btn btn-sm" onclick="toggleJsonEditor()" style="background:rgba(255,255,255,0.1); color:var(--muted); box-shadow:none;">کد خام (JSON)</button>
+          </div>
+          
+          <form method="post" action="{{ url_for('update_plans') }}" id="plans-form">
+            <!-- Visual Editor Area -->
+            <div id="visual-editor">
+              <div class="tabs" id="plan-tabs" style="margin-bottom:20px;"></div>
+              <div id="plan-editor-content"></div>
             </div>
-            <button class="btn" type="submit">💾 ذخیره تغییرات پکیج‌ها</button>
+
+            <!-- RAW JSON Editor (Hidden by default) -->
+            <div id="raw-json-editor" style="display:none; margin-top:20px;">
+              <p style="font-size:13px; color:var(--muted); margin-bottom:15px; background:rgba(251,191,36,0.1); padding:10px; border-radius:8px; color:var(--yellow); border:1px solid rgba(251,191,36,0.2);">
+                ⚠️ اخطار: اینجا یک محیط پیشرفته است. اگر نمیدانید چه میکنید، از ظاهر گرافیکی استفاده کنید.
+              </p>
+              <div class="field">
+                <textarea id="plans-json-textarea" name="plans_json" style="font-family: monospace; direction: ltr; text-align: left; min-height: 400px; line-height: 1.5; background:#0b0d14; color:#a5acca; padding:15px; border-radius:12px; width:100%; border:1px solid rgba(255,255,255,0.05);">{{ plans_json_str }}</textarea>
+              </div>
+            </div>
+
+            <div style="margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.05); padding-top:20px;">
+              <button class="btn" type="submit">💾 ذخیره تمامی اطلاعات پکیج‌ها</button>
+            </div>
           </form>
         </div>
         
         {% for plan in plans %}
+        <!-- Visual Previews -->
         <div class="plan-card">
           <div class="plan-name">{{ plan.name }}</div>
           <div class="plan-price">
@@ -635,7 +654,6 @@ PAGE_TEMPLATE = """
         {% endfor %}
       </div>
     </div>
-
     <!-- ── TAB: Logs ── -->
     <div class="tab-panel" id="tab-logs">
       <div class="card">
@@ -801,6 +819,171 @@ PAGE_TEMPLATE = """
     });
 
   </script>
+
+<script>
+  let rawJsonData = {};
+  
+  try {
+    const textarea = document.getElementById('plans-json-textarea');
+    rawJsonData = JSON.parse(textarea.value);
+  } catch (e) {
+    console.error("Invalid JSON string at startup", e);
+  }
+
+  let currentPlanId = Object.keys(rawJsonData)[0] || null;
+
+  function toggleJsonEditor() {
+    const raw = document.getElementById('raw-json-editor');
+    const vis = document.getElementById('visual-editor');
+    if(raw.style.display === 'none') {
+      raw.style.display = 'block';
+      vis.style.display = 'none';
+      syncVisualToJson(); // push visual updates to textarea before showing
+    } else {
+      raw.style.display = 'none';
+      vis.style.display = 'block';
+      // Load from textarea
+      try {
+        rawJsonData = JSON.parse(document.getElementById('plans-json-textarea').value);
+        renderVisualEditor();
+      } catch(e) {
+        alert("فرمت JSON وارد شده نامعتبر است! نمیتوان به حالت گرافیکی برگشت.");
+        raw.style.display = 'block';
+        vis.style.display = 'none';
+      }
+    }
+  }
+
+  function syncVisualToJson() {
+    const textarea = document.getElementById('plans-json-textarea');
+    textarea.value = JSON.stringify(rawJsonData, null, 2);
+  }
+
+  function handleDataChange() {
+    syncVisualToJson();
+  }
+
+  function switchPlan(planId) {
+    currentPlanId = planId;
+    renderVisualEditor();
+  }
+
+  function addRule(planId) {
+    if(!rawJsonData[planId].rules) rawJsonData[planId].rules = [];
+    rawJsonData[planId].rules.push({ platform: "Twitter/X", limit: null, period: "month" });
+    handleDataChange();
+    renderVisualEditor();
+  }
+
+  function removeRule(planId, idx) {
+    rawJsonData[planId].rules.splice(idx, 1);
+    handleDataChange();
+    renderVisualEditor();
+  }
+
+  function renderVisualEditor() {
+    const tabsContainer = document.getElementById('plan-tabs');
+    const contentContainer = document.getElementById('plan-editor-content');
+    
+    // Render Tabs
+    tabsContainer.innerHTML = '';
+    Object.keys(rawJsonData).forEach(planId => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tab-btn ' + (planId === currentPlanId ? 'active' : '');
+      const name = rawJsonData[planId].name || planId;
+      btn.innerHTML = `<span class="icon">📦</span> ${name}`;
+      btn.onclick = () => switchPlan(planId);
+      tabsContainer.appendChild(btn);
+    });
+
+    if(!currentPlanId || !rawJsonData[currentPlanId]) return;
+
+    // Render Content for currentPlanId
+    const plan = rawJsonData[currentPlanId];
+    
+    let html = `
+      <div style="background:rgba(0,0,0,0.15); padding:24px; border-radius:16px; border:1px solid rgba(255,255,255,0.05);">
+        <div class="grid-2" style="margin-bottom:15px;">
+          <div class="field" style="margin-bottom:0;">
+            <label>شناسه سیستمی (غیرقابل تغییر)</label>
+            <input type="text" value="${currentPlanId}" disabled style="opacity:0.5;">
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>نام نمایشی (فارسی)</label>
+            <input type="text" value="${plan.name || ''}" onchange="rawJsonData['${currentPlanId}'].name = this.value; renderVisualEditor(); handleDataChange();">
+          </div>
+        </div>
+        <div class="field">
+          <label>قیمت ماهانه (دلار) - اگر 0 باشد یعنی رایگان است</label>
+          <input type="number" value="${plan.price_usd || 0}" onchange="rawJsonData['${currentPlanId}'].price_usd = parseInt(this.value)||0; handleDataChange();">
+        </div>
+        <div class="field">
+          <label>توضیحات پکیج</label>
+          <input type="text" value="${plan.description || ''}" onchange="rawJsonData['${currentPlanId}'].description = this.value; handleDataChange();">
+        </div>
+        
+        <div style="margin-top:30px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <label style="font-size:15px; font-weight:700; color:var(--accent);">محدودیت پلتفرم‌ها (Rules)</label>
+            <button type="button" class="btn btn-sm" onclick="addRule('${currentPlanId}')" style="background:rgba(52,211,153,0.15); color:var(--green);"><span class="icon">+</span> افزودن شبکه‌اجتماعی</button>
+          </div>
+    `;
+
+    if (plan.rules && plan.rules.length > 0) {
+      plan.rules.forEach((rule, idx) => {
+        html += `
+          <div style="background:rgba(255,255,255,0.02); padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.04); margin-bottom:12px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+            <div class="field" style="margin-bottom:0; flex:1; min-width:140px;">
+              <label>کدام پلتفرم؟</label>
+              <select onchange="rawJsonData['${currentPlanId}'].rules[${idx}].platform = this.value; handleDataChange();">
+                <option value="Twitter/X" ${rule.platform === 'Twitter/X' ? 'selected' : ''}>Twitter/X</option>
+                <option value="Instagram" ${rule.platform === 'Instagram' ? 'selected' : ''}>Instagram</option>
+                <option value="YouTube" ${rule.platform === 'YouTube' ? 'selected' : ''}>YouTube</option>
+                <option value="SoundCloud" ${rule.platform === 'SoundCloud' ? 'selected' : ''}>SoundCloud</option>
+                <option value="TikTok" ${rule.platform === 'TikTok' ? 'selected' : ''}>TikTok</option>
+                <option value="PornHub" ${rule.platform === 'PornHub' ? 'selected' : ''}>PornHub</option>
+                <option value="Facebook" ${rule.platform === 'Facebook' ? 'selected' : ''}>Facebook</option>
+                <option value="Vimeo" ${rule.platform === 'Vimeo' ? 'selected' : ''}>Vimeo</option>
+                <option value="RadioJavan" ${rule.platform === 'RadioJavan' ? 'selected' : ''}>RadioJavan</option>
+                <option value="Twitch" ${rule.platform === 'Twitch' ? 'selected' : ''}>Twitch</option>
+                <option value="و بیش از ۱۰۰۰ سایت دیگر" ${rule.platform === 'و بیش از ۱۰۰۰ سایت دیگر' ? 'selected' : ''}>سایر سایت‌ها</option>
+              </select>
+            </div>
+            <div class="field" style="margin-bottom:0; width:100px;">
+              <label>تعداد (خالی=بی‌نهایت)</label>
+              <input type="number" placeholder="بی‌نهایت" value="${rule.limit === null ? '' : rule.limit}" onchange="rawJsonData['${currentPlanId}'].rules[${idx}].limit = this.value === '' ? null : parseInt(this.value); handleDataChange();">
+            </div>
+            <div class="field" style="margin-bottom:0; width:120px;">
+              <label>بازه زمانی</label>
+              <select onchange="rawJsonData['${currentPlanId}'].rules[${idx}].period = this.value; handleDataChange();">
+                <option value="month" ${rule.period === 'month' ? 'selected' : ''}>در ماه</option>
+                <option value="week" ${rule.period === 'week' ? 'selected' : ''}>در هفته</option>
+                <option value="day" ${rule.period === 'day' ? 'selected' : ''}>در روز</option>
+              </select>
+            </div>
+            <div class="field" style="margin-bottom:0; width:120px;">
+              <label>سقف زمان ویدئو (ثانیه)</label>
+              <input type="number" placeholder="بدون محدودیت" value="${rule.max_duration_seconds || ''}" onchange="rawJsonData['${currentPlanId}'].rules[${idx}].max_duration_seconds = this.value === '' ? null : parseInt(this.value); handleDataChange();">
+            </div>
+            <button type="button" class="btn btn-sm" onclick="removeRule('${currentPlanId}', ${idx})" style="background:rgba(248,113,113,0.15); color:var(--red); padding:10px; height:42px;"><span class="icon">🗑️</span></button>
+          </div>
+        `;
+      });
+    } else {
+      html += `<div style="padding:15px; text-align:center; color:var(--muted); font-size:14px; border:1px dashed rgba(255,255,255,0.1); border-radius:10px;">هیچ محدودیتی هنوز اضافه نشده. (یعنی دسترسی نامحدود است)</div>`;
+    }
+    
+    html += `</div></div>`;
+    contentContainer.innerHTML = html;
+  }
+
+  // Init visual editor on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    // Only init if we are on plans tab
+    renderVisualEditor();
+  });
+</script>
 </body>
 </html>
 """
