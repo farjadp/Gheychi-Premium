@@ -23,254 +23,502 @@ PAGE_TEMPLATE = """
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>پنل مدیریت Gheychi Premium</title>
+  <title>Gheychi Premium — پنل مدیریت</title>
   <style>
     :root {
-      --bg: #f4efe7;
-      --surface: #fffdf8;
-      --ink: #172121;
-      --muted: #5f6b66;
-      --accent: #d68c45;
-      --accent-strong: #9c6644;
-      --line: #e7dccd;
-      --ok: #386641;
-      --warn: #bc6c25;
-      --hero: #132a13;
+      --bg:       #0d0f14;
+      --surface:  #13161d;
+      --card:     #1a1e28;
+      --border:   #252a38;
+      --ink:      #e8eaf0;
+      --muted:    #7a8099;
+      --accent:   #6c8aff;
+      --accent2:  #a78bfa;
+      --green:    #34d399;
+      --red:      #f87171;
+      --yellow:   #fbbf24;
+      --radius:   16px;
     }
-    * { box-sizing: border-box; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      margin: 0;
-      font-family: "SF Pro Display", "Helvetica Neue", sans-serif;
-      background:
-        radial-gradient(circle at top right, rgba(214, 140, 69, 0.24), transparent 28%),
-        linear-gradient(180deg, #f7f1e7, #efe4d2);
+      font-family: "Inter", "SF Pro Display", system-ui, sans-serif;
+      background: var(--bg);
       color: var(--ink);
+      min-height: 100vh;
     }
-    .wrap { max-width: 1320px; margin: 0 auto; padding: 28px 20px 48px; }
-    .hero {
-      background: linear-gradient(135deg, rgba(19,42,19,.96), rgba(56,102,65,.86));
-      color: white; border-radius: 30px; padding: 28px; margin-bottom: 22px;
-      box-shadow: 0 18px 50px rgba(19,42,19,.18);
+
+    /* ── Sidebar ── */
+    .sidebar {
+      position: fixed; top: 0; right: 0;
+      width: 240px; height: 100vh;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      padding: 24px 16px;
+      z-index: 100;
     }
-    .hero h1 { margin: 0 0 8px; font-size: 34px; }
-    .hero p { margin: 0; color: rgba(255,255,255,.82); }
-    .stats {
-      display: grid; grid-template-columns: repeat(4, 1fr);
-      gap: 12px; margin-top: 18px;
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 8px 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
     }
-    .stat {
-      background: rgba(255,255,255,.12);
-      border: 1px solid rgba(255,255,255,.12);
-      border-radius: 18px;
-      padding: 16px;
+    .logo-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
     }
-    .stat strong { display: block; font-size: 24px; margin-bottom: 6px; }
-    .layout {
-      display: grid;
-      grid-template-columns: 360px 1fr;
-      gap: 20px;
-      align-items: start;
+    .logo-text { font-weight: 700; font-size: 15px; line-height: 1.2; }
+    .logo-text span { display: block; font-size: 11px; color: var(--muted); font-weight: 400; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 10px;
+      color: var(--muted); font-size: 14px; font-weight: 500;
+      cursor: pointer; transition: all .15s; margin-bottom: 2px;
+      text-decoration: none; border: none; background: none; width: 100%; text-align: right;
     }
-    .stack { display: grid; gap: 20px; }
-    .card {
-      background: rgba(255,253,248,.9);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(231,220,205,.95);
-      border-radius: 24px;
-      padding: 22px;
-      box-shadow: 0 10px 30px rgba(70,52,33,.08);
+    .nav-item:hover, .nav-item.active {
+      background: rgba(108,138,255,.1); color: var(--accent);
     }
-    h2 { margin: 0 0 16px; font-size: 20px; }
-    h3 { margin: 0 0 12px; font-size: 16px; }
-    label { display: block; margin-bottom: 8px; font-weight: 600; }
-    input, select, textarea {
-      width: 100%;
-      border: 1px solid var(--line);
-      background: white;
-      color: var(--ink);
-      border-radius: 14px;
-      padding: 12px 14px;
-      font: inherit;
-      margin-bottom: 14px;
+    .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+
+    /* ── Main ── */
+    .main { margin-right: 240px; padding: 28px 32px; max-width: 1200px; }
+
+    /* ── Topbar ── */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 28px;
     }
-    textarea { min-height: 92px; resize: vertical; }
-    .checks { display: grid; gap: 10px; margin: 14px 0 18px; }
-    .checks label, .switch { font-weight: 500; }
-    .switch { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; }
-    .switch input, .checks input { width: auto; margin: 0; }
-    button {
-      border: 0; border-radius: 999px; padding: 12px 18px; font: inherit; cursor: pointer;
-      color: white; background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-    }
+    .page-title { font-size: 22px; font-weight: 700; }
     .flash {
-      background: rgba(56,102,65,.1); color: var(--ok); border: 1px solid rgba(56,102,65,.18);
-      border-radius: 16px; padding: 12px 14px; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(52,211,153,.1); color: var(--green);
+      border: 1px solid rgba(52,211,153,.2);
+      border-radius: 10px; padding: 10px 16px; font-size: 14px;
     }
-    .plans { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-    .plan {
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      padding: 16px;
-      background: rgba(255,255,255,.55);
+
+    /* ── Stats ── */
+    .stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 28px; }
+    .stat-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
     }
-    .plan strong { font-size: 18px; }
-    .price { color: var(--hero); font-weight: 700; margin: 8px 0 10px; }
-    .rule { color: var(--muted); margin: 6px 0; font-size: 14px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td {
-      text-align: right; padding: 12px 10px;
-      border-bottom: 1px solid var(--line); vertical-align: top;
+    .stat-card .label { font-size: 12px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; }
+    .stat-card .value { font-size: 32px; font-weight: 700; }
+    .stat-card .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .stat-card.green .value { color: var(--green); }
+    .stat-card.red .value { color: var(--red); }
+    .stat-card.blue .value { color: var(--accent); }
+    .stat-card.purple .value { color: var(--accent2); }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+    .tab-btn {
+      padding: 10px 18px; border-radius: 8px 8px 0 0; font-size: 14px;
+      font-weight: 500; cursor: pointer; border: none; background: none;
+      color: var(--muted); transition: all .15s; border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
     }
-    th { color: var(--muted); font-size: 13px; }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-btn:hover:not(.active) { color: var(--ink); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Grid ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px;
+    }
+    .card-title {
+      font-size: 15px; font-weight: 600; margin-bottom: 20px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-title .icon { opacity: .7; }
+
+    /* ── Form ── */
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+    .field input, .field select, .field textarea {
+      width: 100%; background: var(--surface); border: 1px solid var(--border);
+      color: var(--ink); border-radius: 10px; padding: 10px 14px;
+      font: inherit; font-size: 14px; transition: border-color .15s;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      outline: none; border-color: var(--accent);
+    }
+    .field textarea { min-height: 80px; resize: vertical; }
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+    }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-label { font-size: 14px; }
+    .toggle-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    /* iOS-style toggle */
+    .toggle { position: relative; display: inline-block; width: 42px; height: 24px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; inset: 0; background: var(--border);
+      border-radius: 24px; cursor: pointer; transition: .2s;
+    }
+    .slider:before {
+      content: ""; position: absolute;
+      width: 18px; height: 18px; left: 3px; bottom: 3px;
+      background: white; border-radius: 50%; transition: .2s;
+    }
+    .toggle input:checked + .slider { background: var(--accent); }
+    .toggle input:checked + .slider:before { transform: translateX(18px); }
+    .checks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 20px; }
+    .check-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 8px;
+      border: 1px solid var(--border); font-size: 13px; cursor: pointer;
+      transition: border-color .15s;
+    }
+    .check-item:has(input:checked) { border-color: var(--accent); background: rgba(108,138,255,.06); }
+    .check-item input { accent-color: var(--accent); width: 15px; height: 15px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 20px; border-radius: 10px; font: inherit;
+      font-size: 14px; font-weight: 600; cursor: pointer; border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white; transition: opacity .15s;
+    }
+    .btn:hover { opacity: .88; }
+    .btn-sm { padding: 7px 14px; font-size: 13px; }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      text-align: right; padding: 10px 14px;
+      color: var(--muted); font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .06em;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody td {
+      padding: 12px 14px; border-bottom: 1px solid rgba(37,42,56,.6);
+      vertical-align: top; line-height: 1.5;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: rgba(255,255,255,.02); }
+    .cell-main { font-weight: 500; }
+    .cell-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    /* ── Badges ── */
     .badge {
-      display: inline-flex; padding: 5px 10px; border-radius: 999px;
-      font-size: 12px; font-weight: 700;
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 999px;
+      font-size: 11px; font-weight: 600;
     }
-    .badge.INFO { background: rgba(56,102,65,.12); color: var(--ok); }
-    .badge.ERROR { background: rgba(188,108,37,.13); color: var(--warn); }
-    .muted { color: var(--muted); }
-    .tiny { font-size: 13px; color: var(--muted); }
-    .url { max-width: 280px; word-break: break-all; }
-    .usage-line { margin-bottom: 6px; font-size: 13px; color: var(--muted); }
-    @media (max-width: 1080px) {
-      .layout { grid-template-columns: 1fr; }
-      .stats { grid-template-columns: repeat(2, 1fr); }
-      .plans { grid-template-columns: 1fr; }
+    .badge.INFO, .badge.ok { background: rgba(52,211,153,.12); color: var(--green); }
+    .badge.ERROR, .badge.err { background: rgba(248,113,113,.12); color: var(--red); }
+    .badge.WARN { background: rgba(251,191,36,.12); color: var(--yellow); }
+    .badge.plan-free { background: rgba(122,128,153,.15); color: var(--muted); }
+    .badge.plan-starter { background: rgba(52,211,153,.12); color: var(--green); }
+    .badge.plan-standard { background: rgba(108,138,255,.15); color: var(--accent); }
+    .badge.plan-pro { background: rgba(167,139,250,.15); color: var(--accent2); }
+
+    /* ── Plan cards ── */
+    .plan-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
     }
-    @media (max-width: 700px) {
-      .stats { grid-template-columns: 1fr; }
+    .plan-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .plan-price { font-size: 24px; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+    .plan-price span { font-size: 13px; font-weight: 400; color: var(--muted); }
+    .plan-desc { font-size: 12px; color: var(--muted); margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+    .plan-rule { font-size: 12px; color: var(--muted); padding: 5px 0; display: flex; align-items: center; gap: 6px; }
+    .plan-rule::before { content: "•"; color: var(--accent); font-size: 16px; line-height: 1; }
+
+    /* ── URL cell ── */
+    .url-cell { max-width: 220px; word-break: break-all; color: var(--muted); font-size: 12px; }
+
+    /* ── Avatar ── */
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: white; flex-shrink: 0;
+    }
+    .user-cell { display: flex; align-items: center; gap: 10px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 1024px) {
+      .sidebar { display: none; }
+      .main { margin-right: 0; padding: 20px 16px; }
+      .stats { grid-template-columns: repeat(2,1fr); }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .stats { grid-template-columns: 1fr 1fr; }
+      .checks-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <section class="hero">
-      <h1>پنل مدیریت Gheychi Premium</h1>
-      <p>مدیریت محدودیت‌ها، پلن‌های اشتراک، کاربران و لاگ‌های سرویس از یک نقطه.</p>
-      <div class="stats">
-        <div class="stat"><strong>{{ stats.total_logs }}</strong><span>کل رویدادها</span></div>
-        <div class="stat"><strong>{{ stats.errors }}</strong><span>خطاها</span></div>
-        <div class="stat"><strong>{{ stats.users }}</strong><span>کاربران ثبت‌شده</span></div>
-        <div class="stat"><strong>{{ stats.paid_users }}</strong><span>اشتراک فعال پولی</span></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">✂️</div>
+      <div class="logo-text">Gheychi Premium<span>پنل مدیریت</span></div>
+    </div>
+    <button class="nav-item active" onclick="showTab('dashboard')">
+      <span class="icon">📊</span> داشبورد
+    </button>
+    <button class="nav-item" onclick="showTab('settings')">
+      <span class="icon">⚙️</span> تنظیمات
+    </button>
+    <button class="nav-item" onclick="showTab('subscriptions')">
+      <span class="icon">💳</span> اشتراک‌ها
+    </button>
+    <button class="nav-item" onclick="showTab('plans')">
+      <span class="icon">📦</span> پلن‌ها
+    </button>
+    <button class="nav-item" onclick="showTab('logs')">
+      <span class="icon">📋</span> لاگ‌ها
+    </button>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <div class="topbar">
+      <div class="page-title" id="page-title">داشبورد</div>
+      {% if saved %}
+        <div class="flash">✅ تغییرات با موفقیت ذخیره شد</div>
+      {% endif %}
+    </div>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat-card blue">
+        <div class="label">کل رویدادها</div>
+        <div class="value">{{ stats.total_logs }}</div>
+        <div class="sub">در ۲۰۰ رویداد اخیر</div>
       </div>
-    </section>
+      <div class="stat-card red">
+        <div class="label">خطاها</div>
+        <div class="value">{{ stats.errors }}</div>
+        <div class="sub">از کل رویدادها</div>
+      </div>
+      <div class="stat-card green">
+        <div class="label">کاربران</div>
+        <div class="value">{{ stats.users }}</div>
+        <div class="sub">ثبت‌شده</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="label">اشتراک فعال</div>
+        <div class="value">{{ stats.paid_users }}</div>
+        <div class="sub">پلن پولی</div>
+      </div>
+    </div>
 
-    {% if saved %}
-      <div class="flash">تنظیمات یا اشتراک کاربر با موفقیت ذخیره شد.</div>
-    {% endif %}
+    <!-- ── TAB: Dashboard ── -->
+    <div class="tab-panel active" id="tab-dashboard">
+      <div class="grid-2">
+        <!-- Recent logs preview -->
+        <div class="card">
+          <div class="card-title"><span class="icon">🕐</span> آخرین رویدادها</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>زمان</th><th>سطح</th><th>رویداد</th><th>پلتفرم</th></tr></thead>
+              <tbody>
+                {% for log in logs[:10] %}
+                <tr>
+                  <td><div class="cell-sub">{{ log.created_at[11:19] }}</div></td>
+                  <td><span class="badge {{ log.level }}">{{ log.level }}</span></td>
+                  <td><div class="cell-main">{{ log.event_type }}</div></td>
+                  <td><div class="cell-sub">{{ log.platform or "—" }}</div></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- Users preview -->
+        <div class="card">
+          <div class="card-title"><span class="icon">👥</span> کاربران اخیر</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>کاربر</th><th>پلن</th><th>وضعیت</th></tr></thead>
+              <tbody>
+                {% for user in users[:8] %}
+                <tr>
+                  <td>
+                    <div class="user-cell">
+                      <div class="avatar">{{ (user.first_name or 'U')[0] }}</div>
+                      <div>
+                        <div class="cell-main">{{ user.first_name or '—' }}</div>
+                        <div class="cell-sub">@{{ user.username or '—' }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="badge plan-{{ user.effective_plan_code }}">
+                      {{ user.effective_plan.name }}
+                    </span>
+                  </td>
+                  <td>
+                    {% if user.is_subscription_active %}
+                      <span class="badge ok">فعال</span>
+                    {% else %}
+                      <span class="badge err">منقضی</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <div class="layout">
-      <div class="stack">
-        <section class="card">
-          <h2>تنظیمات سرویس</h2>
+    <!-- ── TAB: Settings ── -->
+    <div class="tab-panel" id="tab-settings">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title"><span class="icon">⚙️</span> تنظیمات سرویس</div>
           <form method="post" action="{{ url_for('update_settings') }}">
-            <label for="max_file_size_mb">حداکثر حجم فایل برای ارسال</label>
-            <input id="max_file_size_mb" name="max_file_size_mb" type="number" min="1" max="2000" value="{{ settings.max_file_size_mb }}">
-
-            <label class="switch">
-              <input type="checkbox" name="downloads_enabled" value="1" {% if settings.downloads_enabled %}checked{% endif %}>
-              فعال بودن دانلود
-            </label>
-
-            <div class="checks">
+            <div class="field">
+              <label>حداکثر حجم فایل (مگابایت)</label>
+              <input type="number" name="max_file_size_mb" min="1" max="2000" value="{{ settings.max_file_size_mb }}">
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="toggle-label">فعال بودن دانلود</div>
+                <div class="toggle-sub">غیرفعال کردن برای تعمیر و نگهداری</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" name="downloads_enabled" value="1" {% if settings.downloads_enabled %}checked{% endif %}>
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div style="margin-top:20px; margin-bottom:10px; font-size:13px; color:var(--muted);">پلتفرم‌های مجاز</div>
+            <div class="checks-grid">
               {% for platform in all_platforms %}
-                <label>
+                <label class="check-item">
                   <input type="checkbox" name="allowed_platforms" value="{{ platform }}" {% if platform in settings.allowed_platforms %}checked{% endif %}>
                   {{ platform }}
                 </label>
               {% endfor %}
             </div>
-
-            <button type="submit">ذخیره تنظیمات</button>
+            <button class="btn" type="submit">💾 ذخیره تنظیمات</button>
           </form>
-          <p class="tiny">آخرین به‌روزرسانی: {{ settings.updated_at }}</p>
-        </section>
-
-        <section class="card">
-          <h2>اختصاص اشتراک</h2>
-          <form method="post" action="{{ url_for('assign_subscription') }}">
-            <label for="telegram_user_id">Telegram User ID</label>
-            <input id="telegram_user_id" name="telegram_user_id" type="number" required>
-
-            <label for="plan_code">پلن</label>
-            <select id="plan_code" name="plan_code">
-              {% for plan in plans %}
-                <option value="{{ plan.code }}">{{ plan.name }} - ${{ plan.price_usd }}/ماه</option>
-              {% endfor %}
-            </select>
-
-            <label for="months">تعداد ماه</label>
-            <input id="months" name="months" type="number" min="1" value="1">
-
-            <label for="assigned_note">یادداشت</label>
-            <textarea id="assigned_note" name="assigned_note" placeholder="مثلاً پرداخت Stripe / رسید دستی"></textarea>
-
-            <button type="submit">ثبت یا تمدید اشتراک</button>
-          </form>
-        </section>
+          <p style="font-size:12px;color:var(--muted);margin-top:14px;">آخرین به‌روزرسانی: {{ settings.updated_at }}</p>
+        </div>
       </div>
+    </div>
 
-      <div class="stack">
-        <section class="card">
-          <h2>کاتالوگ پلن‌ها</h2>
-          <div class="plans">
-            {% for plan in plans %}
-              <div class="plan">
-                <strong>{{ plan.name }}</strong>
-                <div class="price">${{ plan.price_usd }}/ماه</div>
-                <div class="tiny">{{ plan.description }}</div>
-                <div style="margin-top: 10px;">
-                  {% for rule in plan.rules %}
-                    <div class="rule">{{ format_rule(rule) }}</div>
-                  {% endfor %}
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-        </section>
+    <!-- ── TAB: Subscriptions ── -->
+    <div class="tab-panel" id="tab-subscriptions">
+      <div class="grid-2" style="align-items:start">
+        <div class="card">
+          <div class="card-title"><span class="icon">💳</span> اختصاص اشتراک</div>
+          <form method="post" action="{{ url_for('assign_subscription') }}">
+            <div class="field">
+              <label>Telegram User ID</label>
+              <input type="number" name="telegram_user_id" placeholder="مثلاً: 123456789" required>
+            </div>
+            <div class="field">
+              <label>پلن</label>
+              <select name="plan_code">
+                {% for plan in plans %}
+                  <option value="{{ plan.code }}">{{ plan.name }} — ${{ plan.price_usd }}/ماه</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label>تعداد ماه</label>
+              <input type="number" name="months" min="1" value="1">
+            </div>
+            <div class="field">
+              <label>یادداشت (اختیاری)</label>
+              <textarea name="assigned_note" placeholder="مثلاً: پرداخت از طریق واریز مستقیم"></textarea>
+            </div>
+            <button class="btn" type="submit">✅ ثبت یا تمدید اشتراک</button>
+          </form>
+        </div>
 
-        <section class="card">
-          <h2>کاربران و اشتراک‌ها</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>کاربر</th>
-                <th>پلن ثبت‌شده</th>
-                <th>پلن فعال</th>
-                <th>انقضا</th>
-                <th>مصرف فعلی</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for user in users %}
+        <div class="card">
+          <div class="card-title"><span class="icon">👥</span> لیست کاربران</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>کاربر</th>
+                  <th>پلن فعال</th>
+                  <th>انقضا</th>
+                  <th>مصرف</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for user in users %}
                 <tr>
                   <td>
-                    <div><strong>{{ user.first_name or '-' }}</strong></div>
-                    <div class="tiny">@{{ user.username or '-' }}</div>
-                    <div class="tiny">{{ user.telegram_user_id }}</div>
+                    <div class="user-cell">
+                      <div class="avatar">{{ (user.first_name or 'U')[0] }}</div>
+                      <div>
+                        <div class="cell-main">{{ user.first_name or '—' }}</div>
+                        <div class="cell-sub">@{{ user.username or '—' }} · {{ user.telegram_user_id }}</div>
+                      </div>
+                    </div>
                   </td>
                   <td>
-                    <div>{{ user.assigned_plan.name }}</div>
-                    <div class="tiny">{{ user.assigned_note or '' }}</div>
+                    <span class="badge plan-{{ user.effective_plan_code }}">{{ user.effective_plan.name }}</span>
+                    {% if not user.is_subscription_active and user.plan_code != 'free' %}
+                      <div class="cell-sub" style="color:var(--red)">منقضی</div>
+                    {% endif %}
+                    {% if user.assigned_note %}
+                      <div class="cell-sub">{{ user.assigned_note }}</div>
+                    {% endif %}
                   </td>
-                  <td>
-                    <div>{{ user.effective_plan.name }}</div>
-                    <div class="tiny">{% if user.is_subscription_active %}فعال{% else %}منقضی شده و به رایگان برگشته{% endif %}</div>
-                  </td>
-                  <td>{{ user.plan_expires_at or 'نامحدود' }}</td>
+                  <td><div class="cell-sub">{{ user.plan_expires_at[:10] if user.plan_expires_at else '∞' }}</div></td>
                   <td>
                     {% for line in user.usage_lines %}
-                      <div class="usage-line">{{ line }}</div>
+                      <div class="cell-sub">{{ line }}</div>
                     {% endfor %}
                   </td>
                 </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </section>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
 
-        <section class="card">
-          <h2>لاگ‌ها</h2>
+    <!-- ── TAB: Plans ── -->
+    <div class="tab-panel" id="tab-plans">
+      <div class="grid-2">
+        {% for plan in plans %}
+        <div class="plan-card">
+          <div class="plan-name">{{ plan.name }}</div>
+          <div class="plan-price">
+            {% if plan.price_usd == 0 %}رایگان{% else %}${{ plan.price_usd }}<span>/ماه</span>{% endif %}
+          </div>
+          <div class="plan-desc">{{ plan.description }}</div>
+          {% for rule in plan.rules %}
+            <div class="plan-rule">{{ format_rule(rule) }}</div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ── TAB: Logs ── -->
+    <div class="tab-panel" id="tab-logs">
+      <div class="card">
+        <div class="card-title"><span class="icon">📋</span> لاگ‌های سیستم</div>
+        <div class="table-wrap">
           <table>
             <thead>
               <tr>
@@ -284,21 +532,41 @@ PAGE_TEMPLATE = """
             </thead>
             <tbody>
               {% for log in logs %}
-                <tr>
-                  <td>{{ log.created_at }}</td>
-                  <td><span class="badge {{ log.level }}">{{ log.level }}</span></td>
-                  <td>{{ log.event_type }}</td>
-                  <td>{{ log.message }}</td>
-                  <td>{{ log.platform or "-" }}</td>
-                  <td class="url">{{ log.url or "-" }}</td>
-                </tr>
+              <tr>
+                <td><div class="cell-sub" style="white-space:nowrap">{{ log.created_at[5:19].replace('T',' ') }}</div></td>
+                <td><span class="badge {{ log.level }}">{{ log.level }}</span></td>
+                <td><div class="cell-main">{{ log.event_type }}</div></td>
+                <td style="max-width:320px"><div class="cell-sub">{{ log.message[:120] }}</div></td>
+                <td><div class="cell-sub">{{ log.platform or "—" }}</div></td>
+                <td><div class="url-cell">{{ log.url[:60] ~ '…' if log.url and log.url|length > 60 else (log.url or "—") }}</div></td>
+              </tr>
               {% endfor %}
             </tbody>
           </table>
-        </section>
+        </div>
       </div>
     </div>
-  </div>
+
+  </main>
+
+  <script>
+    const titles = {
+      dashboard: 'داشبورد', settings: 'تنظیمات',
+      subscriptions: 'اشتراک‌ها', plans: 'پلن‌ها', logs: 'لاگ‌ها'
+    };
+    function showTab(name) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.add('active');
+      document.querySelectorAll('.nav-item').forEach(b => {
+        if (b.getAttribute('onclick') === "showTab('" + name + "')") b.classList.add('active');
+      });
+      document.getElementById('page-title').textContent = titles[name];
+    }
+    {% if saved %}
+      setTimeout(() => document.querySelector('.flash') && (document.querySelector('.flash').style.opacity = '0'), 3000);
+    {% endif %}
+  </script>
 </body>
 </html>
 """

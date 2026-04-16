@@ -27,6 +27,7 @@ SUBSCRIPTION_PLANS = {
             {"platform": "Twitter/X", "limit": 13, "period": "month"},
             {"platform": "Instagram", "limit": 13, "period": "day"},
             {"platform": "YouTube", "limit": 5, "period": "week", "max_duration_seconds": 15 * 60},
+            {"platform": "PornHub", "limit": 3, "period": "month", "max_duration_seconds": 30 * 60},
         ],
     },
     "standard": {
@@ -40,6 +41,7 @@ SUBSCRIPTION_PLANS = {
             {"platform": "Instagram", "limit": None, "period": None},
             {"platform": "TikTok", "limit": 13, "period": "month"},
             {"platform": "YouTube", "limit": 10, "period": "month", "max_duration_seconds": 30 * 60},
+            {"platform": "PornHub", "limit": 5, "period": "month", "max_duration_seconds": 30 * 60},
         ],
     },
     "pro": {
@@ -55,6 +57,7 @@ SUBSCRIPTION_PLANS = {
             {"platform": "Vimeo", "limit": None, "period": None},
             {"platform": "SoundCloud", "limit": None, "period": None},
             {"platform": "YouTube", "limit": 10, "period": "month", "max_duration_seconds": 60 * 60},
+            {"platform": "PornHub", "limit": 13, "period": "month", "max_duration_seconds": 45 * 60},
         ],
     },
 }
@@ -105,6 +108,8 @@ def normalize_platform(raw_platform: str | None, url: str = "") -> str:
         return "Twitch"
     if "dailymotion.com" in host or "dailymotion" in platform:
         return "Dailymotion"
+    if "pornhub.com" in host or "pornhub" in platform:
+        return "PornHub"
     return raw_platform or "نامشخص"
 
 
