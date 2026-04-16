@@ -142,6 +142,19 @@ def init_logs_db() -> None:
         )
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS pending_requests (
+                token TEXT PRIMARY KEY,
+                telegram_user_id INTEGER,
+                chat_id INTEGER,
+                message_id INTEGER,
+                video_info_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS usage_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 telegram_user_id INTEGER NOT NULL,
@@ -508,3 +521,56 @@ def evaluate_download_access(
         "used": used,
         "remaining": rule["limit"] - used,
     }
+
+import time
+import datetime
+def save_pending_request(token: str, telegram_user_id: int, chat_id: int, message_id: int, video_info: dict) -> None:
+    ensure_data_dir()
+    now_ts = time.time()
+    created_at = _utc_now()
+    # Expire in 30 minutes
+    expires_at = datetime.datetime.fromtimestamp(now_ts + 1800, tz=datetime.timezone.utc).isoformat()
+    
+    with sqlite3.connect(LOGS_DB) as conn:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO pending_requests 
+            (token, telegram_user_id, chat_id, message_id, video_info_json, created_at, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (token, telegram_user_id, chat_id, message_id, json.dumps(video_info, ensure_ascii=False), created_at, expires_at)
+        )
+
+def get_pending_request(token: str) -> dict | None:
+    ensure_data_dir()
+    # Check if expired logically during selection
+    current_utc = _utc_now()
+    with sqlite3.connect(LOGS_DB) as conn:
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute("SELECT * FROM pending_requests WHERE token = ?", (token,))
+        row = cur.fetchone()
+        
+        if not row:
+            return None
+            
+        if row["expires_at"] < current_utc:
+            # Expired, clean it up immediately
+            conn.execute("DELETE FROM pending_requests WHERE token = ?", (token,))
+            return None
+            
+        try:
+            return json.loads(row["video_info_json"])
+        except:
+            return None
+
+def delete_pending_request(token: str) -> None:
+    ensure_data_dir()
+    with sqlite3.connect(LOGS_DB) as conn:
+        conn.execute("DELETE FROM pending_requests WHERE token = ?", (token,))
+
+def cleanup_expired_requests() -> int:
+    ensure_data_dir()
+    current_utc = _utc_now()
+    with sqlite3.connect(LOGS_DB) as conn:
+        cur = conn.execute("DELETE FROM pending_requests WHERE expires_at < ?", (current_utc,))
+        return cur.rowcount

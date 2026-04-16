@@ -466,17 +466,21 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
         },
     )
 
-    _purge_expired_requests()
     request_token = uuid.uuid4().hex[:16]
-    pending_requests[request_token] = {
-        "url": url,
-        "telegram_user_id": user.id if user else None,
-        "platform": platform_name,
-        "duration_seconds": int(info.duration) if info.duration else None,
-        "title": info.title,
-        "uploader": info.uploader,
-        "created_at": time.monotonic(),
-    }
+    save_pending_request(
+        token=request_token,
+        telegram_user_id=user.id if user else 0,
+        chat_id=update.effective_chat.id,
+        message_id=message.message_id if message else 0,
+        video_info={
+            "url": url,
+            "telegram_user_id": user.id if user else None,
+            "platform": platform_name,
+            "duration_seconds": int(info.duration) if info.duration else None,
+            "title": info.title,
+            "uploader": info.uploader
+        }
+    )
 
     caption = (
         f"*{info.title}*\n\n"
@@ -565,7 +569,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     _, quality, request_token = parts
-    request_data = pending_requests.get(request_token)
+    request_data = get_pending_request(request_token)
     if not request_data:
         await query.message.reply_text("این درخواست منقضی شده. لینک را دوباره بفرست.")
         return
@@ -585,7 +589,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     if not access["allowed"]:
         await query.message.reply_text(access["reason"])
-        pending_requests.pop(request_token, None)
+        delete_pending_request(request_token)
         return
 
     status_msg: Message = query.message
@@ -712,7 +716,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await status_msg.edit_text(f"خطا در ارسال فایل: {str(e2)[:200]}")
     finally:
         cleanup_file(result.file_path)
-        pending_requests.pop(request_token, None)
+        delete_pending_request(request_token)
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
