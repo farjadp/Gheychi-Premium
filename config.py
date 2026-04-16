@@ -18,6 +18,9 @@ USE_RAPIDAPI = os.getenv("USE_RAPIDAPI", "False").lower() == "true"
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "")
 RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST", "")
 
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+
 ALLOWED_PLATFORMS = [
     "YouTube", "TikTok", "Twitter/X", "Instagram",
     "Facebook", "Vimeo", "Dailymotion", "Reddit",
