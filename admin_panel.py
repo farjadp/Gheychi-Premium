@@ -560,6 +560,17 @@ PAGE_TEMPLATE = """
     <!-- ── TAB: Plans ── -->
     <div class="tab-panel" id="tab-plans">
       <div class="grid-2">
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-title"><span class="icon">📦</span> ویرایشگر داینامیک پکیج‌ها و محدودیت‌ها</div>
+          <p style="font-size:13px; color:var(--muted); margin-bottom:15px;">شما می‌توانید نام، قیمت دلاری، دیسکریپشن و محدودیت پلتفرم‌ها (rules) را در کادر زیر ویرایش کنید. دقت کنید که ساختار JSON نامعتبر نشود.</p>
+          <form method="post" action="{{ url_for('update_plans') }}">
+            <div class="field">
+              <textarea name="plans_json" style="font-family: monospace; direction: ltr; text-align: left; min-height: 400px; line-height: 1.4; background:#1e1e1e; color:#d4d4d4; padding:15px; border-radius:10px; width:100%;">{{ plans_json_str }}</textarea>
+            </div>
+            <button class="btn" type="submit">💾 ذخیره تغییرات پکیج‌ها</button>
+          </form>
+        </div>
+        
         {% for plan in plans %}
         <div class="plan-card">
           <div class="plan-name">{{ plan.name }}</div>
