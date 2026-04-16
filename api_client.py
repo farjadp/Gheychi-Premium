@@ -48,13 +48,13 @@ def fetch_media_from_cobalt(url: str, quality: str = "max") -> dict:
             data = json.loads(response.read().decode('utf-8'))
             status = data.get("status")
             if status in ["stream", "redirect"]:
-                return {"success": True, "url": data.get("url")}
+                return {"success": True, "url": data.get("url"), "source": "Cobalt"}
             elif status == "picker":
                 # Picker provides multiple choices, grab the best video
                 picker_items = data.get("picker", [])
                 if picker_items:
                     # just take the first one or filter by video
-                    return {"success": True, "url": picker_items[0].get("url")}
+                    return {"success": True, "url": picker_items[0].get("url"), "source": "Cobalt"}
             elif status == "error":
                 err_code = data.get("error", {}).get("code", "Unknown")
                 return {"success": False, "error": f"خطای کبالت: {err_code}"}
@@ -98,7 +98,7 @@ def fetch_media_from_rapidapi(url: str) -> dict:
             data = json.loads(response.read().decode('utf-8'))
             video_url = data.get("video_url")
             if video_url:
-                return {"success": True, "url": video_url}
+                return {"success": True, "url": video_url, "source": "RapidAPI"}
             return {"success": False, "error": "اطلاعات ویدیو در پاسخ RapidAPI یافت نشد."}
     except Exception as e:
         logger.error(f"RapidAPI Error: {str(e)}")

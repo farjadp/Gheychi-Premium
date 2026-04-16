@@ -34,6 +34,7 @@ class DownloadResult:
     file_path: Optional[str] = None
     error: Optional[str] = None
     title: Optional[str] = None
+    source: Optional[str] = None
 
 
 RADIOJAVAN_MP3_API = "https://play.radiojavan.com/api/p/mp3?id={track_id}"
@@ -235,7 +236,7 @@ async def download_video(
                     if file_size > max_file_size_bytes:
                         destination.unlink(missing_ok=True)
                         return DownloadResult(success=False, error=f"فایل از محدودیت مگابایت بزرگتر است.")
-                    return DownloadResult(success=True, file_path=str(destination), title="ویدئو")
+                    return DownloadResult(success=True, file_path=str(destination), title="ویدئو", source=api_result.get("source", "API (Cobalt)"))
             except Exception as e:
                 logger.error(f"Failed to download from API direct URL: {e}")
         else:
