@@ -260,11 +260,15 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = build_plan_catalog_text()
-    keyboard = [
-        [InlineKeyboardButton("📦 خرید استارتر ($5)", callback_data="buy_starter")],
-        [InlineKeyboardButton("🔥 خرید استاندارد ($13)", callback_data="buy_standard")],
-        [InlineKeyboardButton("💎 خرید حرفه‌ای ($23)", callback_data="buy_pro")]
-    ]
+    from plans import get_plan
+    s_plan = get_plan('starter')
+    st_plan = get_plan('standard')
+    p_plan = get_plan('pro')
+    
+    keyboard = []
+    if s_plan: keyboard.append([InlineKeyboardButton(f"📦 خرید استارتر (${s_plan['price_usd']})", callback_data="buy_starter")])
+    if st_plan: keyboard.append([InlineKeyboardButton(f"🔥 خرید استاندارد (${st_plan['price_usd']})", callback_data="buy_standard")])
+    if p_plan: keyboard.append([InlineKeyboardButton(f"💎 خرید حرفه‌ای (${p_plan['price_usd']})", callback_data="buy_pro")])
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
 
