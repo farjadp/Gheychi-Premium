@@ -209,17 +209,29 @@ async def download_video(
 
     if quality == "best":
         format_selector = (
-            "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best"
+            "bestvideo[ext=mp4]+bestaudio[ext=m4a]"
+            "/bestvideo[ext=mp4]+bestaudio"
+            "/bestvideo+bestaudio"
+            "/best[ext=mp4]"
+            "/best"
         )
     elif quality == "worst":
-        format_selector = "worstvideo+worstaudio/worst"
+        format_selector = (
+            "worstvideo[ext=mp4]+worstaudio"
+            "/worstvideo+worstaudio"
+            "/worst"
+        )
     elif quality == "audio":
-        format_selector = "bestaudio[ext=m4a]/bestaudio"
+        format_selector = "bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio"
     else:
         # Specific height, e.g. "720"
         format_selector = (
-            f"bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]/"
-            f"bestvideo[height<={quality}]+bestaudio/best[height<={quality}]/best"
+            f"bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]"
+            f"/bestvideo[height<={quality}][ext=mp4]+bestaudio"
+            f"/bestvideo[height<={quality}]+bestaudio"
+            f"/best[height<={quality}][ext=mp4]"
+            f"/best[height<={quality}]"
+            f"/best"
         )
 
     loop = asyncio.get_running_loop()
