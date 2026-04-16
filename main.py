@@ -65,17 +65,35 @@ def run_admin():
     main()
 
 
+def run_updater():
+    import time
+    import subprocess
+    while True:
+        try:
+            logger.info("Running scheduled yt-dlp update...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-U", "yt-dlp"])
+            logger.info("yt-dlp update completed successfully.")
+        except Exception as e:
+            logger.error("Failed to update yt-dlp: %s", e)
+        # Sleep for 12 hours (43200 seconds)
+        time.sleep(12 * 3600)
+
+
 if __name__ == "__main__":
     _decode_cookies()
 
     bot_proc = multiprocessing.Process(target=run_bot, name="bot", daemon=False)
     admin_proc = multiprocessing.Process(target=run_admin, name="admin", daemon=False)
+    updater_proc = multiprocessing.Process(target=run_updater, name="updater", daemon=True)
 
     bot_proc.start()
     logger.info("Bot process started (pid=%s)", bot_proc.pid)
 
     admin_proc.start()
     logger.info("Admin panel process started (pid=%s)", admin_proc.pid)
+
+    updater_proc.start()
+    logger.info("Auto-updater process started (pid=%s)", updater_proc.pid)
 
     # If either process dies, shut down both
     try:

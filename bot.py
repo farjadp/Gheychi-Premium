@@ -218,6 +218,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             username=user.username,
             first_name=user.first_name,
             last_name=user.last_name,
+            language_code=user.language_code,
         )
     subscription = get_bot_user(user.id) if user else None
     settings = load_settings()
@@ -270,6 +271,7 @@ async def myplan_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         username=user.username,
         first_name=user.first_name,
         last_name=user.last_name,
+            language_code=user.language_code,
     )
     await update.message.reply_text(build_myplan_text(user.id), parse_mode=ParseMode.MARKDOWN)
 
@@ -283,6 +285,7 @@ async def usage_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         username=user.username,
         first_name=user.first_name,
         last_name=user.last_name,
+            language_code=user.language_code,
     )
     await update.message.reply_text(build_usage_text(user.id), parse_mode=ParseMode.MARKDOWN)
 
@@ -296,6 +299,7 @@ async def mylogs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         username=user.username,
         first_name=user.first_name,
         last_name=user.last_name,
+            language_code=user.language_code,
     )
     await update.message.reply_text(build_user_logs_text(user.id))
 
@@ -333,6 +337,7 @@ async def handle_utility_callback(query, context: ContextTypes.DEFAULT_TYPE):
             username=user.username,
             first_name=user.first_name,
             last_name=user.last_name,
+            language_code=user.language_code,
         )
         await query.message.reply_text(build_myplan_text(user.id), parse_mode=ParseMode.MARKDOWN)
         return
@@ -342,6 +347,7 @@ async def handle_utility_callback(query, context: ContextTypes.DEFAULT_TYPE):
             username=user.username,
             first_name=user.first_name,
             last_name=user.last_name,
+            language_code=user.language_code,
         )
         await query.message.reply_text(build_usage_text(user.id), parse_mode=ParseMode.MARKDOWN)
         return
@@ -351,6 +357,7 @@ async def handle_utility_callback(query, context: ContextTypes.DEFAULT_TYPE):
             username=user.username,
             first_name=user.first_name,
             last_name=user.last_name,
+            language_code=user.language_code,
         )
         await query.message.reply_text(build_user_logs_text(user.id))
         return
@@ -370,6 +377,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
             username=user.username,
             first_name=user.first_name,
             last_name=user.last_name,
+            language_code=user.language_code,
         )
     settings = load_settings()
 
