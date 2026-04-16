@@ -14,6 +14,7 @@ from runtime_store import (
     init_logs_db,
     list_bot_users,
     list_logs,
+    get_dashboard_stats,
     load_settings,
     save_settings,
 )
@@ -308,7 +309,7 @@ PAGE_TEMPLATE = """
       <div class="stat-card blue">
         <div class="label">کل رویدادها</div>
         <div class="value">{{ stats.total_logs }}</div>
-        <div class="sub">در ۲۰۰ رویداد اخیر</div>
+        <div class="sub">در پایگاه داده</div>
       </div>
       <div class="stat-card red">
         <div class="label">خطاها</div>
@@ -552,6 +553,7 @@ PAGE_TEMPLATE = """
                 <th>شرح</th>
                 <th>پلتفرم</th>
                 <th>لینک</th>
+                <th>مسیر (Source)</th>
               </tr>
             </thead>
             <tbody>
@@ -563,6 +565,13 @@ PAGE_TEMPLATE = """
                 <td style="max-width:320px"><div class="cell-sub">{{ log.message[:120] }}</div></td>
                 <td><div class="cell-sub">{{ log.platform or "—" }}</div></td>
                 <td><div class="url-cell">{{ log.url[:60] ~ '…' if log.url and log.url|length > 60 else (log.url or "—") }}</div></td>
+                <td>
+                  {% if log.metadata and log.metadata.get('source') %}
+                    <span class="badge INFO">{{ log.metadata.get('source') }}</span>
+                  {% else %}
+                    <span style="color:var(--muted)">—</span>
+                  {% endif %}
+                </td>
               </tr>
               {% endfor %}
             </tbody>
@@ -753,12 +762,7 @@ def index():
     for user in users:
         user["usage_lines"] = _usage_lines_for_user(user["telegram_user_id"])
 
-    stats = {
-        "total_logs": len(logs),
-        "errors": sum(1 for item in logs if item["level"] == "ERROR"),
-        "users": len(users),
-        "paid_users": sum(1 for user in users if user["effective_plan_code"] != "free"),
-    }
+    stats = get_dashboard_stats()
     saved = request.args.get("saved") == "1"
     return render_template_string(
         PAGE_TEMPLATE,

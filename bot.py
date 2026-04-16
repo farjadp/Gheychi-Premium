@@ -589,7 +589,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "فایل با موفقیت برای کاربر ارسال شد.",
             platform=platform_name,
             url=url,
-            metadata={"quality": quality, "title": caption, "telegram_user_id": user_id},
+            metadata={"quality": quality, "title": caption, "telegram_user_id": user_id, "source": getattr(result, "source", None) if "result" in locals() else None},
         )
         record_usage_event(
             user_id,

@@ -175,6 +175,23 @@ def add_log(
         conn.commit()
 
 
+
+def get_dashboard_stats() -> dict[str, int]:
+    init_logs_db()
+    now = _utc_now()
+    with closing(sqlite3.connect(LOGS_DB)) as conn:
+        users = conn.execute("SELECT COUNT(*) FROM bot_users").fetchone()[0]
+        paid_users = conn.execute("SELECT COUNT(*) FROM bot_users WHERE plan_code != 'free' AND (plan_expires_at IS NULL OR plan_expires_at > ?)", (now,)).fetchone()[0]
+        logs = conn.execute("SELECT COUNT(*) FROM activity_logs").fetchone()[0]
+        errors = conn.execute("SELECT COUNT(*) FROM activity_logs WHERE level = 'ERROR'").fetchone()[0]
+    return {
+        "users": users,
+        "paid_users": paid_users,
+        "total_logs": logs,
+        "errors": errors
+    }
+
+
 def list_logs(limit: int = 200) -> list[dict[str, Any]]:
     init_logs_db()
     with closing(sqlite3.connect(LOGS_DB)) as conn:
