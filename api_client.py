@@ -3,6 +3,7 @@ from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 import logging
 
+from runtime_store import load_settings
 from config import USE_COBALT_API, COBALT_API_URL, USE_RAPIDAPI, RAPIDAPI_KEY, RAPIDAPI_HOST
 
 logger = logging.getLogger(__name__)
@@ -19,10 +20,12 @@ def fetch_media_from_cobalt(url: str, quality: str = "max") -> dict:
     Returns:
         dict: {"success": True/False, "url": "direct_url", "error": "error message"}
     """
-    if not COBALT_API_URL:
+    settings = load_settings()
+    cobalt_url = settings.get("cobalt_api_url", COBALT_API_URL)
+    if not cobalt_url:
         return {"success": False, "error": "آدرس دسترسی Cobalt پیکربندی نشده است."}
 
-    api_endpoint = COBALT_API_URL.rstrip('/') + "/"
+    api_endpoint = cobalt_url.rstrip('/') + "/"
     if quality not in ["max", "1080", "720", "480", "360", "audio"]:
         quality = "max"
         
@@ -106,12 +109,8 @@ def fetch_media_from_rapidapi(url: str) -> dict:
 
 def get_direct_media_url(url: str, quality: str = "max") -> dict:
     """Route the request to Cobalt or RapidAPI based on config."""
-    if USE_RAPIDAPI:
-        logger.info("Using RapidAPI for URL: %s", url)
-        # Assuming RapidAPI is mostly for Twitter/IG as requested
-        return fetch_media_from_rapidapi(url)
-    
-    if USE_COBALT_API and is_cobalt_supported_url(url):
+    settings = load_settings()
+    if settings.get("use_cobalt_api", USE_COBALT_API) and is_cobalt_supported_url(url):
         logger.info("Using Cobalt API for URL: %s", url)
         return fetch_media_from_cobalt(url, quality)
         

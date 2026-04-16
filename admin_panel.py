@@ -420,7 +420,41 @@ PAGE_TEMPLATE = """
                 </label>
               {% endfor %}
             </div>
-            <button class="btn" type="submit">💾 ذخیره تنظیمات</button>
+            
+            <div style="margin-top:24px; padding-top:16px; border-top:1px solid var(--border);">
+              <div class="card-title" style="margin-bottom:12px; font-size:14px;"><span class="icon">🔑</span> کلیدها و توکن‌های اتصال (Advanced API)</div>
+              
+              <div class="toggle-row" style="padding: 6px 0;">
+                <div>
+                  <div class="toggle-label">استفاده از API کبالت</div>
+                  <div class="toggle-sub">برای دانلود ایمن از Twitter و Instagram</div>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" name="use_cobalt_api" value="1" {% if settings.use_cobalt_api %}checked{% endif %}>
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="field" style="margin-top:10px;">
+                <label>Cobalt API URL</label>
+                <input type="text" name="cobalt_api_url" value="{{ settings.cobalt_api_url or '' }}" placeholder="https://api.cobalt.tools/">
+              </div>
+              <div class="field">
+                <label>RapidAPI Key (پشتیبان)</label>
+                <input type="password" name="rapidapi_key" value="{{ settings.rapidapi_key or '' }}" placeholder="اختیاری">
+              </div>
+              
+              <div style="margin-top:20px; font-size:13px; font-weight:600; color:var(--accent);">Stripe Payment Gateway</div>
+              <div class="field" style="margin-top:10px;">
+                <label>Stripe Secret Key (sk_live_...)</label>
+                <input type="password" name="stripe_secret_key" value="{{ settings.stripe_secret_key or '' }}" placeholder="sk_...">
+              </div>
+              <div class="field">
+                <label>Stripe Webhook Secret (whsec_...)</label>
+                <input type="password" name="stripe_webhook_secret" value="{{ settings.stripe_webhook_secret or '' }}" placeholder="whsec_...">
+              </div>
+            </div>
+            
+            <button class="btn" style="width:100%; justify-content:center; margin-top:10px;" type="submit">💾 ذخیره کل تنظیمات</button>
           </form>
           <p style="font-size:12px;color:var(--muted);margin-top:14px;">آخرین به‌روزرسانی: {{ settings.updated_at }}</p>
         </div>
@@ -777,20 +811,43 @@ def index():
         all_platforms=ALLOWED_PLATFORMS,
         format_rule=format_rule,
         flag_map=flag_map,
+        plans_json_str=__import__('json').dumps(__import__('plans').get_subscription_plans(), ensure_ascii=False, indent=2)
     )
 
+
+@app.post("/plans/update")
+@_requires_auth
+def update_plans():
+    import json
+    from plans import save_subscription_plans
+    try:
+        new_plans = json.loads(request.form.get("plans_json", "{}"))
+        save_subscription_plans(new_plans)
+        add_log("INFO", "plans_updated", "اطلاعات پکیج‌های سیستم داینامیک به‌روزرسانی شد.")
+        return redirect(url_for("index", saved="1"))
+    except Exception as e:
+        add_log("ERROR", "plans_update_failed", f"فرمت JSON برای برنامه‌ها نامعتبر بود: {e}")
+        return redirect(url_for("index"))
 
 @app.post("/settings")
 @_requires_auth
 def update_settings():
     selected_platforms = request.form.getlist("allowed_platforms")
-    settings = save_settings(
-        {
-            "max_file_size_mb": request.form.get("max_file_size_mb", 50),
-            "downloads_enabled": request.form.get("downloads_enabled") == "1",
-            "allowed_platforms": selected_platforms,
-        }
-    )
+    
+    # Load existing to preserve dynamic limits not in this form, then update
+    existing_settings = load_settings()
+    existing_settings.update({
+        "max_file_size_mb": request.form.get("max_file_size_mb", 50),
+        "downloads_enabled": request.form.get("downloads_enabled") == "1",
+        "allowed_platforms": selected_platforms,
+        "use_cobalt_api": request.form.get("use_cobalt_api") == "1",
+        "cobalt_api_url": request.form.get("cobalt_api_url", ""),
+        "rapidapi_key": request.form.get("rapidapi_key", ""),
+        "stripe_secret_key": request.form.get("stripe_secret_key", ""),
+        "stripe_webhook_secret": request.form.get("stripe_webhook_secret", ""),
+    })
+    
+    settings = save_settings(existing_settings)
     add_log(
         "INFO",
         "settings_updated",
@@ -902,9 +959,11 @@ def stripe_webhook():
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get("Stripe-Signature", "")
 
+    settings = load_settings()
+    active_webhook_secret = settings.get("stripe_webhook_secret") or STRIPE_WEBHOOK_SECRET
     try:
         event = stripe.Webhook.construct_event(
-            payload, sig_header, STRIPE_WEBHOOK_SECRET
+            payload, sig_header, active_webhook_secret
         )
     except ValueError as e:
         # Invalid payload

@@ -42,11 +42,17 @@ def ensure_data_dir() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
+from config import COBALT_API_URL, USE_COBALT_API, RAPIDAPI_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 def default_settings() -> dict[str, Any]:
     return {
         "max_file_size_mb": DEFAULT_MAX_FILE_SIZE_MB,
         "downloads_enabled": True,
         "allowed_platforms": ALLOWED_PLATFORMS,
+        "use_cobalt_api": USE_COBALT_API,
+        "cobalt_api_url": COBALT_API_URL,
+        "rapidapi_key": RAPIDAPI_KEY,
+        "stripe_secret_key": STRIPE_SECRET_KEY,
+        "stripe_webhook_secret": STRIPE_WEBHOOK_SECRET,
         "updated_at": _utc_now(),
     }
 
@@ -76,6 +82,11 @@ def save_settings(settings: dict[str, Any]) -> dict[str, Any]:
         platform for platform in normalized["allowed_platforms"] if platform in ALLOWED_PLATFORMS
     ]
     normalized["updated_at"] = _utc_now()
+    normalized["use_cobalt_api"] = bool(normalized.get("use_cobalt_api", True))
+    normalized["cobalt_api_url"] = str(normalized.get("cobalt_api_url", ""))
+    normalized["rapidapi_key"] = str(normalized.get("rapidapi_key", ""))
+    normalized["stripe_secret_key"] = str(normalized.get("stripe_secret_key", ""))
+    normalized["stripe_webhook_secret"] = str(normalized.get("stripe_webhook_secret", ""))
 
     with SETTINGS_FILE.open("w", encoding="utf-8") as f:
         json.dump(normalized, f, ensure_ascii=False, indent=2)
