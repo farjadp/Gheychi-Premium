@@ -8,7 +8,7 @@ from telegram import Bot
 import stripe
 from config import STRIPE_WEBHOOK_SECRET, BOT_TOKEN
 
-from flask import Flask, Response, jsonify, send_file, redirect, render_template_string, request, url_for
+from flask import Flask, Response, jsonify, send_file, redirect, render_template_string, request, url_for, session, abort
 
 from config import ADMIN_PASSWORD, ALLOWED_PLATFORMS
 from plans import format_rule, list_plans
@@ -25,6 +25,22 @@ from runtime_store import (
 )
 
 app = Flask(__name__)
+# Security configs
+import secrets
+app.secret_key = os.getenv("FLASK_SECRET_KEY", secrets.token_hex(24))
+app.permanent_session_lifetime = timedelta(hours=8)
+
+# Brute force tracking: { "ip": { "attempts": int, "blocked_until": float } }
+login_attempts = {}
+
+@app.before_request
+def csrf_protect():
+    if request.method == "POST" and request.endpoint not in ["login", "stripe_webhook"]:
+        token = request.form.get("csrf_token")
+        if not token or token != session.get("csrf_token"):
+            add_log("WARNING", "csrf_blocked", f"CSRF Blocked for {request.remote_addr} on {request.endpoint}")
+            return "موجودی فرم نامعتبر است (خطای امنیتی CSRF). صفحه را ریفرش کنید.", 403
+
 
 PAGE_TEMPLATE = """
 <!doctype html>
@@ -450,6 +466,7 @@ PAGE_TEMPLATE = """
         <div class="card">
           <div class="card-title"><span class="icon">⚙️</span> تنظیمات سرویس</div>
           <form method="post" action="{{ url_for('update_settings') }}">
+            <input type="hidden" name="csrf_token" value="{{ session.get(\'csrf_token\', \'\') }}">
             <div class="field">
               <label>حداکثر حجم فایل (مگابایت)</label>
               <input type="number" name="max_file_size_mb" min="1" max="2000" value="{{ settings.max_file_size_mb }}">
@@ -529,6 +546,7 @@ PAGE_TEMPLATE = """
         <div class="card">
           <div class="card-title"><span class="icon">💳</span> اختصاص اشتراک</div>
           <form method="post" action="{{ url_for('assign_subscription') }}">
+            <input type="hidden" name="csrf_token" value="{{ session.get(\'csrf_token\', \'\') }}">
             <div class="field">
               <label>Telegram User ID</label>
               <input type="number" name="telegram_user_id" placeholder="مثلاً: 123456789" required>
@@ -609,6 +627,7 @@ PAGE_TEMPLATE = """
           توجه: پیام شما با سرعت کنترل‌شده‌ای (جهت جلوگیری از بن‌شدن توسط تلگرام) به تمام کاربرانی که دیتابیس هستند ارسال می‌شود. وضعیتِ پایان در بخش لاگ‌ها مشخص خواهد شد.
         </p>
         <form method="post" action="{{ url_for('send_broadcast') }}">
+            <input type="hidden" name="csrf_token" value="{{ session.get(\'csrf_token\', \'\') }}">
           <div class="field">
             <label>متن پیام (پشتیبانی از Markdown تلگرام)</label>
             <textarea name="message_text" placeholder="مثلاً: *کاربران گرامی*
@@ -629,6 +648,7 @@ PAGE_TEMPLATE = """
           </div>
           
           <form method="post" action="{{ url_for('update_plans') }}" id="plans-form">
+            <input type="hidden" name="csrf_token" value="{{ session.get(\'csrf_token\', \'\') }}">
             <!-- Visual Editor Area -->
             <div id="visual-editor">
               <div class="tabs" id="plan-tabs" style="margin-bottom:20px;"></div>
@@ -1016,19 +1036,111 @@ def flag_map(lang_code):
 def _requires_auth(handler):
     @wraps(handler)
     def wrapped(*args, **kwargs):
-        if not ADMIN_PASSWORD:
-            return handler(*args, **kwargs)
-
-        auth = request.authorization
-        if not auth or auth.password != ADMIN_PASSWORD:
-            return Response(
-                "Authentication required",
-                401,
-                {"WWW-Authenticate": 'Basic realm="Admin Panel"'},
-            )
+        if not session.get("logged_in"):
+            return redirect(url_for("login"))
         return handler(*args, **kwargs)
 
     return wrapped
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    ip = request.remote_addr
+    now = time.time()
+    
+    # Check brute force block
+    if ip in login_attempts:
+        if login_attempts[ip]["blocked_until"] > now:
+            return "Too many failed attempts. Try again later.", 429
+        elif login_attempts[ip]["blocked_until"] <= now:
+            # Block expired
+            login_attempts[ip] = {"attempts": 0, "blocked_until": 0}
+            
+    if request.method == "GET":
+        return render_template_string(LOGIN_TEMPLATE)
+
+    # Validate login
+    password = request.form.get("password", "")
+    if ADMIN_PASSWORD and password == ADMIN_PASSWORD:
+        session.permanent = True
+        session["logged_in"] = True
+        session["csrf_token"] = secrets.token_hex(16)
+        if ip in login_attempts:
+            login_attempts[ip]["attempts"] = 0
+            
+        add_log("INFO", "admin_login", f"ورود موفق ادمین از {ip}")
+        return redirect(url_for("index"))
+    else:
+        # Register failed attempt
+        if ip not in login_attempts:
+            login_attempts[ip] = {"attempts": 0, "blocked_until": 0}
+            
+        login_attempts[ip]["attempts"] += 1
+        if login_attempts[ip]["attempts"] >= 5:
+            # Block for 15 minutes
+            login_attempts[ip]["blocked_until"] = now + 900
+            add_log("WARNING", "brute_force_blocked", f"مسدودسازی 15 دقیقه‌ای به دلیل لاگین‌های ناموفق. آدرس: {ip}")
+        else:
+            add_log("WARNING", "failed_login", f"تلاش ناموفق برای ورود. آدرس: {ip}")
+            
+        return render_template_string(LOGIN_TEMPLATE, error="رمز عبور اشتباه است.")
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+LOGIN_TEMPLATE = '''
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ورود به پنل ادمین</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700&display=swap');
+    body {
+      margin: 0; background: #0b0d14; color: #a5acca; font-family: 'Vazirmatn', sans-serif;
+      display: flex; justify-content: center; align-items: center; height: 100vh;
+      background-image: radial-gradient(circle at top right, rgba(99, 102, 241, 0.1), transparent 400px),
+                        radial-gradient(circle at bottom left, rgba(236, 72, 153, 0.1), transparent 400px);
+    }
+    .login-box {
+      background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(20px); border-radius: 24px; padding: 40px; width: 100%; max-width: 350px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align: center;
+    }
+    h2 { color: #f8fafc; margin-top: 0; margin-bottom: 30px; font-weight: 700; }
+    input {
+      width: 100%; padding: 14px 20px; margin-bottom: 20px; border-radius: 12px;
+      background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.05);
+      color: #fff; font-family: inherit; font-size: 15px; outline: none; transition: 0.2s;
+      box-sizing: border-box; text-align: left; direction: ltr;
+    }
+    input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+    .btn {
+      width: 100%; padding: 14px; border: none; border-radius: 12px;
+      background: linear-gradient(135deg, #6366f1, #ec4899); color: white;
+      font-family: inherit; font-weight: 600; font-size: 15px; cursor: pointer; transition: 0.3s;
+    }
+    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .error { color: #f43f5e; font-size: 13px; margin-bottom: 20px; background: rgba(244,63,94,0.1); padding: 10px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <h2><span style="font-size:24px; vertical-align:middle; margin-left:10px;">✂️</span> ورود به مرکز فرماندهی</h2>
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+    <form method="POST" action="/login">
+      <input type="password" name="password" placeholder="Admin Password" required autofocus>
+      <button type="submit" class="btn">ورود ایمن</button>
+    </form>
+  </div>
+</body>
+</html>
+'''
+
 
 
 def _usage_lines_for_user(telegram_user_id: int) -> list[str]:
@@ -1329,6 +1441,15 @@ def stripe_webhook():
     return jsonify(success=True), 200
 
 def main() -> None:
+    if not ADMIN_PASSWORD:
+        import sys
+        print("\n" + "="*60)
+        print("🚨 CRITICAL SECURITY ALERT: ADMIN_PASSWORD is NOT SET!")
+        print("   The admin panel cannot start natively without a password barrier.")
+        print("   Set ADMIN_PASSWORD in your Railway variables or .env file.")
+        print("="*60 + "\n")
+        sys.exit(1)
+
     import os
     init_logs_db()
     port = int(os.getenv("PORT", "8080"))
