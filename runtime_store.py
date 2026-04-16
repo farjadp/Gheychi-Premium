@@ -43,6 +43,8 @@ def ensure_data_dir() -> None:
 
 
 from config import COBALT_API_URL, USE_COBALT_API, RAPIDAPI_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+import os
+
 def default_settings() -> dict[str, Any]:
     return {
         "max_file_size_mb": DEFAULT_MAX_FILE_SIZE_MB,
@@ -51,8 +53,6 @@ def default_settings() -> dict[str, Any]:
         "use_cobalt_api": USE_COBALT_API,
         "cobalt_api_url": COBALT_API_URL,
         "rapidapi_key": RAPIDAPI_KEY,
-        "stripe_secret_key": STRIPE_SECRET_KEY,
-        "stripe_webhook_secret": STRIPE_WEBHOOK_SECRET,
         "updated_at": _utc_now(),
     }
 
@@ -69,6 +69,11 @@ def load_settings() -> dict[str, Any]:
 
     merged = default_settings()
     merged.update(settings)
+    
+    # Priority: os.environ > default_settings > settings.json
+    merged["stripe_secret_key"] = os.environ.get("STRIPE_SECRET_KEY") or settings.get("stripe_secret_key") or STRIPE_SECRET_KEY or ""
+    merged["stripe_webhook_secret"] = os.environ.get("STRIPE_WEBHOOK_SECRET") or settings.get("stripe_webhook_secret") or STRIPE_WEBHOOK_SECRET or ""
+    
     return merged
 
 
@@ -85,11 +90,14 @@ def save_settings(settings: dict[str, Any]) -> dict[str, Any]:
     normalized["use_cobalt_api"] = bool(normalized.get("use_cobalt_api", True))
     normalized["cobalt_api_url"] = str(normalized.get("cobalt_api_url", ""))
     normalized["rapidapi_key"] = str(normalized.get("rapidapi_key", ""))
-    normalized["stripe_secret_key"] = str(normalized.get("stripe_secret_key", ""))
-    normalized["stripe_webhook_secret"] = str(normalized.get("stripe_webhook_secret", ""))
+
+    # Strip Stripe keys before saving so they NEVER persist in settings.json
+    save_payload = dict(normalized)
+    save_payload.pop("stripe_secret_key", None)
+    save_payload.pop("stripe_webhook_secret", None)
 
     with SETTINGS_FILE.open("w", encoding="utf-8") as f:
-        json.dump(normalized, f, ensure_ascii=False, indent=2)
+        json.dump(save_payload, f, ensure_ascii=False, indent=2)
 
     return normalized
 

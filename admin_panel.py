@@ -525,11 +525,21 @@ PAGE_TEMPLATE = """
               <div style="margin-top:20px; font-size:13px; font-weight:600; color:var(--accent);">Stripe Payment Gateway</div>
               <div class="field" style="margin-top:10px;">
                 <label>Stripe Secret Key (sk_live_...)</label>
-                <input type="password" name="stripe_secret_key" value="{{ settings.stripe_secret_key or '' }}" placeholder="sk_...">
+                {% if env_stripe_secret_set %}
+                  <input type="text" readonly value="••••••••[last4]" style="color:var(--text-muted); background:rgba(255,255,255,0.02); cursor:not-allowed;" title="Managed via environment variable">
+                  <small style="color:var(--accent); font-size:11px;">Managed via Environment Variable <span class="tag">SECURE</span></small>
+                {% else %}
+                  <input type="password" name="stripe_secret_key" value="{{ settings.stripe_secret_key or '' }}" placeholder="sk_...">
+                {% endif %}
               </div>
               <div class="field">
                 <label>Stripe Webhook Secret (whsec_...)</label>
-                <input type="password" name="stripe_webhook_secret" value="{{ settings.stripe_webhook_secret or '' }}" placeholder="whsec_...">
+                {% if env_stripe_webhook_set %}
+                  <input type="text" readonly value="••••••••[last4]" style="color:var(--text-muted); background:rgba(255,255,255,0.02); cursor:not-allowed;" title="Managed via environment variable">
+                  <small style="color:var(--accent); font-size:11px;">Managed via Environment Variable <span class="tag">SECURE</span></small>
+                {% else %}
+                  <input type="password" name="stripe_webhook_secret" value="{{ settings.stripe_webhook_secret or '' }}" placeholder="whsec_...">
+                {% endif %}
               </div>
             </div>
             
@@ -1168,6 +1178,9 @@ def index():
 
     stats = get_dashboard_stats()
     saved = request.args.get("saved") == "1"
+    import os
+    env_stripe_secret_set = bool(os.getenv("STRIPE_SECRET_KEY"))
+    env_stripe_webhook_set = bool(os.getenv("STRIPE_WEBHOOK_SECRET"))
     return render_template_string(
         PAGE_TEMPLATE,
         settings=settings,
@@ -1179,7 +1192,9 @@ def index():
         all_platforms=ALLOWED_PLATFORMS,
         format_rule=format_rule,
         flag_map=flag_map,
-        plans_json_str=__import__('json').dumps(__import__('plans').get_subscription_plans(), ensure_ascii=False, indent=2)
+        plans_json_str=__import__('json').dumps(__import__('plans').get_subscription_plans(), ensure_ascii=False, indent=2),
+        env_stripe_secret_set=env_stripe_secret_set,
+        env_stripe_webhook_set=env_stripe_webhook_set
     )
 
 
@@ -1204,6 +1219,20 @@ def update_settings():
     
     # Load existing to preserve dynamic limits not in this form, then update
     existing_settings = load_settings()
+    
+    import os
+    env_stripe_secret = os.getenv("STRIPE_SECRET_KEY")
+    env_stripe_webhook = os.getenv("STRIPE_WEBHOOK_SECRET")
+    
+    form_stripe_secret = request.form.get("stripe_secret_key", "").strip()
+    form_stripe_webhook = request.form.get("stripe_webhook_secret", "").strip()
+    
+    # Validation logic for environment enforcement
+    if (env_stripe_secret and form_stripe_secret != env_stripe_secret) or \
+       (env_stripe_webhook and form_stripe_webhook != env_stripe_webhook):
+        add_log("WARNING", "settings_rejected", "Stripe keys are managed via environment variables and cannot be changed here")
+        return "سرور در حالت ایزوله (Environment Variables) قرار دارد. شما مجاز به دستکاری کلیدهای مالیِ Stripe از طریق پنل نیستید.", 403
+    
     existing_settings.update({
         "max_file_size_mb": request.form.get("max_file_size_mb", 50),
         "downloads_enabled": request.form.get("downloads_enabled") == "1",
@@ -1211,8 +1240,9 @@ def update_settings():
         "use_cobalt_api": request.form.get("use_cobalt_api") == "1",
         "cobalt_api_url": request.form.get("cobalt_api_url", ""),
         "rapidapi_key": request.form.get("rapidapi_key", ""),
-        "stripe_secret_key": request.form.get("stripe_secret_key", ""),
-        "stripe_webhook_secret": request.form.get("stripe_webhook_secret", ""),
+        # Only permit storing if they are empty/local
+        "stripe_secret_key": form_stripe_secret if not env_stripe_secret else "",
+        "stripe_webhook_secret": form_stripe_webhook if not env_stripe_webhook else "",
     })
     
     settings = save_settings(existing_settings)
