@@ -1,3 +1,6 @@
+import os
+import tempfile
+import zipfile
 from functools import wraps
 import asyncio
 import threading
@@ -5,7 +8,7 @@ from telegram import Bot
 import stripe
 from config import STRIPE_WEBHOOK_SECRET, BOT_TOKEN
 
-from flask import Flask, Response, jsonify, redirect, render_template_string, request, url_for
+from flask import Flask, Response, jsonify, send_file, redirect, render_template_string, request, url_for
 
 from config import ADMIN_PASSWORD, ALLOWED_PLATFORMS
 from plans import format_rule, list_plans
@@ -472,6 +475,15 @@ PAGE_TEMPLATE = """
             </div>
             
             <div style="margin-top:24px; padding-top:16px; border-top:1px solid var(--border);">
+              
+              <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:16px; margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+                <div>
+                  <div style="font-size:15px; font-weight:700; color:var(--ink); margin-bottom:4px;">پشتیبان‌گیری سخت‌افزاری (کدها + دیتابیس)</div>
+                  <div style="font-size:13px; color:var(--muted);">تمام فایل‌های پایتون، دیتابیس sqlite و JSON ها در یک فایل فشرده امن (بدون پکیج‌های حجیم) دریافت می‌شود.</div>
+                </div>
+                <a href="/backup/download" class="btn" style="background:linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)); border:1px solid rgba(255,255,255,0.1); color:var(--ink); box-shadow:none;"><span class="icon">📦</span> ایجاد و دانلود فایل ZIP پشتیبان</a>
+              </div>
+              
               <div class="card-title" style="margin-bottom:12px; font-size:14px;"><span class="icon">🔑</span> کلیدها و توکن‌های اتصال (Advanced API)</div>
               
               <div class="toggle-row" style="padding: 6px 0;">
@@ -1177,6 +1189,39 @@ def _send_broadcast_background(text: str, user_ids: list):
     asyncio.set_event_loop(loop)
     loop.run_until_complete(_send_all())
     loop.close()
+
+
+@app.get("/backup/download")
+@requires_auth
+def download_backup():
+    # Directories/Files to include
+    include_dirs = ['data']
+    include_files = ['bot.py', 'admin_panel.py', 'config.py', 'runtime_store.py', 'plans.py', 'main.py', 'requirements.txt', 'api_client.py', 'downloader.py', '.env']
+    
+    # Create a temporary directory
+    temp_dir = tempfile.mkdtemp()
+    zip_path = os.path.join(temp_dir, 'gheychi_backup.zip')
+    
+    try:
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            # Add files
+            for file_name in include_files:
+                if os.path.exists(file_name):
+                    zipf.write(file_name)
+                    
+            # Add data directory recursively
+            for dir_name in include_dirs:
+                if os.path.exists(dir_name):
+                    for root, _, files in os.walk(dir_name):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            arcname = os.path.relpath(file_path, os.path.dirname(dir_name))
+                            zipf.write(file_path, arcname)
+                            
+        add_log("INFO", "system_backup", "یک نسخه پشتیبان کامل از سیستم استخراج شد.")
+        return send_file(zip_path, as_attachment=True, download_name='gheychi_premium_backup.zip', mimetype='application/zip')
+    except Exception as e:
+        return f"Backup failed: {str(e)}", 500
 
 @app.post("/broadcast")
 @_requires_auth
