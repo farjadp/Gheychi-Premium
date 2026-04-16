@@ -207,31 +207,34 @@ async def download_video(
             error="لینک RadioJavan فقط به‌صورت فایل صوتی قابل دانلود است.",
         )
 
+    # H.264 (avc) is the only codec Telegram inline player supports reliably.
+    # We try H.264 first, then fall back to anything and re-encode via ffmpeg.
     if quality == "best":
         format_selector = (
-            "bestvideo[ext=mp4]+bestaudio[ext=m4a]"
-            "/bestvideo[ext=mp4]+bestaudio"
+            "bestvideo[vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]"
+            "/bestvideo[vcodec^=avc]+bestaudio[ext=m4a]"
+            "/bestvideo[vcodec^=avc]+bestaudio"
+            "/bestvideo[ext=mp4]+bestaudio[ext=m4a]"
             "/bestvideo+bestaudio"
-            "/best[ext=mp4]"
-            "/best"
+            "/best[ext=mp4]/best"
         )
     elif quality == "worst":
         format_selector = (
-            "worstvideo[ext=mp4]+worstaudio"
-            "/worstvideo+worstaudio"
-            "/worst"
+            "worstvideo[vcodec^=avc][ext=mp4]+worstaudio"
+            "/worstvideo[vcodec^=avc]+worstaudio"
+            "/worstvideo+worstaudio/worst"
         )
     elif quality == "audio":
         format_selector = "bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio"
     else:
         # Specific height, e.g. "720"
         format_selector = (
-            f"bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]"
-            f"/bestvideo[height<={quality}][ext=mp4]+bestaudio"
+            f"bestvideo[height<={quality}][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]"
+            f"/bestvideo[height<={quality}][vcodec^=avc]+bestaudio[ext=m4a]"
+            f"/bestvideo[height<={quality}][vcodec^=avc]+bestaudio"
+            f"/bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]"
             f"/bestvideo[height<={quality}]+bestaudio"
-            f"/best[height<={quality}][ext=mp4]"
-            f"/best[height<={quality}]"
-            f"/best"
+            f"/best[height<={quality}]/best"
         )
 
     loop = asyncio.get_running_loop()
@@ -257,6 +260,18 @@ async def download_video(
             "preferedformat": "mp4",
         }
     ]
+    # Force H.264 + AAC re-encode so Telegram inline player always works.
+    # Only triggered when the downloaded codec is NOT already H.264.
+    opts["postprocessor_args"] = {
+        "ffmpeg": [
+            "-vcodec", "libx264",
+            "-acodec", "aac",
+            "-crf", "23",
+            "-preset", "fast",
+            "-movflags", "+faststart",
+        ]
+    }
+    opts["prefer_ffmpeg"] = True
 
     def _download():
         with yt_dlp.YoutubeDL(opts) as ydl:
