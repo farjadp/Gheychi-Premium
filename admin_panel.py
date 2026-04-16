@@ -27,6 +27,7 @@ from runtime_store import (
 app = Flask(__name__)
 # Security configs
 import secrets
+from datetime import timedelta
 app.secret_key = os.getenv("FLASK_SECRET_KEY", secrets.token_hex(24))
 app.permanent_session_lifetime = timedelta(hours=8)
 

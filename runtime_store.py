@@ -523,13 +523,12 @@ def evaluate_download_access(
     }
 
 import time
-import datetime
 def save_pending_request(token: str, telegram_user_id: int, chat_id: int, message_id: int, video_info: dict) -> None:
     ensure_data_dir()
     now_ts = time.time()
     created_at = _utc_now()
     # Expire in 30 minutes
-    expires_at = datetime.datetime.fromtimestamp(now_ts + 1800, tz=datetime.timezone.utc).isoformat()
+    expires_at = datetime.fromtimestamp(now_ts + 1800, tz=timezone.utc).isoformat()
     
     with sqlite3.connect(LOGS_DB) as conn:
         conn.execute(
