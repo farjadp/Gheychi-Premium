@@ -14,7 +14,8 @@ SUPPORT_CONTACT = os.getenv("SUPPORT_CONTACT", "")
 ALLOWED_PLATFORMS = [
     "YouTube", "TikTok", "Twitter/X", "Instagram",
     "Facebook", "Vimeo", "Dailymotion", "Reddit",
-    "Twitch", "SoundCloud", "RadioJavan", "و بیش از ۱۰۰۰ سایت دیگر",
+    "Twitch", "SoundCloud", "RadioJavan", "PornHub",
+    "و بیش از ۱۰۰۰ سایت دیگر",
 ]
 
 SUPPORTED_PLATFORMS = ALLOWED_PLATFORMS
