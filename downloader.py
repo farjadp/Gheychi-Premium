@@ -13,7 +13,10 @@ import yt_dlp
 
 from config import DOWNLOAD_DIR
 from runtime_store import get_max_file_size_bytes
+from api_client import get_direct_media_url, is_cobalt_supported_url
+import logging
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class VideoInfo:
@@ -146,6 +149,16 @@ async def get_video_info(url: str) -> VideoInfo:
             formats=[],
         )
 
+    if is_cobalt_supported_url(url):
+        return VideoInfo(
+            title="ویدئو از طریق API",
+            duration=None,
+            uploader="کاربر",
+            platform="API (Cobalt/Rapid)",
+            thumbnail=None,
+            formats=[],
+        )
+
     opts = {
         "ignoreconfig": True,
         "quiet": True,
@@ -206,6 +219,27 @@ async def download_video(
             success=False,
             error="لینک RadioJavan فقط به‌صورت فایل صوتی قابل دانلود است.",
         )
+
+    if is_cobalt_supported_url(url):
+        loop = asyncio.get_running_loop()
+        api_result = await loop.run_in_executor(None, lambda: get_direct_media_url(url, quality))
+        if api_result["success"]:
+            direct_url = api_result["url"]
+            destination = download_dir / f"{request_id}.mp4"
+            try:
+                def _do_download():
+                    _download_file(direct_url, destination, progress_callback)
+                await loop.run_in_executor(None, _do_download)
+                if destination.exists():
+                    file_size = destination.stat().st_size
+                    if file_size > max_file_size_bytes:
+                        destination.unlink(missing_ok=True)
+                        return DownloadResult(success=False, error=f"فایل از محدودیت مگابایت بزرگتر است.")
+                    return DownloadResult(success=True, file_path=str(destination), title="ویدئو")
+            except Exception as e:
+                logger.error(f"Failed to download from API direct URL: {e}")
+        else:
+            logger.warning(f"API attempt failed: {api_result.get('error')}. Falling back to yt-dlp...")
 
     # H.264 (avc) is the only codec Telegram inline player supports reliably.
     # We try H.264 first, then fall back to anything and re-encode via ffmpeg.

@@ -111,6 +111,7 @@ def init_logs_db() -> None:
                 username TEXT,
                 first_name TEXT,
                 last_name TEXT,
+                language_code TEXT,
                 plan_code TEXT NOT NULL DEFAULT 'free',
                 plan_started_at TEXT,
                 plan_expires_at TEXT,
@@ -143,6 +144,11 @@ def init_logs_db() -> None:
             ON usage_events (telegram_user_id, platform, created_at)
             """
         )
+        try:
+            conn.execute("ALTER TABLE bot_users ADD COLUMN language_code TEXT")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+
         conn.commit()
 
 
@@ -209,6 +215,7 @@ def upsert_bot_user(
     username: str | None = None,
     first_name: str | None = None,
     last_name: str | None = None,
+    language_code: str | None = None,
 ) -> None:
     init_logs_db()
     now = _utc_now()
@@ -216,13 +223,14 @@ def upsert_bot_user(
         conn.execute(
             """
             INSERT INTO bot_users (
-                telegram_user_id, username, first_name, last_name, plan_code,
+                telegram_user_id, username, first_name, last_name, language_code, plan_code,
                 plan_started_at, plan_expires_at, assigned_note, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, 'free', ?, NULL, NULL, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, 'free', ?, NULL, NULL, ?, ?)
             ON CONFLICT(telegram_user_id) DO UPDATE SET
                 username = COALESCE(excluded.username, bot_users.username),
                 first_name = COALESCE(excluded.first_name, bot_users.first_name),
                 last_name = COALESCE(excluded.last_name, bot_users.last_name),
+                language_code = COALESCE(excluded.language_code, bot_users.language_code),
                 updated_at = excluded.updated_at
             """,
             (
@@ -230,6 +238,7 @@ def upsert_bot_user(
                 username or None,
                 first_name or None,
                 last_name or None,
+                language_code or None,
                 now,
                 now,
                 now,
@@ -256,7 +265,7 @@ def get_bot_user(telegram_user_id: int) -> dict[str, Any]:
         conn.row_factory = sqlite3.Row
         row = conn.execute(
             """
-            SELECT telegram_user_id, username, first_name, last_name, plan_code,
+            SELECT telegram_user_id, username, first_name, last_name, language_code, plan_code,
                    plan_started_at, plan_expires_at, assigned_note, created_at, updated_at
             FROM bot_users
             WHERE telegram_user_id = ?
@@ -307,7 +316,7 @@ def list_bot_users(limit: int = 200) -> list[dict[str, Any]]:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
             """
-            SELECT telegram_user_id, username, first_name, last_name, plan_code,
+            SELECT telegram_user_id, username, first_name, last_name, language_code, plan_code,
                    plan_started_at, plan_expires_at, assigned_note, created_at, updated_at
             FROM bot_users
             ORDER BY updated_at DESC

@@ -1,4 +1,7 @@
 from functools import wraps
+import asyncio
+import threading
+from telegram import Bot
 
 from flask import Flask, Response, jsonify, redirect, render_template_string, request, url_for
 
@@ -282,6 +285,9 @@ PAGE_TEMPLATE = """
     <button class="nav-item" onclick="showTab('plans')">
       <span class="icon">📦</span> پلن‌ها
     </button>
+    <button class="nav-item" onclick="showTab('broadcast')">
+      <span class="icon">📢</span> پیام سراسری
+    </button>
     <button class="nav-item" onclick="showTab('logs')">
       <span class="icon">📋</span> لاگ‌ها
     </button>
@@ -356,7 +362,7 @@ PAGE_TEMPLATE = """
                     <div class="user-cell">
                       <div class="avatar">{{ (user.first_name or 'U')[0] }}</div>
                       <div>
-                        <div class="cell-main">{{ user.first_name or '—' }}</div>
+                        <div class="cell-main">{{ user.first_name or '—' }} <span style="font-size:11px">{{ flag_map(user.language_code) if user.language_code else '' }}</span></div>
                         <div class="cell-sub">@{{ user.username or '—' }}</div>
                       </div>
                     </div>
@@ -467,7 +473,7 @@ PAGE_TEMPLATE = """
                     <div class="user-cell">
                       <div class="avatar">{{ (user.first_name or 'U')[0] }}</div>
                       <div>
-                        <div class="cell-main">{{ user.first_name or '—' }}</div>
+                        <div class="cell-main">{{ user.first_name or '—' }} <span style="font-size:11px">{{ flag_map(user.language_code) if user.language_code else '' }}</span></div>
                         <div class="cell-sub">@{{ user.username or '—' }} · {{ user.telegram_user_id }}</div>
                       </div>
                     </div>
@@ -493,6 +499,24 @@ PAGE_TEMPLATE = """
             </table>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: Broadcast ── -->
+    <div class="tab-panel" id="tab-broadcast">
+      <div class="card">
+        <div class="card-title"><span class="icon">📢</span> ارسال پیام سراسری (Broadcast)</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+          توجه: پیام شما با سرعت کنترل‌شده‌ای (جهت جلوگیری از بن‌شدن توسط تلگرام) به تمام کاربرانی که دیتابیس هستند ارسال می‌شود. وضعیتِ پایان در بخش لاگ‌ها مشخص خواهد شد.
+        </p>
+        <form method="post" action="{{ url_for('send_broadcast') }}">
+          <div class="field">
+            <label>متن پیام (پشتیبانی از Markdown تلگرام)</label>
+            <textarea name="message_text" placeholder="مثلاً: *کاربران گرامی*
+تخفیف ویژه آغاز شد!" style="min-height: 150px" required></textarea>
+          </div>
+          <button class="btn" type="submit">🚀 شروع ارسال سراسری به {{ stats.users }} کاربر</button>
+        </form>
       </div>
     </div>
 
@@ -551,7 +575,7 @@ PAGE_TEMPLATE = """
 
   <script>
     const titles = {
-      dashboard: 'داشبورد', settings: 'تنظیمات',
+      dashboard: 'داشبورد', settings: 'تنظیمات', broadcast: 'پیام سراسری',
       subscriptions: 'اشتراک‌ها', plans: 'پلن‌ها', logs: 'لاگ‌ها'
     };
     function showTab(name) {
@@ -566,10 +590,126 @@ PAGE_TEMPLATE = """
     {% if saved %}
       setTimeout(() => document.querySelector('.flash') && (document.querySelector('.flash').style.opacity = '0'), 3000);
     {% endif %}
+
+    // --- Table Pagination & Sorting ---
+    function makeTableInteractive(tableId, rowsPerPage) {
+      const table = document.getElementById(tableId);
+      if (!table) return;
+      const tbody = table.querySelector('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      let currentPage = 1;
+      let currentSortCol = -1;
+      let sortDir = 1;
+
+      // Add wrapper for pagination controls
+      const controls = document.createElement('div');
+      controls.className = 'pagination-controls';
+      controls.style.display = 'flex';
+      controls.style.justifyContent = 'space-between';
+      controls.style.alignItems = 'center';
+      controls.style.marginTop = '15px';
+      controls.style.fontSize = '13px';
+      
+      const infoSpan = document.createElement('span');
+      infoSpan.style.color = 'var(--muted)';
+      const btnGroup = document.createElement('div');
+      btnGroup.style.display = 'flex';
+      btnGroup.style.gap = '5px';
+      
+      const prevBtn = document.createElement('button');
+      prevBtn.textContent = 'قبلی';
+      prevBtn.className = 'btn btn-sm';
+      const nextBtn = document.createElement('button');
+      nextBtn.textContent = 'بعدی';
+      nextBtn.className = 'btn btn-sm';
+      
+      btnGroup.appendChild(prevBtn);
+      btnGroup.appendChild(nextBtn);
+      controls.appendChild(infoSpan);
+      controls.appendChild(btnGroup);
+      table.parentElement.appendChild(controls);
+
+      function renderTable() {
+        const totalPages = Math.ceil(rows.length / rowsPerPage) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        
+        infoSpan.textContent = `صفحه ${currentPage} از ${totalPages} (تعداد کل: ${rows.length})`;
+        
+        tbody.innerHTML = '';
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+        rows.slice(start, end).forEach(r => tbody.appendChild(r));
+        
+        prevBtn.disabled = currentPage === 1;
+        nextBtn.disabled = currentPage === totalPages;
+        prevBtn.style.opacity = prevBtn.disabled ? '0.5' : '1';
+        nextBtn.style.opacity = nextBtn.disabled ? '0.5' : '1';
+      }
+
+      function sortTable(colIndex) {
+        if (currentSortCol === colIndex) {
+          sortDir *= -1;
+        } else {
+          currentSortCol = colIndex;
+          sortDir = 1;
+        }
+        rows.sort((a, b) => {
+          const aText = a.children[colIndex].textContent.trim();
+          const bText = b.children[colIndex].textContent.trim();
+          return aText.localeCompare(bText, 'fa') * sortDir;
+        });
+        renderTable();
+      }
+
+      // Add sort listeners to headers
+      const ths = table.querySelectorAll('thead th');
+      ths.forEach((th, idx) => {
+        th.style.cursor = 'pointer';
+        th.title = 'برای مرتب‌سازی کلیک کنید';
+        th.addEventListener('click', () => {
+           sortTable(idx);
+           ths.forEach(h => h.textContent = h.textContent.replace(' ↕', '').replace(' ↓', '').replace(' ↑', ''));
+           th.textContent += sortDir === 1 ? ' ↓' : ' ↑';
+        });
+      });
+
+      prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderTable(); } });
+      nextBtn.addEventListener('click', () => { if (currentPage < Math.ceil(rows.length / rowsPerPage)) { currentPage++; renderTable(); } });
+
+      // Init
+      ths.forEach(h => h.textContent += ' ↕');
+      renderTable();
+    }
+
+    // Initialize tables once dom is loaded
+    document.addEventListener("DOMContentLoaded", () => {
+      // Add ids to tables first
+      const usersTable = document.querySelector('#tab-subscriptions table');
+      if (usersTable) usersTable.id = 'usersTable';
+      const logsTable = document.querySelector('#tab-logs table');
+      if (logsTable) logsTable.id = 'logsTable';
+      
+      makeTableInteractive('usersTable', 10);
+      makeTableInteractive('logsTable', 15);
+    });
+
   </script>
 </body>
 </html>
 """
+
+
+def flag_map(lang_code):
+    if not lang_code: return ""
+    code = lang_code.lower()[:2]
+    # Simple mapping
+    flags = {
+        'fa': '🇮🇷', 'en': '🇺🇸', 'ar': '🇸🇦', 'ru': '🇷🇺', 'tr': '🇹🇷',
+        'es': '🇪🇸', 'fr': '🇫🇷', 'de': '🇩🇪', 'it': '🇮🇹', 'zh': '🇨🇳',
+        'ja': '🇯🇵', 'ko': '🇰🇷', 'hi': '🇮🇳', 'pt': '🇵🇹', 'nl': '🇳🇱'
+    }
+    return flags.get(code, f"🌍({code})")
 
 
 def _requires_auth(handler):
@@ -630,6 +770,7 @@ def index():
         saved=saved,
         all_platforms=ALLOWED_PLATFORMS,
         format_rule=format_rule,
+        flag_map=flag_map,
     )
 
 
@@ -701,6 +842,53 @@ def users_api():
         user["usage_lines"] = _usage_lines_for_user(user["telegram_user_id"])
     return jsonify(users)
 
+
+
+def _send_broadcast_background(text: str, user_ids: list):
+    from config import BOT_TOKEN
+    import time
+    
+    async def _send_all():
+        bot = Bot(token=BOT_TOKEN)
+        success_count = 0
+        error_count = 0
+        for uid in user_ids:
+            try:
+                await bot.send_message(chat_id=uid, text=text, parse_mode="Markdown")
+                success_count += 1
+            except Exception as e:
+                error_count += 1
+            await asyncio.sleep(0.05)
+            
+        add_log(
+            "INFO",
+            "broadcast_completed",
+            f"ارسال سراسری پایان یافت. موفق: {success_count}، ناموفق: {error_count}"
+        )
+        
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(_send_all())
+    loop.close()
+
+@app.post("/broadcast")
+@_requires_auth
+def send_broadcast():
+    text = request.form.get("message_text", "").strip()
+    if not text:
+        return redirect(url_for("index"))
+        
+    users = list_bot_users(limit=1000000)
+    user_ids = [u["telegram_user_id"] for u in users]
+    
+    add_log(
+        "INFO",
+        "broadcast_started",
+        f"ارسال پیام سراسری برای {len(user_ids)} کاربر آغاز شد."
+    )
+    
+    threading.Thread(target=_send_broadcast_background, args=(text, user_ids), daemon=True).start()
+    return redirect(url_for("index", saved="1"))
 
 def main() -> None:
     import os
