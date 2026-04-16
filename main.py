@@ -61,8 +61,8 @@ def run_bot():
 
 
 def run_admin():
-    from admin_panel import main
-    main()
+    from admin_panel import run_admin_panel
+    run_admin_panel()
 
 
 def run_updater():
