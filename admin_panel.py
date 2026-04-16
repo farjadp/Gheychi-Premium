@@ -1192,7 +1192,7 @@ def _send_broadcast_background(text: str, user_ids: list):
 
 
 @app.get("/backup/download")
-@requires_auth
+@_requires_auth
 def download_backup():
     # Directories/Files to include
     include_dirs = ['data']
