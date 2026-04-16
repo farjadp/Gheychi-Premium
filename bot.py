@@ -494,11 +494,66 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await status_msg.edit_text(caption, reply_markup=keyboard)
 
 
+async def handle_buy_plan(query, context, plan_code):
+    user = query.from_user
+    settings = load_settings()
+    stripe_key = settings.get("stripe_secret_key")
+    if not stripe_key:
+        await query.message.reply_text("❌ سیستم پرداخت استرایپ هنوز در پنل ادمین تنظیم نشده است.")
+        return
+
+    stripe.api_key = stripe_key
+    from plans import get_plan
+    plan = get_plan(plan_code)
+    if not plan or plan.get("price_usd", 0) == 0:
+        await query.message.reply_text("❌ این پکیج نامعتبر است یا امکان خرید مستقیم آن وجود ندارد.")
+        return
+
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'product_data': {
+                        'name': plan['name'],
+                        'description': f"خرید اشتراک ماهانه {plan['name']} ربات تلگرام",
+                    },
+                    'unit_amount': int(plan['price_usd'] * 100),
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=f"https://t.me/gheychipremium_bot?start=success",
+            cancel_url=f"https://t.me/gheychipremium_bot?start=cancel",
+            client_reference_id=f"{user.id}_{plan_code}",
+            metadata={
+                "telegram_user_id": user.id,
+                "plan_code": plan_code
+            }
+        )
+        
+        keyboard = [[InlineKeyboardButton("💳 انتقال به درگاه پرداخت استرایپ", url=session.url)]]
+        await query.message.reply_text(
+            f"فاکتور رسمی برای **{plan['name']}** صادر شد.\n\n"
+            f"مبلغ: `${plan['price_usd']}`\n\n"
+            "لطفاً از طریق دکمه زیر پرداخت را انجام دهید. پس از پرداخت، اشتراک شما بلافاصله فعال می‌شود.",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    except Exception as e:
+        logger.error(f"Stripe Error: {str(e)}")
+        await query.message.reply_text(f"❌ خطا در ایجاد فاکتور استرایپ:\n`{str(e)[:200]}`", parse_mode=ParseMode.MARKDOWN)
+
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     data = query.data
+    if data.startswith("buy_"):
+        plan_code = data.split("_")[1]
+        await handle_buy_plan(query, context, plan_code)
+        return
     if data.startswith("util|"):
         await handle_utility_callback(query, context)
         return
