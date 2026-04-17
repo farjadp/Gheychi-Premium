@@ -101,7 +101,8 @@ def fetch_media_from_rapidapi(url: str) -> dict:
         headers={
             "X-RapidAPI-Key": rapid_key,
             "X-RapidAPI-Host": rapid_host,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         },
         method="POST"
     )

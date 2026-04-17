@@ -243,34 +243,16 @@ async def download_video(
             logger.warning(f"API attempt failed: {api_result.get('error')}. Falling back to yt-dlp...")
 
     # H.264 (avc) is the only codec Telegram inline player supports reliably.
-    # We try H.264 first, then fall back to anything and re-encode via ffmpeg.
+    # We use a format selector that does NOT require merging (to avoid ffmpeg dependency).
     if quality == "best":
-        format_selector = (
-            "bestvideo[vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]"
-            "/bestvideo[vcodec^=avc]+bestaudio[ext=m4a]"
-            "/bestvideo[vcodec^=avc]+bestaudio"
-            "/bestvideo[ext=mp4]+bestaudio[ext=m4a]"
-            "/bestvideo+bestaudio"
-            "/best[ext=mp4]/best"
-        )
+        format_selector = "best[vcodec^=avc][ext=mp4]/best[ext=mp4]/best"
     elif quality == "worst":
-        format_selector = (
-            "worstvideo[vcodec^=avc][ext=mp4]+worstaudio"
-            "/worstvideo[vcodec^=avc]+worstaudio"
-            "/worstvideo+worstaudio/worst"
-        )
+        format_selector = "worst[ext=mp4]/worst"
     elif quality == "audio":
         format_selector = "bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio"
     else:
         # Specific height, e.g. "720"
-        format_selector = (
-            f"bestvideo[height<={quality}][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]"
-            f"/bestvideo[height<={quality}][vcodec^=avc]+bestaudio[ext=m4a]"
-            f"/bestvideo[height<={quality}][vcodec^=avc]+bestaudio"
-            f"/bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]"
-            f"/bestvideo[height<={quality}]+bestaudio"
-            f"/best[height<={quality}]/best"
-        )
+        format_selector = f"best[height<={quality}][vcodec^=avc][ext=mp4]/best[height<={quality}][ext=mp4]/best"
 
     loop = asyncio.get_running_loop()
     downloaded_files: list[str] = []
