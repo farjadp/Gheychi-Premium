@@ -1,3 +1,7 @@
+"""
+ربات هوشمند و هندلرهای تلگرامی (Telegram Bot Engine)
+تمامی تعاملات با کلاینت‌های تلگرام، دکمه‌های شیشه‌ای، و درخواست‌های دانلود در این فایل پردازش می‌شوند.
+"""
 import logging
 import re
 import asyncio
@@ -47,6 +51,7 @@ from runtime_store import (
     get_pending_request,
     delete_pending_request,
     cleanup_expired_requests,
+    record_transaction,
 )
 
 logging.basicConfig(
@@ -402,7 +407,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "INFO",
             "download_rejected",
             "درخواست به دلیل غیرفعال بودن دانلود رد شد.",
-            metadata={"telegram_user_id": user.id if user else None},
+            metadata={"source": "تلگرام ربات", "telegram_user_id": user.id if user else None},
         )
         return
 
@@ -434,7 +439,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "درخواست به دلیل محدودیت پلتفرم رد شد.",
             platform=platform_name,
             url=url,
-            metadata={"telegram_user_id": user.id if user else None},
+            metadata={"source": "تلگرام ربات", "telegram_user_id": user.id if user else None},
         )
         await status_msg.edit_text("این پلتفرم در پنل مدیریت غیرفعال شده است.")
         return
@@ -451,7 +456,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
             access["reason"],
             platform=platform_name,
             url=url,
-            metadata={"telegram_user_id": user.id if user else None},
+            metadata={"source": "تلگرام ربات", "telegram_user_id": user.id if user else None},
         )
         await status_msg.edit_text(access["reason"])
         return
@@ -462,7 +467,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "اطلاعات ویدئو با موفقیت دریافت شد.",
         platform=platform_name,
         url=url,
-        metadata={
+        metadata={"source": "تلگرام ربات", 
             "title": info.title,
             "duration": info.duration,
             "telegram_user_id": user.id if user else None,
@@ -535,10 +540,20 @@ async def handle_buy_plan(query, context, plan_code):
             success_url=f"https://t.me/gheychipremium_bot?start=success",
             cancel_url=f"https://t.me/gheychipremium_bot?start=cancel",
             client_reference_id=f"{user.id}_{plan_code}",
-            metadata={
+            metadata={"source": "تلگرام ربات", 
                 "telegram_user_id": user.id,
                 "plan_code": plan_code
             }
+        )
+        
+        # 1) Log the pending transaction in DB
+        record_transaction(
+            tx_id=session.id,
+            telegram_user_id=user.id,
+            amount_usd=float(plan['price_usd']),
+            payment_method="Stripe",
+            status="Pending",
+            plan_code=plan_code
         )
         
         keyboard = [[InlineKeyboardButton("💳 انتقال به درگاه پرداخت استرایپ", url=session.url)]]
@@ -621,7 +636,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             result.error or "خطای نامشخص",
             platform=platform_name,
             url=url,
-            metadata={"telegram_user_id": user_id},
+            metadata={"source": "تلگرام ربات", "telegram_user_id": user_id},
         )
         await status_msg.edit_text(f"خطا: {result.error}")
         return
@@ -663,7 +678,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "فایل با موفقیت برای کاربر ارسال شد.",
             platform=platform_name,
             url=url,
-            metadata={"quality": quality, "title": caption, "telegram_user_id": user_id, "source": getattr(result, "source", None) if "result" in locals() else None},
+            metadata={"source": "تلگرام ربات", "quality": quality, "title": caption, "telegram_user_id": user_id},
         )
         record_usage_event(
             user_id,
@@ -672,13 +687,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             media_kind="audio" if quality == "audio" else "video",
             quality=quality,
             duration_seconds=duration_seconds,
-            metadata={"title": caption},
+            metadata={"source": "تلگرام ربات", "title": caption},
         )
         await status_msg.delete()
 
     except Exception as e:
         logger.error("Send error: %s", e)
-        add_log("ERROR", "send_failed", str(e)[:200], platform=platform_name, url=url, metadata={"telegram_user_id": user_id})
+        add_log("ERROR", "send_failed", str(e)[:200], platform=platform_name, url=url, metadata={"source": "تلگرام ربات", "telegram_user_id": user_id})
         # Try sending as document if video send fails
         try:
             with open(file_path, "rb") as f:
@@ -696,7 +711,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "فایل به‌صورت document ارسال شد.",
                 platform=platform_name,
                 url=url,
-                metadata={"quality": quality, "title": result.title, "telegram_user_id": user_id},
+                metadata={"source": "تلگرام ربات", "quality": quality, "title": result.title, "telegram_user_id": user_id},
             )
             record_usage_event(
                 user_id,
@@ -705,7 +720,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 media_kind="document",
                 quality=quality,
                 duration_seconds=duration_seconds,
-                metadata={"title": result.title},
+                metadata={"source": "تلگرام ربات", "title": result.title},
             )
             await status_msg.delete()
         except Exception as e2:
@@ -715,7 +730,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 str(e2)[:200],
                 platform=platform_name,
                 url=url,
-                metadata={"telegram_user_id": user_id},
+                metadata={"source": "تلگرام ربات", "telegram_user_id": user_id},
             )
             await status_msg.edit_text(f"خطا در ارسال فایل: {str(e2)[:200]}")
     finally:

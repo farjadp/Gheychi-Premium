@@ -1,3 +1,7 @@
+"""
+داشبورد مدیریت و سرور گرافیکی وب (Flask Web Server)
+ایمن‌سازی صفحات، بررسی نشست‌ها و رابط کاربری پنل ادمین جهت کنترل کامل بات از اینجا فرمان‌دهی می‌شود.
+"""
 import os
 import tempfile
 import zipfile
@@ -23,6 +27,10 @@ from runtime_store import (
     get_dashboard_stats,
     load_settings,
     save_settings,
+    list_transactions,
+    get_transaction,
+    update_transaction_status,
+    get_financial_stats,
 )
 
 app = Flask(__name__)
@@ -40,7 +48,7 @@ def csrf_protect():
     if request.method == "POST" and request.endpoint not in ["login", "stripe_webhook"]:
         token = request.form.get("csrf_token")
         if not token or token != session.get("csrf_token"):
-            add_log("WARNING", "csrf_blocked", f"CSRF Blocked for {request.remote_addr} on {request.endpoint}")
+            add_log(WARNING, "csrf_blocked", f"CSRF Blocked for {request.remote_addr} on {request.endpoint}", metadata={"source": "پنل ادمین"})
             return "موجودی فرم نامعتبر است (خطای امنیتی CSRF). صفحه را ریفرش کنید.", 403
 
 
@@ -548,6 +556,79 @@ PAGE_TEMPLATE = """
             <button class="btn" style="width:100%; justify-content:center; margin-top:10px;" type="submit">💾 ذخیره کل تنظیمات</button>
           </form>
           <p style="font-size:12px;color:var(--muted);margin-top:14px;">آخرین به‌روزرسانی: {{ settings.updated_at }}</p>
+        </div>
+      </div>
+    </div>
+
+
+
+    <!-- ── TAB: Finance ── -->
+    <div class="tab-panel" id="tab-finance">
+      <div class="grid-4 mb">
+        <div class="stat-box">
+          <h3>💰 کل درآمد دلاری</h3>
+          <div class="value">${{ fin_stats.total_revenue }}</div>
+          <div class="label">تراکنش‌های موفق</div>
+        </div>
+        <div class="stat-box">
+          <h3>✅ خریدهای تکمیل شده</h3>
+          <div class="value">{{ fin_stats.total_completed }}</div>
+          <div class="label">تعداد</div>
+        </div>
+        <div class="stat-box">
+          <h3>⏳ واریزهای معلق/ناموفق</h3>
+          <div class="value">{{ fin_stats.total_pending }}</div>
+          <div class="label">تعداد</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="icon">🧾</span> لیست تراکنش‌ها</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>شناسه (TxID)</th>
+                <th>آیدی کاربر</th>
+                <th>مبلغ ($)</th>
+                <th>درگاه</th>
+                <th>پلن</th>
+                <th>زمان</th>
+                <th>وضعیت</th>
+                <th>عملیات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for tx in transactions %}
+              <tr>
+                <td style="font-family:monospace; font-size:12px;">{{ tx.tx_id[:12] }}..</td>
+                <td><span class="tag">UID: {{ tx.telegram_user_id }}</span></td>
+                <td style="color:var(--accent); font-weight:bold;">${{ tx.amount_usd }}</td>
+                <td>{{ tx.payment_method }}</td>
+                <td>{{ tx.plan_code }}</td>
+                <td dir="ltr" style="font-size:12px; color:var(--text-muted)">{{ tx.created_at.replace("T", " ")[:16] }}</td>
+                <td>
+                  {% if tx.status == 'Completed' %}<span class="tag tag-success">Completed</span>{% endif %}
+                  {% if tx.status == 'Pending' %}<span class="tag tag-warning">Pending</span>{% endif %}
+                  {% if tx.status == 'Failed' %}<span class="tag tag-danger">Failed</span>{% endif %}
+                </td>
+                <td>
+                  {% if tx.status == 'Pending' %}
+                  <form method="post" action="{{ url_for('confirm_transaction') }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ session.get('csrf_token', '') }}">
+                    <input type="hidden" name="tx_id" value="{{ tx.tx_id }}">
+                    <button type="submit" class="btn" style="padding:4px 8px; font-size:11px; background:var(--primary); color:white;">تایید و شارژ</button>
+                  </form>
+                  {% else %}
+                  -
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="8" style="text-align:center;color:var(--text-muted);">تراکنشی یافت نشد</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1079,7 +1160,7 @@ def login():
         if ip in login_attempts:
             login_attempts[ip]["attempts"] = 0
             
-        add_log("INFO", "admin_login", f"ورود موفق ادمین از {ip}")
+        add_log(INFO, "admin_login", f"ورود موفق ادمین از {ip}", metadata={"source": "پنل ادمین"})
         return redirect(url_for("index"))
     else:
         # Register failed attempt
@@ -1090,9 +1171,9 @@ def login():
         if login_attempts[ip]["attempts"] >= 5:
             # Block for 15 minutes
             login_attempts[ip]["blocked_until"] = now + 900
-            add_log("WARNING", "brute_force_blocked", f"مسدودسازی 15 دقیقه‌ای به دلیل لاگین‌های ناموفق. آدرس: {ip}")
+            add_log(WARNING, "brute_force_blocked", f"مسدودسازی 15 دقیقه‌ای به دلیل لاگین‌های ناموفق. آدرس: {ip}", metadata={"source": "پنل ادمین"})
         else:
-            add_log("WARNING", "failed_login", f"تلاش ناموفق برای ورود. آدرس: {ip}")
+            add_log(WARNING, "failed_login", f"تلاش ناموفق برای ورود. آدرس: {ip}", metadata={"source": "پنل ادمین"})
             
         return render_template_string(LOGIN_TEMPLATE, error="رمز عبور اشتباه است.")
 
@@ -1188,6 +1269,8 @@ def index():
         settings=settings,
         logs=logs,
         stats=stats,
+        transactions=list_transactions(limit=100),
+        fin_stats=get_financial_stats(),
         users=users,
         plans=list_plans(),
         saved=saved,
@@ -1208,10 +1291,10 @@ def update_plans():
     try:
         new_plans = json.loads(request.form.get("plans_json", "{}"))
         save_subscription_plans(new_plans)
-        add_log("INFO", "plans_updated", "اطلاعات پکیج‌های سیستم داینامیک به‌روزرسانی شد.")
+        add_log(INFO, "plans_updated", f"اطلاعات پکیج‌های سیستم داینامیک به‌روزرسانی شد.", metadata={"source": "پنل ادمین"})
         return redirect(url_for("index", saved="1"))
     except Exception as e:
-        add_log("ERROR", "plans_update_failed", f"فرمت JSON برای برنامه‌ها نامعتبر بود: {e}")
+        add_log(ERROR, "plans_update_failed", f"فرمت JSON برای برنامه‌ها نامعتبر بود: {e}", metadata={"source": "پنل ادمین"})
         return redirect(url_for("index"))
 
 @app.post("/settings")
@@ -1232,7 +1315,7 @@ def update_settings():
     # Validation logic for environment enforcement
     if (env_stripe_secret and form_stripe_secret != env_stripe_secret) or \
        (env_stripe_webhook and form_stripe_webhook != env_stripe_webhook):
-        add_log("WARNING", "settings_rejected", "Stripe keys are managed via environment variables and cannot be changed here")
+        add_log(WARNING, "settings_rejected", f"Stripe keys are managed via environment variables and cannot be changed here", metadata={"source": "پنل ادمین"})
         return "سرور در حالت ایزوله (Environment Variables) قرار دارد. شما مجاز به دستکاری کلیدهای مالیِ Stripe از طریق پنل نیستید.", 403
     
     existing_settings.update({
@@ -1323,11 +1406,7 @@ def _send_broadcast_background(text: str, user_ids: list):
                 error_count += 1
             await asyncio.sleep(0.05)
             
-        add_log(
-            "INFO",
-            "broadcast_completed",
-            f"ارسال سراسری پایان یافت. موفق: {success_count}، ناموفق: {error_count}"
-        )
+        add_log(INFO, "broadcast_completed", f"ارسال سراسری پایان یافت. موفق: {success_count}، ناموفق: {error_count}", metadata={"source": "پنل ادمین"})
         
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -1362,7 +1441,7 @@ def download_backup():
                             arcname = os.path.relpath(file_path, os.path.dirname(dir_name))
                             zipf.write(file_path, arcname)
                             
-        add_log("INFO", "system_backup", "یک نسخه پشتیبان کامل از سیستم استخراج شد.")
+        add_log(INFO, "system_backup", f"یک نسخه پشتیبان کامل از سیستم استخراج شد.", metadata={"source": "پنل ادمین"})
         return send_file(zip_path, as_attachment=True, download_name='gheychi_premium_backup.zip', mimetype='application/zip')
     except Exception as e:
         return f"Backup failed: {str(e)}", 500
@@ -1377,11 +1456,7 @@ def send_broadcast():
     users = list_bot_users(limit=1000000)
     user_ids = [u["telegram_user_id"] for u in users]
     
-    add_log(
-        "INFO",
-        "broadcast_started",
-        f"ارسال پیام سراسری برای {len(user_ids)} کاربر آغاز شد."
-    )
+    add_log(INFO, "broadcast_started", f"ارسال پیام سراسری برای {len(user_ids)} کاربر آغاز شد.", metadata={"source": "پنل ادمین"})
     
     threading.Thread(target=_send_broadcast_background, args=(text, user_ids), daemon=True).start()
     return redirect(url_for("index", saved="1"))
@@ -1393,14 +1468,14 @@ def stripe_webhook():
     sig_header = request.headers.get("Stripe-Signature")
     
     if not sig_header:
-        add_log("ERROR", "webhook_failed", "Missing Stripe signature")
+        add_log(ERROR, "webhook_failed", f"Missing Stripe signature", metadata={"source": "پنل ادمین"})
         return "Missing signature", 400
 
     settings = load_settings()
     active_webhook_secret = settings.get("stripe_webhook_secret") or STRIPE_WEBHOOK_SECRET
     
     if not active_webhook_secret:
-        add_log("ERROR", "webhook_failed", "Stripe webhook secret not configured")
+        add_log(ERROR, "webhook_failed", f"Stripe webhook secret not configured", metadata={"source": "پنل ادمین"})
         return "Webhook secret missing", 500
 
     try:
@@ -1408,10 +1483,10 @@ def stripe_webhook():
             payload, sig_header, active_webhook_secret
         )
     except ValueError as e:
-        add_log("ERROR", "webhook_failed", f"Invalid payload: {e}")
+        add_log(ERROR, "webhook_failed", f"Invalid payload: {e}", metadata={"source": "پنل ادمین"})
         return "Invalid payload", 400
     except stripe.error.SignatureVerificationError as e:
-        add_log("ERROR", "webhook_failed", f"Invalid signature: {e}")
+        add_log(ERROR, "webhook_failed", f"Invalid signature: {e}", metadata={"source": "پنل ادمین"})
         return "Invalid signature", 400
 
     if event['type'] == 'checkout.session.completed':
@@ -1419,7 +1494,7 @@ def stripe_webhook():
         client_reference_id = session.get('client_reference_id')
         
         if not client_reference_id:
-            add_log("ERROR", "webhook_failed", "Missing client_reference_id in session")
+            add_log(ERROR, "webhook_failed", f"Missing client_reference_id in session", metadata={"source": "پنل ادمین"})
             return "Missing client_reference_id", 400
             
         try:
@@ -1435,6 +1510,9 @@ def stripe_webhook():
             plan = get_plan(plan_code)
             if not plan:
                 raise ValueError(f"Unknown plan_code: {plan_code}")
+            
+            # Update transaction
+            update_transaction_status(session.id, "Completed")
             
             # Activate plan
             user = assign_user_plan(
