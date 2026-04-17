@@ -676,6 +676,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.message.reply_video(
                     video=f,
                     caption=f"🎬 {caption}",
+                    width=result.width,
+                    height=result.height,
+                    duration=result.duration or duration_seconds,
                     supports_streaming=True,
                     connect_timeout=TELEGRAM_CONNECT_TIMEOUT,
                     pool_timeout=TELEGRAM_POOL_TIMEOUT,

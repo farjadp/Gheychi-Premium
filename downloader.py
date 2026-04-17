@@ -8,6 +8,7 @@ from urllib.request import Request, urlopen
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional, Callable
+import subprocess
 
 import yt_dlp
 
@@ -35,6 +36,50 @@ class DownloadResult:
     error: Optional[str] = None
     title: Optional[str] = None
     source: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    duration: Optional[int] = None
+
+def _optimize_and_extract_metadata(file_path: str) -> dict:
+    """Run faststart optimization and extract width, height, duration."""
+    meta = {"width": None, "height": None, "duration": None}
+    if not file_path or not os.path.exists(file_path) or not file_path.endswith(".mp4"):
+        return meta
+
+    # 1. Optimize for streaming (moov atom at front)
+    temp_path = file_path + ".tmp.mp4"
+    try:
+        cmd_opt = [
+            "ffmpeg", "-y", "-i", file_path,
+            "-c", "copy", "-movflags", "+faststart", "-f", "mp4",
+            temp_path
+        ]
+        res = subprocess.run(cmd_opt, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
+        if res.returncode == 0 and os.path.exists(temp_path):
+            os.replace(temp_path, file_path)
+        else:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+    except Exception as e:
+        logger.warning(f"Metadata optimization failed: {e}")
+
+    # 2. Extract metadata
+    try:
+        cmd_probe = [
+            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=width,height,duration",
+            "-of", "json", file_path
+        ]
+        out = subprocess.check_output(cmd_probe, text=True, timeout=10)
+        data = json.loads(out)
+        stream = data.get("streams", [{}])[0]
+        meta["width"] = int(stream.get("width")) if stream.get("width") else None
+        meta["height"] = int(stream.get("height")) if stream.get("height") else None
+        meta["duration"] = int(float(stream.get("duration"))) if stream.get("duration") else None
+    except Exception as e:
+        logger.warning(f"Metadata extraction failed: {e}")
+
+    return meta
 
 
 RADIOJAVAN_MP3_API = "https://play.radiojavan.com/api/p/mp3?id={track_id}"
@@ -254,7 +299,12 @@ async def download_video(
                     if file_size > max_file_size_bytes:
                         destination.unlink(missing_ok=True)
                         return DownloadResult(success=False, error=f"فایل از محدودیت مگابایت بزرگتر است.")
-                    return DownloadResult(success=True, file_path=str(destination), title="ویدئو", source=api_result.get("source", "API (Cobalt)"))
+                    meta = _optimize_and_extract_metadata(str(destination))
+                    return DownloadResult(
+                        success=True, file_path=str(destination), title="ویدئو", 
+                        source=api_result.get("source", "API (Cobalt)"),
+                        width=meta["width"], height=meta["height"], duration=meta["duration"]
+                    )
             except Exception as e:
                 logger.error(f"Failed to download from API direct URL: {e}")
         else:
@@ -343,7 +393,11 @@ async def download_video(
                     success=False,
                     error=f"فایل بزرگتر از {max_file_size_bytes // (1024*1024)} مگابایت است.",
                 )
-            return DownloadResult(success=True, file_path=file_path, title=title)
+            meta = _optimize_and_extract_metadata(file_path)
+            return DownloadResult(
+                success=True, file_path=file_path, title=title,
+                width=meta["width"], height=meta["height"], duration=meta["duration"]
+            )
 
         return DownloadResult(success=False, error="فایل دانلود نشد.")
 
