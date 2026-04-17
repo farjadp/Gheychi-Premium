@@ -1482,7 +1482,7 @@ def confirm_transaction():
         assign_user_plan(
             telegram_user_id=tx["telegram_user_id"],
             plan_code=tx["plan_code"],
-            duration_months=1,
+            months=1,
             note=f"تایید تراکنش معلق: {tx_id}"
         )
         update_transaction_status(tx_id, "Completed")
