@@ -132,6 +132,7 @@ def _base_ydl_opts(output_template: str, platform: str | None = None) -> dict:
         "noprogress": True,
         "noplaylist": True,
         "max_filesize": max_file_size_bytes,
+        "extractor_args": {"youtube": ["player_client=android"]},
     }
     cookies_file = _get_cookies_file(platform)
     if cookies_file:
