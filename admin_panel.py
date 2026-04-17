@@ -48,7 +48,7 @@ def csrf_protect():
     if request.method == "POST" and request.endpoint not in ["login", "stripe_webhook"]:
         token = request.form.get("csrf_token")
         if not token or token != session.get("csrf_token"):
-            add_log(WARNING, "csrf_blocked", f"CSRF Blocked for {request.remote_addr} on {request.endpoint}", metadata={"source": "پنل ادمین"})
+            add_log("WARNING", "csrf_blocked", f"CSRF Blocked for {request.remote_addr} on {request.endpoint}", metadata={"source": "پنل ادمین"})
             return "موجودی فرم نامعتبر است (خطای امنیتی CSRF). صفحه را ریفرش کنید.", 403
 
 
@@ -1160,7 +1160,7 @@ def login():
         if ip in login_attempts:
             login_attempts[ip]["attempts"] = 0
             
-        add_log(INFO, "admin_login", f"ورود موفق ادمین از {ip}", metadata={"source": "پنل ادمین"})
+        add_log("INFO", "admin_login", f"ورود موفق ادمین از {ip}", metadata={"source": "پنل ادمین"})
         return redirect(url_for("index"))
     else:
         # Register failed attempt
@@ -1171,9 +1171,9 @@ def login():
         if login_attempts[ip]["attempts"] >= 5:
             # Block for 15 minutes
             login_attempts[ip]["blocked_until"] = now + 900
-            add_log(WARNING, "brute_force_blocked", f"مسدودسازی 15 دقیقه‌ای به دلیل لاگین‌های ناموفق. آدرس: {ip}", metadata={"source": "پنل ادمین"})
+            add_log("WARNING", "brute_force_blocked", f"مسدودسازی 15 دقیقه‌ای به دلیل لاگین‌های ناموفق. آدرس: {ip}", metadata={"source": "پنل ادمین"})
         else:
-            add_log(WARNING, "failed_login", f"تلاش ناموفق برای ورود. آدرس: {ip}", metadata={"source": "پنل ادمین"})
+            add_log("WARNING", "failed_login", f"تلاش ناموفق برای ورود. آدرس: {ip}", metadata={"source": "پنل ادمین"})
             
         return render_template_string(LOGIN_TEMPLATE, error="رمز عبور اشتباه است.")
 
@@ -1291,10 +1291,10 @@ def update_plans():
     try:
         new_plans = json.loads(request.form.get("plans_json", "{}"))
         save_subscription_plans(new_plans)
-        add_log(INFO, "plans_updated", f"اطلاعات پکیج‌های سیستم داینامیک به‌روزرسانی شد.", metadata={"source": "پنل ادمین"})
+        add_log("INFO", "plans_updated", f"اطلاعات پکیج‌های سیستم داینامیک به‌روزرسانی شد.", metadata={"source": "پنل ادمین"})
         return redirect(url_for("index", saved="1"))
     except Exception as e:
-        add_log(ERROR, "plans_update_failed", f"فرمت JSON برای برنامه‌ها نامعتبر بود: {e}", metadata={"source": "پنل ادمین"})
+        add_log("ERROR", "plans_update_failed", f"فرمت JSON برای برنامه‌ها نامعتبر بود: {e}", metadata={"source": "پنل ادمین"})
         return redirect(url_for("index"))
 
 @app.post("/settings")
@@ -1315,7 +1315,7 @@ def update_settings():
     # Validation logic for environment enforcement
     if (env_stripe_secret and form_stripe_secret != env_stripe_secret) or \
        (env_stripe_webhook and form_stripe_webhook != env_stripe_webhook):
-        add_log(WARNING, "settings_rejected", f"Stripe keys are managed via environment variables and cannot be changed here", metadata={"source": "پنل ادمین"})
+        add_log("WARNING", "settings_rejected", f"Stripe keys are managed via environment variables and cannot be changed here", metadata={"source": "پنل ادمین"})
         return "سرور در حالت ایزوله (Environment Variables) قرار دارد. شما مجاز به دستکاری کلیدهای مالیِ Stripe از طریق پنل نیستید.", 403
     
     existing_settings.update({
@@ -1406,7 +1406,7 @@ def _send_broadcast_background(text: str, user_ids: list):
                 error_count += 1
             await asyncio.sleep(0.05)
             
-        add_log(INFO, "broadcast_completed", f"ارسال سراسری پایان یافت. موفق: {success_count}، ناموفق: {error_count}", metadata={"source": "پنل ادمین"})
+        add_log("INFO", "broadcast_completed", f"ارسال سراسری پایان یافت. موفق: {success_count}، ناموفق: {error_count}", metadata={"source": "پنل ادمین"})
         
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -1441,7 +1441,7 @@ def download_backup():
                             arcname = os.path.relpath(file_path, os.path.dirname(dir_name))
                             zipf.write(file_path, arcname)
                             
-        add_log(INFO, "system_backup", f"یک نسخه پشتیبان کامل از سیستم استخراج شد.", metadata={"source": "پنل ادمین"})
+        add_log("INFO", "system_backup", f"یک نسخه پشتیبان کامل از سیستم استخراج شد.", metadata={"source": "پنل ادمین"})
         return send_file(zip_path, as_attachment=True, download_name='gheychi_premium_backup.zip', mimetype='application/zip')
     except Exception as e:
         return f"Backup failed: {str(e)}", 500
@@ -1456,7 +1456,7 @@ def send_broadcast():
     users = list_bot_users(limit=1000000)
     user_ids = [u["telegram_user_id"] for u in users]
     
-    add_log(INFO, "broadcast_started", f"ارسال پیام سراسری برای {len(user_ids)} کاربر آغاز شد.", metadata={"source": "پنل ادمین"})
+    add_log("INFO", "broadcast_started", f"ارسال پیام سراسری برای {len(user_ids)} کاربر آغاز شد.", metadata={"source": "پنل ادمین"})
     
     threading.Thread(target=_send_broadcast_background, args=(text, user_ids), daemon=True).start()
     return redirect(url_for("index", saved="1"))
@@ -1468,14 +1468,14 @@ def stripe_webhook():
     sig_header = request.headers.get("Stripe-Signature")
     
     if not sig_header:
-        add_log(ERROR, "webhook_failed", f"Missing Stripe signature", metadata={"source": "پنل ادمین"})
+        add_log("ERROR", "webhook_failed", f"Missing Stripe signature", metadata={"source": "پنل ادمین"})
         return "Missing signature", 400
 
     settings = load_settings()
     active_webhook_secret = settings.get("stripe_webhook_secret") or STRIPE_WEBHOOK_SECRET
     
     if not active_webhook_secret:
-        add_log(ERROR, "webhook_failed", f"Stripe webhook secret not configured", metadata={"source": "پنل ادمین"})
+        add_log("ERROR", "webhook_failed", f"Stripe webhook secret not configured", metadata={"source": "پنل ادمین"})
         return "Webhook secret missing", 500
 
     try:
@@ -1483,10 +1483,10 @@ def stripe_webhook():
             payload, sig_header, active_webhook_secret
         )
     except ValueError as e:
-        add_log(ERROR, "webhook_failed", f"Invalid payload: {e}", metadata={"source": "پنل ادمین"})
+        add_log("ERROR", "webhook_failed", f"Invalid payload: {e}", metadata={"source": "پنل ادمین"})
         return "Invalid payload", 400
     except stripe.error.SignatureVerificationError as e:
-        add_log(ERROR, "webhook_failed", f"Invalid signature: {e}", metadata={"source": "پنل ادمین"})
+        add_log("ERROR", "webhook_failed", f"Invalid signature: {e}", metadata={"source": "پنل ادمین"})
         return "Invalid signature", 400
 
     if event['type'] == 'checkout.session.completed':
@@ -1494,7 +1494,7 @@ def stripe_webhook():
         client_reference_id = session.get('client_reference_id')
         
         if not client_reference_id:
-            add_log(ERROR, "webhook_failed", f"Missing client_reference_id in session", metadata={"source": "پنل ادمین"})
+            add_log("ERROR", "webhook_failed", f"Missing client_reference_id in session", metadata={"source": "پنل ادمین"})
             return "Missing client_reference_id", 400
             
         try:
