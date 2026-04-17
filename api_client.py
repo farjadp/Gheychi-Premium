@@ -132,7 +132,11 @@ def fetch_media_from_rapidapi(url: str) -> dict:
                     # Only use "url" if it's not the original source url
                     if data["url"].lower() != url.lower():
                         direct_url = data["url"]
-            
+
+            # Security check: Ensure direct_url is not just the original twitter page again!
+            if direct_url and ("x.com/" in direct_url or "twitter.com/" in direct_url) and "video.twimg.com" not in direct_url:
+                direct_url = None
+
             if direct_url:
                 return {"success": True, "url": direct_url, "source": "RapidAPI"}
                 

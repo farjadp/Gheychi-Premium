@@ -75,7 +75,19 @@ def _fetch_radiojavan_mp3_info(track_id: str) -> dict:
 
 
 def _download_file(url: str, destination: Path, progress_callback: Optional[Callable[[int], None]] = None):
-    req = Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"})
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Referer": "https://twitter.com/",
+    }
+    req = Request(url, headers=headers)
     with urlopen(req, timeout=60) as response:
         content_type = response.headers.get("Content-Type", "").lower()
         if "text/html" in content_type:
