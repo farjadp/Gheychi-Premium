@@ -22,6 +22,7 @@
 - نمایش کیفیت‌های قابل دانلود
 - دانلود ویدئو یا فقط صدا
 - پشتیبانی از YouTube، Instagram، Twitter/X و سرویس‌های دیگر
+- **معماری سه‌لایه برای دانلود (Cobalt API, RapidAPI, yt-dlp)** جهت پایداری ۱۰۰٪ در برابر مسدود شدن (IP Blocks).
 - محدودیت پویا برای حجم فایل از طریق پنل وب
 - امکان غیرفعال کردن کامل دانلود از پنل
 - محدود کردن پلتفرم‌های مجاز از پنل
@@ -72,6 +73,12 @@ MAX_FILE_SIZE_MB=50
 DATA_DIR=data
 ADMIN_PASSWORD=یک_پسورد_برای_پنل
 SUPPORT_CONTACT=@gheychi_support
+
+# تنظیمات مربوط به RapidAPI (اختیاری ولی توصیه شده)
+USE_RAPIDAPI=True
+RAPIDAPI_KEY=your_key_here
+RAPIDAPI_HOST=auto-download-all-in-one.p.rapidapi.com
+RAPIDAPI_YT_HOST=youtube-info-download-api.p.rapidapi.com
 ```
 
 توضیح متغیرها:
@@ -82,6 +89,7 @@ SUPPORT_CONTACT=@gheychi_support
 - `DATA_DIR`: مسیر ذخیره تنظیمات و لاگ‌ها
 - `ADMIN_PASSWORD`: پسورد پنل مدیریت. اگر خالی باشد، پنل بدون auth باز می‌شود
 - `SUPPORT_CONTACT`: آیدی یا لینک مستقیم پشتیبانی
+- `USE_RAPIDAPI` و `RAPIDAPI_KEY` و سایر موارد: کلیدهای مربوط به لایه دوم دانلودر در صورت خرابی `yt-dlp` و `Cobalt`
 
 ## اجرای بات
 
