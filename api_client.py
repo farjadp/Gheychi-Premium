@@ -83,37 +83,44 @@ def fetch_media_from_cobalt(url: str, quality: str = "max") -> dict:
 def fetch_media_from_rapidapi(url: str) -> dict:
     """Fallback logic for RapidAPI supporting both General Social Media and YouTube specific API."""
     import urllib.parse
+    
+    settings = load_settings()
+    # Support both Env and Admin Panel key
+    rapid_key = settings.get("rapidapi_key") or RAPIDAPI_KEY
+    rapid_host = RAPIDAPI_HOST
+    rapid_yt_host = RAPIDAPI_YT_HOST
+    
     url_lower = url.lower()
     is_youtube = "youtube.com" in url_lower or "youtu.be" in url_lower
 
     if is_youtube:
-        if not RAPIDAPI_KEY or not RAPIDAPI_YT_HOST:
+        if not rapid_key or not rapid_yt_host:
             return {"success": False, "error": "تنظیمات RapidAPI یوتیوب تکمیل نشده است."}
             
         encoded_url = urllib.parse.quote(url)
-        api_endpoint = f"https://{RAPIDAPI_YT_HOST}/ajax/download.php?format=mp4&add_info=0&url={encoded_url}"
+        api_endpoint = f"https://{rapid_yt_host}/ajax/download.php?format=mp4&add_info=0&url={encoded_url}"
         
         req = Request(
             api_endpoint,
             headers={
-                "X-RapidAPI-Key": RAPIDAPI_KEY,
-                "X-RapidAPI-Host": RAPIDAPI_YT_HOST,
+                "X-RapidAPI-Key": rapid_key,
+                "X-RapidAPI-Host": rapid_yt_host,
             },
             method="GET"
         )
     else:
-        if not RAPIDAPI_KEY or not RAPIDAPI_HOST:
-            return {"success": False, "error": "تنظیمات RapidAPI در فایل env تکمیل نشده است."}
+        if not rapid_key or not rapid_host:
+            return {"success": False, "error": "تنظیمات RapidAPI تکمیل نشده است."}
         
-        api_endpoint = f"https://{RAPIDAPI_HOST}/v1/social/autolink"
+        api_endpoint = f"https://{rapid_host}/v1/social/autolink"
         payload = {"url": url}
         
         req = Request(
             api_endpoint,
             data=json.dumps(payload).encode('utf-8'),
             headers={
-                "X-RapidAPI-Key": RAPIDAPI_KEY,
-                "X-RapidAPI-Host": RAPIDAPI_HOST,
+                "X-RapidAPI-Key": rapid_key,
+                "X-RapidAPI-Host": rapid_host,
                 "Content-Type": "application/json"
             },
             method="POST"
@@ -168,7 +175,8 @@ def get_direct_media_url(url: str, quality: str = "max") -> dict:
             errors.append(res.get("error", "Cobalt Error"))
             
     # Layer 2: RapidAPI
-    if settings.get("use_rapidapi", USE_RAPIDAPI):
+    rapid_key = settings.get("rapidapi_key") or RAPIDAPI_KEY
+    if rapid_key:
         logger.info("Using RapidAPI for URL: %s", url)
         res = fetch_media_from_rapidapi(url)
         if res.get("success"):
