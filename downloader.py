@@ -273,9 +273,14 @@ async def download_video(
             destination = download_dir / f"{request_id}.mp4"
             try:
                 def _do_download():
-                    _download_file(direct_url, destination, progress_callback)
+                    # progress_callback uses asyncio.create_task which needs the event loop thread.
+                    # We must proxy it via call_soon_threadsafe to be safe from the executor thread.
+                    def _safe_progress(pct: int):
+                        if progress_callback:
+                            loop.call_soon_threadsafe(progress_callback, pct)
+                    _download_file(direct_url, destination, _safe_progress)
                 await loop.run_in_executor(None, _do_download)
-                if destination.exists():
+                if destination.exists() and destination.stat().st_size > 0:
                     file_size = destination.stat().st_size
                     if file_size > max_file_size_bytes:
                         destination.unlink(missing_ok=True)
