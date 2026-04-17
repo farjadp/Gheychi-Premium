@@ -89,6 +89,11 @@ def fetch_media_from_rapidapi(url: str) -> dict:
     rapid_key = settings.get("rapidapi_key") or RAPIDAPI_KEY
     rapid_host = RAPIDAPI_HOST
     
+    url_lower = url.lower()
+    is_youtube = "youtube.com" in url_lower or "youtu.be" in url_lower
+    if is_youtube:
+        return {"success": False, "error": "مسیر مستقیم RapidAPI برای یوتیوب فعال نیست (محدودیت IP گوگل). ارسال به لایه بعدی..."}
+    
     if not rapid_key or not rapid_host:
         return {"success": False, "error": "تنظیمات RapidAPI تکمیل نشده است."}
     

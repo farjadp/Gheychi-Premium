@@ -75,9 +75,14 @@ def _fetch_radiojavan_mp3_info(track_id: str) -> dict:
 
 
 def _download_file(url: str, destination: Path, progress_callback: Optional[Callable[[int], None]] = None):
-    req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urlopen(req, timeout=60) as response, destination.open("wb") as f:
-        total = int(response.headers.get("Content-Length", "0"))
+    req = Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"})
+    with urlopen(req, timeout=60) as response:
+        content_type = response.headers.get("Content-Type", "").lower()
+        if "text/html" in content_type:
+            raise ValueError("لینک مستقیم منقضی شده یا مسدود شده است (فایل HTML به جای مدیا).")
+            
+        with destination.open("wb") as f:
+            total = int(response.headers.get("Content-Length", "0"))
         downloaded = 0
         while True:
             chunk = response.read(1024 * 64)
