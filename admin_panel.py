@@ -1320,8 +1320,8 @@ def update_settings():
     form_stripe_webhook = request.form.get("stripe_webhook_secret", "").strip()
     
     # Validation logic for environment enforcement
-    if (env_stripe_secret and form_stripe_secret != env_stripe_secret) or \
-       (env_stripe_webhook and form_stripe_webhook != env_stripe_webhook):
+    if (env_stripe_secret and form_stripe_secret and form_stripe_secret != env_stripe_secret) or \
+       (env_stripe_webhook and form_stripe_webhook and form_stripe_webhook != env_stripe_webhook):
         add_log("WARNING", "settings_rejected", f"Stripe keys are managed via environment variables and cannot be changed here", metadata={"source": "پنل ادمین"})
         return "سرور در حالت ایزوله (Environment Variables) قرار دارد. شما مجاز به دستکاری کلیدهای مالیِ Stripe از طریق پنل نیستید.", 403
     
