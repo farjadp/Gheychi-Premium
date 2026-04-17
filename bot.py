@@ -269,15 +269,26 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = build_plan_catalog_text()
-    from plans import get_plan
-    s_plan = get_plan('starter')
-    st_plan = get_plan('standard')
-    p_plan = get_plan('pro')
+    from plans import get_subscription_plans
+    all_plans = get_subscription_plans()
     
     keyboard = []
-    if s_plan: keyboard.append([InlineKeyboardButton(f"📦 خرید استارتر (${s_plan['price_usd']})", callback_data="buy_starter")])
-    if st_plan: keyboard.append([InlineKeyboardButton(f"🔥 خرید استاندارد (${st_plan['price_usd']})", callback_data="buy_standard")])
-    if p_plan: keyboard.append([InlineKeyboardButton(f"💎 خرید حرفه‌ای (${p_plan['price_usd']})", callback_data="buy_pro")])
+    # Sort them by price or order so it looks nice
+    sorted_plans = sorted(all_plans.values(), key=lambda p: p.get("price_usd", 0))
+    
+    for plan in sorted_plans:
+        code = plan.get("code")
+        price = plan.get("price_usd", 0)
+        name = plan.get("name", "پکیج")
+        
+        # Don't show buy button for Free packages (price == 0)
+        if price > 0:
+            keyboard.append([InlineKeyboardButton(f"💳 خرید {name} (${price})", callback_data=f"buy_{code}")])
+            
+    # Default fallback if somehow no buttons are generated
+    if not keyboard:
+        keyboard.append([InlineKeyboardButton("❌ پکیج‌های پولی در حال حاضر غیرفعال هستند", callback_data="none")])
+        
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
 
