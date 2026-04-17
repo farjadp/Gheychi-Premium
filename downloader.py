@@ -93,18 +93,18 @@ def _download_file(url: str, destination: Path, progress_callback: Optional[Call
         if "text/html" in content_type:
             raise ValueError("لینک مستقیم منقضی شده یا مسدود شده است (فایل HTML به جای مدیا).")
             
+        total = int(response.headers.get("Content-Length", "0"))
         with destination.open("wb") as f:
-            total = int(response.headers.get("Content-Length", "0"))
-        downloaded = 0
-        while True:
-            chunk = response.read(1024 * 64)
-            if not chunk:
-                break
-            f.write(chunk)
-            downloaded += len(chunk)
-            if total and progress_callback:
-                pct = int(downloaded / total * 100)
-                progress_callback(pct)
+            downloaded = 0
+            while True:
+                chunk = response.read(1024 * 64)
+                if not chunk:
+                    break
+                f.write(chunk)
+                downloaded += len(chunk)
+                if total and progress_callback:
+                    pct = int(downloaded / total * 100)
+                    progress_callback(pct)
 
 
 PLATFORM_COOKIE_ENV = {
