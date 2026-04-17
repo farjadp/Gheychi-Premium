@@ -88,43 +88,23 @@ def fetch_media_from_rapidapi(url: str) -> dict:
     # Support both Env and Admin Panel key
     rapid_key = settings.get("rapidapi_key") or RAPIDAPI_KEY
     rapid_host = RAPIDAPI_HOST
-    rapid_yt_host = RAPIDAPI_YT_HOST
     
-    url_lower = url.lower()
-    is_youtube = "youtube.com" in url_lower or "youtu.be" in url_lower
-
-    if is_youtube:
-        if not rapid_key or not rapid_yt_host:
-            return {"success": False, "error": "تنظیمات RapidAPI یوتیوب تکمیل نشده است."}
-            
-        encoded_url = urllib.parse.quote(url)
-        api_endpoint = f"https://{rapid_yt_host}/ajax/download.php?format=mp4&add_info=0&url={encoded_url}"
-        
-        req = Request(
-            api_endpoint,
-            headers={
-                "X-RapidAPI-Key": rapid_key,
-                "X-RapidAPI-Host": rapid_yt_host,
-            },
-            method="GET"
-        )
-    else:
-        if not rapid_key or not rapid_host:
-            return {"success": False, "error": "تنظیمات RapidAPI تکمیل نشده است."}
-        
-        api_endpoint = f"https://{rapid_host}/v1/social/autolink"
-        payload = {"url": url}
-        
-        req = Request(
-            api_endpoint,
-            data=json.dumps(payload).encode('utf-8'),
-            headers={
-                "X-RapidAPI-Key": rapid_key,
-                "X-RapidAPI-Host": rapid_host,
-                "Content-Type": "application/json"
-            },
-            method="POST"
-        )
+    if not rapid_key or not rapid_host:
+        return {"success": False, "error": "تنظیمات RapidAPI تکمیل نشده است."}
+    
+    api_endpoint = f"https://{rapid_host}/v1/social/autolink"
+    payload = {"url": url}
+    
+    req = Request(
+        api_endpoint,
+        data=json.dumps(payload).encode('utf-8'),
+        headers={
+            "X-RapidAPI-Key": rapid_key,
+            "X-RapidAPI-Host": rapid_host,
+            "Content-Type": "application/json"
+        },
+        method="POST"
+    )
     
     try:
         with urlopen(req, timeout=30) as response:
