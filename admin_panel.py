@@ -1465,7 +1465,33 @@ def send_broadcast():
     return redirect(url_for("index", saved="1"))
 
 
-@app.post("/webhook/stripe")
+@app.post("/finance/confirm")
+@_requires_auth
+def confirm_transaction():
+    tx_id = request.form.get("tx_id")
+    if not tx_id:
+        return redirect(url_for("index"))
+        
+    tx = get_transaction(tx_id)
+    if not tx or tx["status"] != "Pending":
+        return redirect(url_for("index"))
+        
+    from plans import get_plan
+    plan = get_plan(tx["plan_code"])
+    if plan:
+        assign_user_plan(
+            telegram_user_id=tx["telegram_user_id"],
+            plan_code=tx["plan_code"],
+            duration_months=1,
+            note=f"تایید تراکنش معلق: {tx_id}"
+        )
+        update_transaction_status(tx_id, "Completed")
+        add_log("INFO", "transaction_manual_confirm", f"تراکنش مالی به صورت دستی تایید شد {tx_id[:12]}.", metadata={"source": "پنل ادمین"})
+        
+    return redirect(url_for("index", saved="1"))
+
+
+@app.route('/webhook/stripe', methods=['POST'])
 def stripe_webhook():
     payload = request.data
     sig_header = request.headers.get("Stripe-Signature")
@@ -1494,7 +1520,7 @@ def stripe_webhook():
 
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        client_reference_id = session.get('client_reference_id')
+        client_reference_id = getattr(session, 'client_reference_id', None)
         
         if not client_reference_id:
             add_log("ERROR", "webhook_failed", f"Missing client_reference_id in session", metadata={"source": "پنل ادمین"})
