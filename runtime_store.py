@@ -1,3 +1,8 @@
+"""
+هسته پردازش پایگاه داده (Database Engine / Runtime Store)
+وظیفه این فایل اتصال کدهای اپلیکیشن به فایل‌های SQLite و JSON است. 
+تمام ذخیره و بازیابی اطلاعات مالی، پروفایل کاربران و تاریخچه دانلودها در این بستر پیاده‌سازی شده.
+"""
 import json
 import sqlite3
 from contextlib import closing
@@ -137,6 +142,19 @@ def init_logs_db() -> None:
                 assigned_note TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS transactions (
+                tx_id TEXT PRIMARY KEY,
+                telegram_user_id INTEGER NOT NULL,
+                amount_usd REAL NOT NULL,
+                payment_method TEXT NOT NULL,
+                status TEXT NOT NULL,
+                plan_code TEXT NOT NULL,
+                created_at TEXT NOT NULL
             )
             """
         )
@@ -573,3 +591,56 @@ def cleanup_expired_requests() -> int:
     with sqlite3.connect(LOGS_DB) as conn:
         cur = conn.execute("DELETE FROM pending_requests WHERE expires_at < ?", (current_utc,))
         return cur.rowcount
+
+
+def record_transaction(tx_id: str, telegram_user_id: int, amount_usd: float, payment_method: str, status: str, plan_code: str) -> None:
+    ensure_data_dir()
+    created_at = _utc_now()
+    with sqlite3.connect(LOGS_DB) as conn:
+        conn.execute(
+            '''INSERT OR REPLACE INTO transactions
+            (tx_id, telegram_user_id, amount_usd, payment_method, status, plan_code, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)''',
+            (tx_id, telegram_user_id, amount_usd, payment_method, status, plan_code, created_at)
+        )
+
+def get_transaction(tx_id: str) -> dict | None:
+    ensure_data_dir()
+    with sqlite3.connect(LOGS_DB) as conn:
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute("SELECT * FROM transactions WHERE tx_id = ?", (tx_id,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+def update_transaction_status(tx_id: str, new_status: str) -> bool:
+    ensure_data_dir()
+    with sqlite3.connect(LOGS_DB) as conn:
+        cur = conn.execute("UPDATE transactions SET status = ? WHERE tx_id = ?", (new_status, tx_id))
+        return cur.rowcount > 0
+
+def list_transactions(limit: int = 200) -> list[dict]:
+    ensure_data_dir()
+    with sqlite3.connect(LOGS_DB) as conn:
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute(
+            "SELECT * FROM transactions ORDER BY datetime(created_at) DESC LIMIT ?", (limit,)
+        )
+        return [dict(r) for r in cur.fetchall()]
+
+def get_financial_stats() -> dict:
+    ensure_data_dir()
+    with sqlite3.connect(LOGS_DB) as conn:
+        cur = conn.execute("SELECT COALESCE(SUM(amount_usd), 0) FROM transactions WHERE status = 'Completed'")
+        total_revenue = cur.fetchone()[0]
+        
+        cur = conn.execute("SELECT COUNT(*) FROM transactions WHERE status = 'Completed'")
+        total_completed = cur.fetchone()[0]
+        
+        cur = conn.execute("SELECT COUNT(*) FROM transactions WHERE status = 'Pending'")
+        total_pending = cur.fetchone()[0]
+        
+        return {
+            "total_revenue": total_revenue,
+            "total_completed": total_completed,
+            "total_pending": total_pending
+        }
