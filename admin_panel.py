@@ -531,6 +531,10 @@ PAGE_TEMPLATE = """
                 <input type="text" name="cobalt_api_url" value="{{ settings.cobalt_api_url or '' }}" placeholder="https://api.cobalt.tools/">
               </div>
               <div class="field">
+                <label>Cobalt JWT Token (اختیاری)</label>
+                <input type="password" name="cobalt_api_jwt" value="{{ settings.cobalt_api_jwt or '' }}" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+              </div>
+              <div class="field">
                 <label>RapidAPI Key (پشتیبان)</label>
                 <input type="password" name="rapidapi_key" value="{{ settings.rapidapi_key or '' }}" placeholder="اختیاری">
               </div>
@@ -1327,6 +1331,7 @@ def update_settings():
         "allowed_platforms": selected_platforms,
         "use_cobalt_api": request.form.get("use_cobalt_api") == "1",
         "cobalt_api_url": request.form.get("cobalt_api_url", ""),
+        "cobalt_api_jwt": request.form.get("cobalt_api_jwt", ""),
         "rapidapi_key": request.form.get("rapidapi_key", ""),
         # Only permit storing if they are empty/local
         "stripe_secret_key": form_stripe_secret if not env_stripe_secret else "",

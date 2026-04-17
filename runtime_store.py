@@ -47,7 +47,7 @@ def ensure_data_dir() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
-from config import COBALT_API_URL, USE_COBALT_API, RAPIDAPI_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+from config import COBALT_API_URL, COBALT_API_JWT, USE_COBALT_API, RAPIDAPI_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 import os
 
 def default_settings() -> dict[str, Any]:
@@ -57,6 +57,7 @@ def default_settings() -> dict[str, Any]:
         "allowed_platforms": ALLOWED_PLATFORMS,
         "use_cobalt_api": USE_COBALT_API,
         "cobalt_api_url": COBALT_API_URL,
+        "cobalt_api_jwt": COBALT_API_JWT,
         "rapidapi_key": RAPIDAPI_KEY,
         "updated_at": _utc_now(),
     }
@@ -94,6 +95,7 @@ def save_settings(settings: dict[str, Any]) -> dict[str, Any]:
     normalized["updated_at"] = _utc_now()
     normalized["use_cobalt_api"] = bool(normalized.get("use_cobalt_api", True))
     normalized["cobalt_api_url"] = str(normalized.get("cobalt_api_url", ""))
+    normalized["cobalt_api_jwt"] = str(normalized.get("cobalt_api_jwt", ""))
     normalized["rapidapi_key"] = str(normalized.get("rapidapi_key", ""))
 
     # Strip Stripe keys before saving so they NEVER persist in settings.json

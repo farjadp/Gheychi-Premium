@@ -35,14 +35,19 @@ def fetch_media_from_cobalt(url: str, quality: str = "max") -> dict:
         "isAudioOnly": quality == "audio"
     }
 
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    }
+    cobalt_jwt = settings.get("cobalt_api_jwt")
+    if cobalt_jwt:
+        headers["Authorization"] = f"Bearer {cobalt_jwt}"
+
     req = Request(
         api_endpoint,
         data=json.dumps(payload).encode('utf-8'),
-        headers={
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-        },
+        headers=headers,
         method="POST"
     )
 
