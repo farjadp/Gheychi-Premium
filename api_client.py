@@ -121,15 +121,17 @@ def fetch_media_from_rapidapi(url: str) -> dict:
             
             if isinstance(data, dict):
                 # Try common paths
-                if "url" in data and isinstance(data["url"], str) and data["url"].startswith("http"):
-                    direct_url = data["url"]
-                elif "video" in data and isinstance(data["video"], str):
-                    direct_url = data["video"]
+                if "medias" in data and isinstance(data["medias"], list) and len(data["medias"]) > 0:
+                    direct_url = data["medias"][0].get("url")
                 elif "data" in data and isinstance(data["data"], dict):
                     if "video" in data["data"]: direct_url = data["data"]["video"]
                     elif "url" in data["data"]: direct_url = data["data"]["url"]
-                elif "medias" in data and isinstance(data["medias"], list) and len(data["medias"]) > 0:
-                    direct_url = data["medias"][0].get("url")
+                elif "video" in data and isinstance(data["video"], str):
+                    direct_url = data["video"]
+                elif "url" in data and isinstance(data["url"], str) and data["url"].startswith("http"):
+                    # Only use "url" if it's not the original source url
+                    if data["url"].lower() != url.lower():
+                        direct_url = data["url"]
             
             if direct_url:
                 return {"success": True, "url": direct_url, "source": "RapidAPI"}

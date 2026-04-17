@@ -102,7 +102,9 @@ def get_plan(plan_code: str) -> dict:
     plans_dict = get_subscription_plans()
     return plans_dict.get(plan_code, plans_dict.get("free", {}))
 
-def get_plan_rule(plan_code: str, platform: str) -> dict | None:
+from typing import Optional
+
+def get_plan_rule(plan_code: str, platform: str) -> Optional[dict]:
     plan = get_plan(plan_code)
     if not plan:
         return None
