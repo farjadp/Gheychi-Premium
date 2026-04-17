@@ -358,6 +358,9 @@ PAGE_TEMPLATE = """
     <button class="nav-item active" onclick="showTab('dashboard')">
       <span class="icon">📊</span> داشبورد
     </button>
+    <button class="nav-item" onclick="showTab('finance')">
+      <span class="icon">💵</span> امور مالی
+    </button>
     <button class="nav-item" onclick="showTab('settings')">
       <span class="icon">⚙️</span> تنظیمات
     </button>
