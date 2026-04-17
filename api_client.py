@@ -4,13 +4,13 @@ from urllib.error import URLError, HTTPError
 import logging
 
 from runtime_store import load_settings
-from config import USE_COBALT_API, COBALT_API_URL, USE_RAPIDAPI, RAPIDAPI_KEY, RAPIDAPI_HOST
+from config import USE_COBALT_API, COBALT_API_URL, USE_RAPIDAPI, RAPIDAPI_KEY, RAPIDAPI_HOST, RAPIDAPI_YT_HOST
 
 logger = logging.getLogger(__name__)
 
 def is_cobalt_supported_url(url: str) -> bool:
-    """Check if the URL should be processed by Cobalt API."""
-    keywords = ["twitter.com", "x.com", "instagram.com", "tiktok.com", "reddit.com", "pinterest.com"]
+    """Check if the URL should be processed by API layers."""
+    keywords = ["twitter.com", "x.com", "instagram.com", "tiktok.com", "reddit.com", "pinterest.com", "youtube.com", "youtu.be"]
     url_lower = url.lower()
     return any(kw in url_lower for kw in keywords)
 
@@ -81,23 +81,43 @@ def fetch_media_from_cobalt(url: str, quality: str = "max") -> dict:
         return {"success": False, "error": f"خطای دریافت مستقیم: {str(e)[:100]}"}
 
 def fetch_media_from_rapidapi(url: str) -> dict:
-    """Fallback logic for RapidAPI using 'Auto Download All In One' API."""
-    if not RAPIDAPI_KEY or not RAPIDAPI_HOST:
-        return {"success": False, "error": "تنظیمات RapidAPI در فایل env تکمیل نشده است."}
-    
-    api_endpoint = f"https://{RAPIDAPI_HOST}/v1/social/autolink"
-    payload = {"url": url}
-    
-    req = Request(
-        api_endpoint,
-        data=json.dumps(payload).encode('utf-8'),
-        headers={
-            "X-RapidAPI-Key": RAPIDAPI_KEY,
-            "X-RapidAPI-Host": RAPIDAPI_HOST,
-            "Content-Type": "application/json"
-        },
-        method="POST"
-    )
+    """Fallback logic for RapidAPI supporting both General Social Media and YouTube specific API."""
+    import urllib.parse
+    url_lower = url.lower()
+    is_youtube = "youtube.com" in url_lower or "youtu.be" in url_lower
+
+    if is_youtube:
+        if not RAPIDAPI_KEY or not RAPIDAPI_YT_HOST:
+            return {"success": False, "error": "تنظیمات RapidAPI یوتیوب تکمیل نشده است."}
+            
+        encoded_url = urllib.parse.quote(url)
+        api_endpoint = f"https://{RAPIDAPI_YT_HOST}/ajax/download.php?format=mp4&add_info=0&url={encoded_url}"
+        
+        req = Request(
+            api_endpoint,
+            headers={
+                "X-RapidAPI-Key": RAPIDAPI_KEY,
+                "X-RapidAPI-Host": RAPIDAPI_YT_HOST,
+            },
+            method="GET"
+        )
+    else:
+        if not RAPIDAPI_KEY or not RAPIDAPI_HOST:
+            return {"success": False, "error": "تنظیمات RapidAPI در فایل env تکمیل نشده است."}
+        
+        api_endpoint = f"https://{RAPIDAPI_HOST}/v1/social/autolink"
+        payload = {"url": url}
+        
+        req = Request(
+            api_endpoint,
+            data=json.dumps(payload).encode('utf-8'),
+            headers={
+                "X-RapidAPI-Key": RAPIDAPI_KEY,
+                "X-RapidAPI-Host": RAPIDAPI_HOST,
+                "Content-Type": "application/json"
+            },
+            method="POST"
+        )
     
     try:
         with urlopen(req, timeout=30) as response:

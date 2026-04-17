@@ -17,6 +17,7 @@ COBALT_API_URL = os.getenv("COBALT_API_URL", "https://api.cobalt.tools/")
 USE_RAPIDAPI = os.getenv("USE_RAPIDAPI", "False").lower() == "true"
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "")
 RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST", "")
+RAPIDAPI_YT_HOST = os.getenv("RAPIDAPI_YT_HOST", "youtube-info-download-api.p.rapidapi.com")
 
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
