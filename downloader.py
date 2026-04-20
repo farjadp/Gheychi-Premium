@@ -76,18 +76,27 @@ def _ensure_download_dir() -> Path:
     return path
 
 
-def _extract_radiojavan_mp3_id(url: str) -> Optional[str]:
+def _parse_radiojavan_url(url: str) -> Optional[dict]:
     parsed = urlparse(url)
-    if parsed.netloc.lower() != "play.radiojavan.com" or parsed.path != "/redirect":
+    if "radiojavan.com" not in parsed.netloc.lower():
         return None
 
-    redirect_target = parse_qs(parsed.query).get("r", [""])[0]
-    match = re.fullmatch(r"radiojavan://mp3/(\d+)", redirect_target)
-    return match.group(1) if match else None
+    if parsed.path.startswith("/redirect"):
+        r = parse_qs(parsed.query).get("r", [""])[0]
+        m = re.match(r"radiojavan://(mp3|podcast|video)/([^/?]+)", r)
+        if m:
+            return {"type": m.group(1), "id": m.group(2)}
+    else:
+        m = re.search(r"/(mp3|podcast|video)[^/]*/(?:mp3|podcast|video)?/?([^/?]+)", parsed.path)
+        if m:
+            if m.group(1) != m.group(2):
+                return {"type": m.group(1), "id": m.group(2)}
+    return None
 
 
-def _fetch_radiojavan_mp3_info(track_id: str) -> dict:
-    api_url = RADIOJAVAN_MP3_API.format(track_id=track_id)
+def _fetch_radiojavan_info(obj_type: str, obj_id: str) -> dict:
+    from urllib.parse import quote
+    api_url = f"https://play.radiojavan.com/api/p/{obj_type}?id={quote(obj_id)}"
     req = Request(
         api_url,
         headers={
@@ -180,15 +189,17 @@ def _base_ydl_opts(output_template: str, platform: str | None = None) -> dict:
 
 async def get_video_info(url: str) -> VideoInfo:
     """Fetch metadata without downloading."""
-    radiojavan_track_id = _extract_radiojavan_mp3_id(url)
-    if radiojavan_track_id:
+    rj_info = _parse_radiojavan_url(url)
+    if rj_info:
         loop = asyncio.get_running_loop()
-        info = await loop.run_in_executor(None, lambda: _fetch_radiojavan_mp3_info(radiojavan_track_id))
-        title = " - ".join(part for part in [info.get("artist"), info.get("song")] if part) or info.get("title", "RadioJavan MP3")
+        info = await loop.run_in_executor(None, lambda: _fetch_radiojavan_info(rj_info["type"], rj_info["id"]))
+        artist = info.get("artist") or info.get("podcast_artist")
+        title_str = info.get("song") or info.get("title")
+        title = " - ".join(part for part in [artist, title_str] if part) or info.get("title", f"RadioJavan {rj_info['type']}")
         return VideoInfo(
             title=title,
             duration=None,
-            uploader=info.get("artist") or "RadioJavan",
+            uploader=artist or "RadioJavan",
             platform="RadioJavan",
             thumbnail=info.get("photo") or info.get("thumbnail"),
             formats=[],
@@ -221,7 +232,14 @@ async def get_video_info(url: str) -> VideoInfo:
         with yt_dlp.YoutubeDL(opts) as ydl:
             return ydl.extract_info(url, download=False)
 
-    info = await loop.run_in_executor(None, _fetch)
+    try:
+        info = await loop.run_in_executor(None, _fetch)
+    except yt_dlp.utils.DownloadError as e:
+        msg = str(e)
+        m = re.search(r"Unsupported URL: (https?://(?:play\.)?radiojavan\.com[^\s]+)", msg)
+        if m:
+            return await get_video_info(m.group(1))
+        raise e
 
     formats = []
     seen = set()
@@ -257,12 +275,12 @@ async def download_video(
     request_id = uuid.uuid4().hex
     output_template = str(download_dir / f"{request_id}.%(ext)s")
     max_file_size_bytes = get_max_file_size_bytes()
-    radiojavan_track_id = _extract_radiojavan_mp3_id(url)
+    rj_info = _parse_radiojavan_url(url)
 
-    if radiojavan_track_id:
+    if rj_info:
         return DownloadResult(
             success=False,
-            error="لینک RadioJavan فقط به‌صورت فایل صوتی قابل دانلود است.",
+            error="لینک RadioJavan ترجیحاً به‌صورت فایل صوتی قابل دانلود است، در صورت امکان دکمه دانلود صوت را انتخاب کنید.",
         )
 
     if is_cobalt_supported_url(url):
@@ -389,6 +407,9 @@ async def download_video(
 
     except yt_dlp.utils.DownloadError as e:
         msg = str(e)
+        m = re.search(r"Unsupported URL: (https?://(?:play\.)?radiojavan\.com[^\s]+)", msg)
+        if m:
+            return await download_video(m.group(1), quality, progress_callback)
         if "Unsupported URL" in msg:
             return DownloadResult(success=False, error="این لینک پشتیبانی نمی‌شود.")
         if "Private video" in msg:
@@ -416,14 +437,14 @@ async def download_audio(url: str) -> DownloadResult:
     request_id = uuid.uuid4().hex
     output_template = str(download_dir / f"{request_id}.%(ext)s")
     max_file_size_bytes = get_max_file_size_bytes()
-    radiojavan_track_id = _extract_radiojavan_mp3_id(url)
+    rj_info = _parse_radiojavan_url(url)
 
-    if radiojavan_track_id:
+    if rj_info:
         loop = asyncio.get_running_loop()
         destination = download_dir / f"{request_id}.mp3"
 
         def _download_radiojavan():
-            info = _fetch_radiojavan_mp3_info(radiojavan_track_id)
+            info = _fetch_radiojavan_info(rj_info["type"], rj_info["id"])
             audio_url = info.get("link") or info.get("hq_link")
             if not audio_url:
                 raise ValueError("لینک فایل صوتی RadioJavan پیدا نشد.")
@@ -440,9 +461,11 @@ async def download_audio(url: str) -> DownloadResult:
                         success=False,
                         error=f"فایل بزرگتر از {max_file_size_bytes // (1024*1024)} مگابایت است.",
                     )
+                artist = info.get("artist") or info.get("podcast_artist")
+                title_str = info.get("song") or info.get("title")
                 title = " - ".join(
-                    part for part in [info.get("artist"), info.get("song")] if part
-                ) or info.get("title", "RadioJavan MP3")
+                    part for part in [artist, title_str] if part
+                ) or info.get("title", f"RadioJavan {rj_info['type']}")
                 return DownloadResult(success=True, file_path=str(destination), title=title)
             return DownloadResult(success=False, error="فایل صوتی RadioJavan دانلود نشد.")
         except Exception as e:
@@ -483,6 +506,12 @@ async def download_audio(url: str) -> DownloadResult:
             )
         return DownloadResult(success=True, file_path=file_path, title=title)
 
+    except yt_dlp.utils.DownloadError as e:
+        msg = str(e)
+        m = re.search(r"Unsupported URL: (https?://(?:play\.)?radiojavan\.com[^\s]+)", msg)
+        if m:
+            return await download_audio(m.group(1))
+        return DownloadResult(success=False, error=f"خطا: {str(e)[:200]}")
     except Exception as e:
         return DownloadResult(success=False, error=f"خطا: {str(e)[:200]}")
 
