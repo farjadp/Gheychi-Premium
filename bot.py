@@ -673,12 +673,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 pass
 
             uploader = request_data.get("uploader", "Voice")
+            bot_id = "@gheychipremium_bot"
             with open(file_path, "rb") as f:
                 await query.message.reply_audio(
                     audio=f,
                     title=caption,
-                    caption=f"🎵 {caption}",
-                    performer=uploader,
+                    caption=f"🎵 {caption}\n\n🤖 {bot_id}",
+                    performer=f"{uploader} | {bot_id}",
                     duration=result.duration or duration_seconds,
                     connect_timeout=TELEGRAM_CONNECT_TIMEOUT,
                     pool_timeout=TELEGRAM_POOL_TIMEOUT,
@@ -687,10 +688,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
         else:
             await status_msg.chat.send_action(ChatAction.UPLOAD_VIDEO)
+            bot_id = "@gheychipremium_bot"
             with open(file_path, "rb") as f:
                 await query.message.reply_video(
                     video=f,
-                    caption=f"🎬 {caption}",
+                    caption=f"🎬 {caption}\n\n🤖 {bot_id}",
                     width=result.width,
                     height=result.height,
                     duration=result.duration or duration_seconds,
@@ -725,10 +727,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         add_log("ERROR", "send_failed", str(e)[:200], platform=platform_name, url=url, metadata={"source": "تلگرام ربات", "telegram_user_id": user_id})
         # Try sending as document if video send fails
         try:
+            bot_id = "@gheychipremium_bot"
             with open(file_path, "rb") as f:
                 await query.message.reply_document(
                     document=f,
-                    caption=f"📁 {result.title or 'فایل'}",
+                    caption=f"📁 {result.title or 'فایل'}\n\n🤖 {bot_id}",
                     connect_timeout=TELEGRAM_CONNECT_TIMEOUT,
                     pool_timeout=TELEGRAM_POOL_TIMEOUT,
                     write_timeout=TELEGRAM_UPLOAD_TIMEOUT,
