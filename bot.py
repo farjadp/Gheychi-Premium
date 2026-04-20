@@ -636,7 +636,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
     if quality == "audio":
-        result = await download_audio(url)
+        result = await download_audio(url, progress_callback=on_progress)
     else:
         result = await download_video(url, quality=quality, progress_callback=on_progress)
 
@@ -661,10 +661,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if quality == "audio":
             await status_msg.chat.send_action(ChatAction.UPLOAD_VOICE)
             with open(file_path, "rb") as f:
+                uploader = request_data.get("uploader", "Voice")
+                # Use a tuple (filename, file_object) so Telegram uses the caption string as the actual filename
+                import re
+                safe_filename = re.sub(r'[\\/*?:"<>|]', "", caption)[:60] + ".mp3"
                 await query.message.reply_audio(
-                    audio=f,
+                    audio=(safe_filename, f),
                     title=caption,
                     caption=f"🎵 {caption}",
+                    performer=uploader,
+                    duration=result.duration or duration_seconds,
                     connect_timeout=TELEGRAM_CONNECT_TIMEOUT,
                     pool_timeout=TELEGRAM_POOL_TIMEOUT,
                     write_timeout=TELEGRAM_UPLOAD_TIMEOUT,

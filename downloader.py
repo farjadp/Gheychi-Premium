@@ -431,13 +431,27 @@ async def download_video(
         return DownloadResult(success=False, error=f"خطای غیرمنتظره: {str(e)[:200]}")
 
 
-async def download_audio(url: str) -> DownloadResult:
+async def download_audio(
+    url: str,
+    progress_callback: Optional[Callable[[int], None]] = None,
+) -> DownloadResult:
     """Download audio-only (MP3)."""
     download_dir = _ensure_download_dir()
     request_id = uuid.uuid4().hex
     output_template = str(download_dir / f"{request_id}.%(ext)s")
     max_file_size_bytes = get_max_file_size_bytes()
     rj_info = _parse_radiojavan_url(url)
+
+    def _extract_audio_duration(f_path: str) -> Optional[int]:
+        try:
+            cmd_probe = [
+                "ffprobe", "-v", "error", "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1", f_path
+            ]
+            out = subprocess.check_output(cmd_probe, text=True, timeout=10)
+            return int(float(out.strip()))
+        except Exception:
+            return None
 
     if rj_info:
         loop = asyncio.get_running_loop()
@@ -448,7 +462,11 @@ async def download_audio(url: str) -> DownloadResult:
             audio_url = info.get("link") or info.get("hq_link")
             if not audio_url:
                 raise ValueError("لینک فایل صوتی RadioJavan پیدا نشد.")
-            _download_file(audio_url, destination)
+            
+            def _safe_progress(pct: int):
+                if progress_callback:
+                    loop.call_soon_threadsafe(progress_callback, pct)
+            _download_file(audio_url, destination, progress_callback=_safe_progress)
             return info
 
         try:
@@ -466,7 +484,11 @@ async def download_audio(url: str) -> DownloadResult:
                 title = " - ".join(
                     part for part in [artist, title_str] if part
                 ) or info.get("title", f"RadioJavan {rj_info['type']}")
-                return DownloadResult(success=True, file_path=str(destination), title=title)
+                
+                # Extract duration for correct UI parsing
+                duration = _extract_audio_duration(str(destination))
+                
+                return DownloadResult(success=True, file_path=str(destination), title=title, duration=duration)
             return DownloadResult(success=False, error="فایل صوتی RadioJavan دانلود نشد.")
         except Exception as e:
             return DownloadResult(success=False, error=f"خطا در دانلود RadioJavan: {str(e)[:200]}")
@@ -504,7 +526,9 @@ async def download_audio(url: str) -> DownloadResult:
                 success=False,
                 error=f"فایل بزرگتر از {max_file_size_bytes // (1024*1024)} مگابایت است.",
             )
-        return DownloadResult(success=True, file_path=file_path, title=title)
+            
+        duration = _extract_audio_duration(file_path)
+        return DownloadResult(success=True, file_path=file_path, title=title, duration=duration)
 
     except yt_dlp.utils.DownloadError as e:
         msg = str(e)
