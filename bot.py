@@ -660,13 +660,22 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if quality == "audio":
             await status_msg.chat.send_action(ChatAction.UPLOAD_VOICE)
+            
+            # Use physical rename to prevent python-telegram-bot/httpx serialization issues
+            import re, os
+            safe_filename = re.sub(r'[\\/*?:"<>|]', "", caption)[:60] + ".mp3"
+            new_file_path = os.path.join(os.path.dirname(file_path), safe_filename)
+            try:
+                os.rename(file_path, new_file_path)
+                file_path = new_file_path
+                result.file_path = file_path # for cleanup
+            except OSError:
+                pass
+
+            uploader = request_data.get("uploader", "Voice")
             with open(file_path, "rb") as f:
-                uploader = request_data.get("uploader", "Voice")
-                # Use a tuple (filename, file_object) so Telegram uses the caption string as the actual filename
-                import re
-                safe_filename = re.sub(r'[\\/*?:"<>|]', "", caption)[:60] + ".mp3"
                 await query.message.reply_audio(
-                    audio=(safe_filename, f),
+                    audio=f,
                     title=caption,
                     caption=f"🎵 {caption}",
                     performer=uploader,
