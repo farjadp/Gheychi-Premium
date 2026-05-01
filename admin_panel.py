@@ -60,6 +60,7 @@ PAGE_TEMPLATE = """
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Gheychi Premium — پنل مدیریت</title>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
   <style>
     :root {
       /* Midnight Purple & Blue Premium Theme */
@@ -353,62 +354,66 @@ PAGE_TEMPLATE = """
   <aside class="sidebar">
     <div class="logo">
       <div class="logo-icon">✂️</div>
-      <div class="logo-text">Gheychi Premium<span>پنل مدیریت</span></div>
+      <div class="logo-text">Gheychi Premium<span>{{ _t('admin_panel') }}</span></div>
     </div>
     <button class="nav-item active" onclick="showTab('dashboard')">
-      <span class="icon">📊</span> داشبورد
+      <span class="icon">📊</span> {{ _t('dashboard') }}
     </button>
     <button class="nav-item" onclick="showTab('finance')">
-      <span class="icon">💵</span> امور مالی
+      <span class="icon">💵</span> {{ _t('finance') }}
     </button>
     <button class="nav-item" onclick="showTab('settings')">
-      <span class="icon">⚙️</span> تنظیمات
+      <span class="icon">⚙️</span> {{ _t('settings') }}
     </button>
     <button class="nav-item" onclick="showTab('subscriptions')">
-      <span class="icon">💳</span> اشتراک‌ها
+      <span class="icon">💳</span> {{ _t('subscriptions') }}
     </button>
     <button class="nav-item" onclick="showTab('plans')">
-      <span class="icon">📦</span> پلن‌ها
+      <span class="icon">📦</span> {{ _t('plans') }}
     </button>
     <button class="nav-item" onclick="showTab('broadcast')">
-      <span class="icon">📢</span> پیام سراسری
+      <span class="icon">📢</span> {{ _t('broadcast') }}
     </button>
     <button class="nav-item" onclick="showTab('logs')">
-      <span class="icon">📋</span> لاگ‌ها
+      <span class="icon">📋</span> {{ _t('logs') }}
     </button>
+    <div style="margin-top: auto; padding: 20px; border-top: 1px solid rgba(255,255,255,0.05); text-align: center;">
+      <a href="/set_lang/fa" style="text-decoration:none; margin:0 5px; opacity: {% if lang == 'fa' %}1{% else %}0.5{% endif %}; font-size: 20px;">🇮🇷</a>
+      <a href="/set_lang/en" style="text-decoration:none; margin:0 5px; opacity: {% if lang == 'en' %}1{% else %}0.5{% endif %}; font-size: 20px;">🇬🇧</a>
+    </div>
   </aside>
 
   <!-- Main -->
   <main class="main">
 
     <div class="topbar">
-      <div class="page-title" id="page-title">داشبورد</div>
+      <div class="page-title" id="page-title">{{ _t('dashboard') }}</div>
       {% if saved %}
-        <div class="flash">✅ تغییرات با موفقیت ذخیره شد</div>
+        <div class="flash">✅ {{ _t('saved_success') }}</div>
       {% endif %}
     </div>
 
     <!-- Stats -->
     <div class="stats">
       <div class="stat-card blue">
-        <div class="label">کل رویدادها</div>
+        <div class="label">{{ _t('total_events') }}</div>
         <div class="value">{{ stats.total_logs }}</div>
-        <div class="sub">در پایگاه داده</div>
+        <div class="sub">{{ _t('in_db') }}</div>
       </div>
       <div class="stat-card red">
-        <div class="label">خطاها</div>
+        <div class="label">{{ _t('errors') }}</div>
         <div class="value">{{ stats.errors }}</div>
-        <div class="sub">از کل رویدادها</div>
+        <div class="sub">{{ _t('out_of_total') }}</div>
       </div>
       <div class="stat-card green">
-        <div class="label">کاربران</div>
+        <div class="label">{{ _t('users') }}</div>
         <div class="value">{{ stats.users }}</div>
-        <div class="sub">ثبت‌شده</div>
+        <div class="sub">{{ _t('registered') }}</div>
       </div>
       <div class="stat-card purple">
-        <div class="label">اشتراک فعال</div>
+        <div class="label">{{ _t('active_subs') }}</div>
         <div class="value">{{ stats.paid_users }}</div>
-        <div class="sub">پلن پولی</div>
+        <div class="sub">{{ _t('paid_plan') }}</div>
       </div>
     </div>
 
@@ -730,7 +735,7 @@ PAGE_TEMPLATE = """
             <input type="hidden" name="csrf_token" value="{{ session.get(\'csrf_token\', \'\') }}">
           <div class="field">
             <label>متن پیام (پشتیبانی از Markdown تلگرام)</label>
-            <textarea name="message_text" placeholder="مثلاً: *کاربران گرامی*
+            <textarea id="broadcast-editor" name="message_text" placeholder="مثلاً: *کاربران گرامی*
 تخفیف ویژه آغاز شد!" style="min-height: 150px" required></textarea>
           </div>
           <button class="btn" type="submit">🚀 شروع ارسال سراسری به {{ stats.users }} کاربر</button>
@@ -1116,6 +1121,20 @@ PAGE_TEMPLATE = """
     renderVisualEditor();
   });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const editorEl = document.getElementById('broadcast-editor');
+    if (editorEl) {
+      new EasyMDE({
+        element: editorEl,
+        spellChecker: false,
+        direction: "rtl",
+        toolbar: ["bold", "italic", "heading", "|", "quote", "code", "link", "|", "preview", "guide"]
+      });
+    }
+  });
+</script>
 </body>
 </html>
 """
@@ -1168,7 +1187,7 @@ def login():
             login_attempts[ip]["attempts"] = 0
             
         add_log("INFO", "admin_login", f"ورود موفق ادمین از {ip}", metadata={"source": "پنل ادمین"})
-        return redirect(url_for("index"))
+        return redirect(url_for("admin_index"))
     else:
         # Register failed attempt
         if ip not in login_attempts:
@@ -1188,6 +1207,13 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+@app.route("/set_lang/<lang_code>")
+@_requires_auth
+def set_lang(lang_code):
+    if lang_code in ["en", "fa"]:
+        session["admin_lang"] = lang_code
+    return redirect(url_for("admin_index"))
 
 LOGIN_TEMPLATE = '''
 <!DOCTYPE html>
@@ -1257,8 +1283,20 @@ def _usage_lines_for_user(telegram_user_id: int) -> list[str]:
 
 
 @app.route("/")
+def landing_page():
+    return send_file("website/index.html")
+
+@app.route("/static_site/<path:filename>")
+def serve_website_static(filename):
+    import os
+    file_path = os.path.join(os.path.dirname(__file__), "website", filename)
+    if not os.path.exists(file_path):
+        abort(404)
+    return send_file(file_path)
+
+@app.route("/admin")
 @_requires_auth
-def index():
+def admin_index():
     init_logs_db()
     settings = load_settings()
     logs = list_logs(limit=200)
@@ -1271,6 +1309,12 @@ def index():
     import os
     env_stripe_secret_set = bool(os.getenv("STRIPE_SECRET_KEY"))
     env_stripe_webhook_set = bool(os.getenv("STRIPE_WEBHOOK_SECRET"))
+    
+    lang = session.get("admin_lang", "fa")
+    from locales import get_text
+    def _t(key):
+        return get_text(key, lang)
+
     return render_template_string(
         PAGE_TEMPLATE,
         settings=settings,
@@ -1286,7 +1330,9 @@ def index():
         flag_map=flag_map,
         plans_json_str=__import__('json').dumps(__import__('plans').get_subscription_plans(), ensure_ascii=False, indent=2),
         env_stripe_secret_set=env_stripe_secret_set,
-        env_stripe_webhook_set=env_stripe_webhook_set
+        env_stripe_webhook_set=env_stripe_webhook_set,
+        lang=lang,
+        _t=_t
     )
 
 
@@ -1299,10 +1345,10 @@ def update_plans():
         new_plans = json.loads(request.form.get("plans_json", "{}"))
         save_subscription_plans(new_plans)
         add_log("INFO", "plans_updated", f"اطلاعات پکیج‌های سیستم داینامیک به‌روزرسانی شد.", metadata={"source": "پنل ادمین"})
-        return redirect(url_for("index", saved="1"))
+        return redirect(url_for("admin_index", saved="1"))
     except Exception as e:
         add_log("ERROR", "plans_update_failed", f"فرمت JSON برای برنامه‌ها نامعتبر بود: {e}", metadata={"source": "پنل ادمین"})
-        return redirect(url_for("index"))
+        return redirect(url_for("admin_index"))
 
 @app.post("/settings")
 @_requires_auth
@@ -1345,7 +1391,7 @@ def update_settings():
         "تنظیمات پنل مدیریت تغییر کرد.",
         metadata=settings,
     )
-    return redirect(url_for("index", saved="1"))
+    return redirect(url_for("admin_index", saved="1"))
 
 
 @app.post("/subscriptions")
@@ -1373,7 +1419,7 @@ def assign_subscription():
             "plan_expires_at": user["plan_expires_at"],
         },
     )
-    return redirect(url_for("index", saved="1"))
+    return redirect(url_for("admin_index", saved="1"))
 
 
 @app.get("/api/settings")
@@ -1406,13 +1452,14 @@ def _send_broadcast_background(text: str, user_ids: list):
         bot = Bot(token=BOT_TOKEN)
         success_count = 0
         error_count = 0
-        for uid in user_ids:
-            try:
-                await bot.send_message(chat_id=uid, text=text, parse_mode="Markdown")
-                success_count += 1
-            except Exception as e:
-                error_count += 1
-            await asyncio.sleep(0.05)
+        async with bot:
+            for uid in user_ids:
+                try:
+                    await bot.send_message(chat_id=uid, text=text, parse_mode="Markdown")
+                    success_count += 1
+                except Exception as e:
+                    error_count += 1
+                await asyncio.sleep(0.05)
             
         add_log("INFO", "broadcast_completed", f"ارسال سراسری پایان یافت. موفق: {success_count}، ناموفق: {error_count}", metadata={"source": "پنل ادمین"})
         
@@ -1459,7 +1506,7 @@ def download_backup():
 def send_broadcast():
     text = request.form.get("message_text", "").strip()
     if not text:
-        return redirect(url_for("index"))
+        return redirect(url_for("admin_index"))
         
     users = list_bot_users(limit=1000000)
     user_ids = [u["telegram_user_id"] for u in users]
@@ -1467,7 +1514,7 @@ def send_broadcast():
     add_log("INFO", "broadcast_started", f"ارسال پیام سراسری برای {len(user_ids)} کاربر آغاز شد.", metadata={"source": "پنل ادمین"})
     
     threading.Thread(target=_send_broadcast_background, args=(text, user_ids), daemon=True).start()
-    return redirect(url_for("index", saved="1"))
+    return redirect(url_for("admin_index", saved="1"))
 
 
 @app.post("/finance/confirm")
@@ -1475,11 +1522,11 @@ def send_broadcast():
 def confirm_transaction():
     tx_id = request.form.get("tx_id")
     if not tx_id:
-        return redirect(url_for("index"))
+        return redirect(url_for("admin_index"))
         
     tx = get_transaction(tx_id)
     if not tx or tx["status"] != "Pending":
-        return redirect(url_for("index"))
+        return redirect(url_for("admin_index"))
         
     from plans import get_plan
     plan = get_plan(tx["plan_code"])
@@ -1493,7 +1540,7 @@ def confirm_transaction():
         update_transaction_status(tx_id, "Completed")
         add_log("INFO", "transaction_manual_confirm", f"تراکنش مالی به صورت دستی تایید شد {tx_id[:12]}.", metadata={"source": "پنل ادمین"})
         
-    return redirect(url_for("index", saved="1"))
+    return redirect(url_for("admin_index", saved="1"))
 
 
 @app.route('/webhook/stripe', methods=['POST'])

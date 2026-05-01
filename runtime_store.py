@@ -316,6 +316,21 @@ def upsert_bot_user(
         conn.commit()
 
 
+def set_user_language(telegram_user_id: int, language_code: str) -> None:
+    init_logs_db()
+    now = _utc_now()
+    with sqlite3.connect(LOGS_DB) as conn:
+        conn.execute(
+            """
+            UPDATE bot_users
+            SET language_code = ?, updated_at = ?
+            WHERE telegram_user_id = ?
+            """,
+            (language_code, now, telegram_user_id)
+        )
+        conn.commit()
+
+
 def _row_to_user(row: sqlite3.Row | None) -> dict[str, Any] | None:
     if row is None:
         return None

@@ -47,12 +47,14 @@ from runtime_store import (
     load_settings,
     record_usage_event,
     upsert_bot_user,
+    set_user_language,
     save_pending_request,
     get_pending_request,
     delete_pending_request,
     cleanup_expired_requests,
     record_transaction,
 )
+from locales import get_text
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -109,11 +111,11 @@ def format_duration(seconds: Optional[int]) -> str:
     return f"{m:02d}:{s:02d}"
 
 
-def build_quality_keyboard(info: VideoInfo, request_token: str) -> InlineKeyboardMarkup:
+def build_quality_keyboard(info: VideoInfo, request_token: str, lang: str = "fa") -> InlineKeyboardMarkup:
     buttons = []
 
     if info.platform == "RadioJavan":
-        buttons.append([InlineKeyboardButton("دانلود MP3", callback_data=f"dl|audio|{request_token}")])
+        buttons.append([InlineKeyboardButton(get_text("btn_dl_mp3", lang), callback_data=f"dl|audio|{request_token}")])
         return InlineKeyboardMarkup(buttons)
 
     if info.formats:
@@ -128,70 +130,66 @@ def build_quality_keyboard(info: VideoInfo, request_token: str) -> InlineKeyboar
         if row:
             buttons.append(row)
     else:
-        buttons.append([InlineKeyboardButton("بهترین کیفیت", callback_data=f"dl|best|{request_token}")])
-        buttons.append([InlineKeyboardButton("کمترین حجم", callback_data=f"dl|worst|{request_token}")])
+        buttons.append([InlineKeyboardButton(get_text("btn_best_quality", lang), callback_data=f"dl|best|{request_token}")])
+        buttons.append([InlineKeyboardButton(get_text("btn_worst_quality", lang), callback_data=f"dl|worst|{request_token}")])
 
-    buttons.append([InlineKeyboardButton("فقط صدا (MP3)", callback_data=f"dl|audio|{request_token}")])
+    buttons.append([InlineKeyboardButton(get_text("btn_audio_only", lang), callback_data=f"dl|audio|{request_token}")])
 
     return InlineKeyboardMarkup(buttons)
 
 
-def build_home_keyboard() -> InlineKeyboardMarkup:
+def build_home_keyboard(lang: str = "fa") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("آیدی من", callback_data="util|myid"),
-                InlineKeyboardButton("پلن من", callback_data="util|myplan"),
+                InlineKeyboardButton(get_text("btn_my_id", lang), callback_data="util|myid"),
+                InlineKeyboardButton(get_text("btn_my_plan", lang), callback_data="util|myplan"),
             ],
             [
-                InlineKeyboardButton("مصرف من", callback_data="util|usage"),
-                InlineKeyboardButton("لاگ من", callback_data="util|mylogs"),
+                InlineKeyboardButton(get_text("btn_usage", lang), callback_data="util|usage"),
+                InlineKeyboardButton(get_text("btn_logs", lang), callback_data="util|mylogs"),
             ],
             [
-                InlineKeyboardButton("پکیج‌ها", callback_data="util|plans"),
-                InlineKeyboardButton("پشتیبانی", callback_data="util|support"),
+                InlineKeyboardButton(get_text("btn_plans", lang), callback_data="util|plans"),
+                InlineKeyboardButton(get_text("btn_support", lang), callback_data="util|support"),
             ],
         ]
     )
 
 
-def build_usage_text(user_id: int) -> str:
+def build_usage_text(user_id: int, lang: str = "fa") -> str:
     snapshot = get_usage_snapshot(user_id)
-    expiry = snapshot["user"]["plan_expires_at"] or "نامحدود"
+    expiry = snapshot["user"]["plan_expires_at"] or get_text("unlimited", lang)
     lines = [
-        f"*{snapshot['plan']['name']}*",
-        f"انقضا: `{expiry}`",
+        get_text("usage_header", lang, plan_name=snapshot["plan"].get(f"name_{lang}", snapshot["plan"]["name"]), expiry=expiry)
     ]
     for rule in snapshot["rules"]:
         if rule["limit"] is None:
-            lines.append(f"• {rule['platform']}: نامحدود")
+            lines.append(f"• {rule['platform']}: {get_text('unlimited', lang)}")
             continue
         extra = ""
         if rule.get("max_duration_seconds"):
-            extra = f" | حداکثر زمان: {rule['max_duration_seconds'] // 60} دقیقه"
+            extra = f" | {rule['max_duration_seconds'] // 60}m"
         lines.append(
-            f"• {rule['platform']}: {rule['used']}/{rule['limit']} در هر {rule['period_label']} | باقی‌مانده: {rule['remaining']}{extra}"
+            f"• {rule['platform']}: {rule['used']}/{rule['limit']} ({rule['period_label']}) | {rule['remaining']}{extra}"
         )
     return "\n".join(lines)
 
 
-def build_myplan_text(user_id: int) -> str:
+def build_myplan_text(user_id: int, lang: str = "fa") -> str:
     subscription = get_bot_user(user_id)
-    expiry = subscription["plan_expires_at"] or "نامحدود"
-    return (
-        f"پلن فعلی: *{subscription['effective_plan']['name']}*\n"
-        f"پلن ثبت‌شده: {subscription['assigned_plan']['name']}\n"
-        f"قیمت: ${subscription['effective_plan']['price_usd']}/ماه\n"
-        f"انقضا: `{expiry}`"
-    )
+    expiry = subscription["plan_expires_at"] or get_text("unlimited", lang)
+    effective_plan = subscription["effective_plan"].get(f"name_{lang}", subscription["effective_plan"]["name"])
+    assigned_plan = subscription["assigned_plan"].get(f"name_{lang}", subscription["assigned_plan"]["name"])
+    return get_text("my_plan", lang, effective_plan=effective_plan, assigned_plan=assigned_plan, price=subscription["effective_plan"]["price_usd"], expiry=expiry)
 
 
-def build_user_logs_text(user_id: int) -> str:
+def build_user_logs_text(user_id: int, lang: str = "fa") -> str:
     logs = list_user_logs(user_id, limit=8)
     if not logs:
-        return "هنوز لاگ شخصی برای شما ثبت نشده است."
+        return get_text("no_logs", lang)
 
-    lines = ["آخرین رویدادهای شما"]
+    lines = [get_text("last_events", lang)]
     for log in logs:
         platform = f" | {log['platform']}" if log.get("platform") else ""
         lines.append(f"• {log['created_at']} | {log['event_type']}{platform}")
@@ -199,25 +197,25 @@ def build_user_logs_text(user_id: int) -> str:
     return "\n".join(lines)
 
 
-def build_support_contact() -> tuple[str, InlineKeyboardMarkup | None]:
+def build_support_contact(lang: str = "fa") -> tuple[str, InlineKeyboardMarkup | None]:
     if not SUPPORT_CONTACT:
-        return "اطلاعات پشتیبانی هنوز در سرور تنظیم نشده است.", None
+        return get_text("support_not_set", lang), None
 
     contact = SUPPORT_CONTACT.strip()
     if contact.startswith("@"):
         username = contact[1:]
         return (
-            f"برای پشتیبانی با {contact} در تماس باش.",
+            get_text("support_telegram", lang, contact=contact),
             InlineKeyboardMarkup(
-                [[InlineKeyboardButton("تماس با پشتیبانی", url=f"https://t.me/{username}")]]
+                [[InlineKeyboardButton(get_text("btn_support", lang), url=f"https://t.me/{username}")]]
             ),
         )
     if contact.startswith("http://") or contact.startswith("https://"):
         return (
-            "برای پشتیبانی از لینک زیر استفاده کن.",
-            InlineKeyboardMarkup([[InlineKeyboardButton("پشتیبانی", url=contact)]]),
+            get_text("support_link", lang),
+            InlineKeyboardMarkup([[InlineKeyboardButton(get_text("btn_support", lang), url=contact)]]),
         )
-    return f"پشتیبانی: {contact}", None
+    return get_text("support_text", lang, contact=contact), None
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -231,27 +229,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             language_code=user.language_code,
         )
     subscription = get_bot_user(user.id) if user else None
+    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
     settings = load_settings()
     platforms = "\n".join(f"• {p}" for p in settings["allowed_platforms"])
-    text = (
-        "سلام! به بات دانلودر خوش اومدی.\n\n"
-        "کافیه لینک ویدئو رو بفرستی تا برات دانلود کنم.\n\n"
-        f"پلن فعلی شما: *{subscription['effective_plan']['name']}*\n\n"
-        f"*پلتفرم‌های پشتیبانی‌شده:*\n{platforms}\n\n"
-        f"حداکثر حجم فایل: *{settings['max_file_size_mb']} مگابایت*\n\n"
-        "دستورها:\n"
-        "/menu - نمایش منوی سریع\n"
-        "/plans - مشاهده پکیج‌ها\n"
-        "/myplan - مشاهده پلن فعلی\n"
-        "/mylogs - مشاهده لاگ‌های شخصی\n"
-        "/usage - مشاهده سهمیه مصرف\n"
-        "/myid - مشاهده آیدی عددی تلگرام\n"
-        "/support - تماس با پشتیبانی"
-    )
+    text = get_text("bot_start", user_lang, plan_name=subscription["effective_plan"].get(f"name_{user_lang}", subscription["effective_plan"]["name"]), platforms=platforms, max_mb=settings["max_file_size_mb"])
     await update.message.reply_text(
         text,
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=build_home_keyboard(),
+        reply_markup=build_home_keyboard(user_lang),
     )
 
 
@@ -260,14 +245,17 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "منوی سریع آماده است.\n"
-        "از دکمه‌های زیر یا commandهای بات استفاده کن."
-    )
-    await update.message.reply_text(text, reply_markup=build_home_keyboard())
+    user = update.effective_user
+    subscription = get_bot_user(user.id) if user else None
+    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    text = get_text("menu_ready", user_lang)
+    await update.message.reply_text(text, reply_markup=build_home_keyboard(user_lang))
 
 
 async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    subscription = get_bot_user(user.id) if user else None
+    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
     text = build_plan_catalog_text()
     from plans import get_subscription_plans
     all_plans = get_subscription_plans()
@@ -279,15 +267,15 @@ async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for plan in sorted_plans:
         code = plan.get("code")
         price = plan.get("price_usd", 0)
-        name = plan.get("name", "پکیج")
+        name = plan.get(f"name_{user_lang}", plan.get("name", "پکیج"))
         
         # Don't show buy button for Free packages (price == 0)
         if price > 0:
-            keyboard.append([InlineKeyboardButton(f"💳 خرید {name} (${price})", callback_data=f"buy_{code}")])
+            keyboard.append([InlineKeyboardButton(get_text("btn_buy", user_lang, name=name, price=price), callback_data=f"buy_{code}")])
             
     # Default fallback if somehow no buttons are generated
     if not keyboard:
-        keyboard.append([InlineKeyboardButton("❌ پکیج‌های پولی در حال حاضر غیرفعال هستند", callback_data="none")])
+        keyboard.append([InlineKeyboardButton(get_text("btn_no_plans", user_lang), callback_data="none")])
         
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
@@ -302,9 +290,11 @@ async def myplan_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         username=user.username,
         first_name=user.first_name,
         last_name=user.last_name,
-            language_code=user.language_code,
+        language_code=user.language_code,
     )
-    await update.message.reply_text(build_myplan_text(user.id), parse_mode=ParseMode.MARKDOWN)
+    subscription = get_bot_user(user.id)
+    user_lang = subscription.get("language_code", "fa")
+    await update.message.reply_text(build_myplan_text(user.id, user_lang), parse_mode=ParseMode.MARKDOWN)
 
 
 async def usage_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -316,9 +306,11 @@ async def usage_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         username=user.username,
         first_name=user.first_name,
         last_name=user.last_name,
-            language_code=user.language_code,
+        language_code=user.language_code,
     )
-    await update.message.reply_text(build_usage_text(user.id), parse_mode=ParseMode.MARKDOWN)
+    subscription = get_bot_user(user.id)
+    user_lang = subscription.get("language_code", "fa")
+    await update.message.reply_text(build_usage_text(user.id, user_lang), parse_mode=ParseMode.MARKDOWN)
 
 
 async def mylogs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -330,20 +322,27 @@ async def mylogs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         username=user.username,
         first_name=user.first_name,
         last_name=user.last_name,
-            language_code=user.language_code,
+        language_code=user.language_code,
     )
-    await update.message.reply_text(build_user_logs_text(user.id))
+    subscription = get_bot_user(user.id)
+    user_lang = subscription.get("language_code", "fa")
+    await update.message.reply_text(build_user_logs_text(user.id, user_lang))
 
 
 async def myid_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if not user:
         return
-    await update.message.reply_text(f"Telegram User ID شما:\n`{user.id}`", parse_mode=ParseMode.MARKDOWN)
+    subscription = get_bot_user(user.id)
+    user_lang = subscription.get("language_code", "fa")
+    await update.message.reply_text(get_text("my_id", user_lang, user_id=user.id), parse_mode=ParseMode.MARKDOWN)
 
 
 async def support_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text, markup = build_support_contact()
+    user = update.effective_user
+    subscription = get_bot_user(user.id) if user else None
+    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    text, markup = build_support_contact(user_lang)
     await update.message.reply_text(text, reply_markup=markup)
 
 
@@ -352,15 +351,18 @@ async def handle_utility_callback(query, context: ContextTypes.DEFAULT_TYPE):
     user = query.from_user
     if not user:
         return
+        
+    subscription = get_bot_user(user.id)
+    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
 
     if action == "myid":
         await query.message.reply_text(
-            f"Telegram User ID شما:\n`{user.id}`",
+            get_text("my_id", user_lang, user_id=user.id),
             parse_mode=ParseMode.MARKDOWN,
         )
         return
     if action == "plans":
-        await query.message.reply_text(build_plan_catalog_text(), parse_mode=ParseMode.MARKDOWN)
+        await query.message.reply_text(build_plan_catalog_text(user_lang), parse_mode=ParseMode.MARKDOWN)
         return
     if action == "myplan":
         upsert_bot_user(
@@ -370,7 +372,9 @@ async def handle_utility_callback(query, context: ContextTypes.DEFAULT_TYPE):
             last_name=user.last_name,
             language_code=user.language_code,
         )
-        await query.message.reply_text(build_myplan_text(user.id), parse_mode=ParseMode.MARKDOWN)
+        subscription = get_bot_user(user.id)
+        user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+        await query.message.reply_text(build_myplan_text(user.id, user_lang), parse_mode=ParseMode.MARKDOWN)
         return
     if action == "usage":
         upsert_bot_user(
@@ -380,7 +384,9 @@ async def handle_utility_callback(query, context: ContextTypes.DEFAULT_TYPE):
             last_name=user.last_name,
             language_code=user.language_code,
         )
-        await query.message.reply_text(build_usage_text(user.id), parse_mode=ParseMode.MARKDOWN)
+        subscription = get_bot_user(user.id)
+        user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+        await query.message.reply_text(build_usage_text(user.id, user_lang), parse_mode=ParseMode.MARKDOWN)
         return
     if action == "mylogs":
         upsert_bot_user(
@@ -390,10 +396,14 @@ async def handle_utility_callback(query, context: ContextTypes.DEFAULT_TYPE):
             last_name=user.last_name,
             language_code=user.language_code,
         )
-        await query.message.reply_text(build_user_logs_text(user.id))
+        subscription = get_bot_user(user.id)
+        user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+        await query.message.reply_text(build_user_logs_text(user.id, user_lang))
         return
     if action == "support":
-        text, markup = build_support_contact()
+        subscription = get_bot_user(user.id)
+        user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+        text, markup = build_support_contact(user_lang)
         await query.message.reply_text(text, reply_markup=markup)
         return
 
@@ -410,10 +420,12 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
             last_name=user.last_name,
             language_code=user.language_code,
         )
+    subscription = get_bot_user(user.id) if user else None
+    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
     settings = load_settings()
 
     if not settings["downloads_enabled"]:
-        await message.reply_text("دانلود موقتاً از پنل مدیریت غیرفعال شده است.")
+        await message.reply_text(get_text("downloads_disabled", user_lang))
         add_log(
             "INFO",
             "download_rejected",
@@ -424,19 +436,19 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     match = URL_PATTERN.search(text)
     if not match:
-        await message.reply_text("لینک معتبری پیدا نکردم. لطفاً یک URL بفرست.")
+        await message.reply_text(get_text("invalid_url", user_lang))
         return
 
     url = match.group(0)
     await message.chat.send_action(ChatAction.TYPING)
 
-    status_msg = await message.reply_text("در حال دریافت اطلاعات ویدئو...")
+    status_msg = await message.reply_text(get_text("fetching_info", user_lang))
 
     try:
         info = await get_video_info(url)
     except Exception as e:
         add_log("ERROR", "metadata_failed", f"دریافت اطلاعات ناموفق بود: {str(e)[:200]}", url=url)
-        await status_msg.edit_text(f"خطا در دریافت اطلاعات:\n`{str(e)[:300]}`", parse_mode=ParseMode.MARKDOWN)
+        await status_msg.edit_text(get_text("fetch_error", user_lang, error=str(e)[:300]), parse_mode=ParseMode.MARKDOWN)
         return
 
     platform_name = normalize_platform(info.platform, url)
@@ -452,7 +464,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
             url=url,
             metadata={"source": "تلگرام ربات", "telegram_user_id": user.id if user else None},
         )
-        await status_msg.edit_text("این پلتفرم در پنل مدیریت غیرفعال شده است.")
+        await status_msg.edit_text(get_text("platform_disabled", user_lang))
         return
 
     access = evaluate_download_access(
@@ -502,15 +514,9 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
     )
 
-    caption = (
-        f"*{info.title}*\n\n"
-        f"پلتفرم: {info.platform}\n"
-        f"آپلودر: {info.uploader}\n"
-        f"مدت: {format_duration(info.duration)}\n\n"
-        "کیفیت مورد نظر را انتخاب کن:"
-    )
+    caption = get_text("video_caption", user_lang, title=info.title, platform=info.platform, uploader=info.uploader, duration=format_duration(info.duration))
 
-    keyboard = build_quality_keyboard(info, request_token)
+    keyboard = build_quality_keyboard(info, request_token, user_lang)
 
     try:
         await status_msg.edit_text(caption, parse_mode=ParseMode.MARKDOWN, reply_markup=keyboard)
@@ -520,17 +526,19 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_buy_plan(query, context, plan_code):
     user = query.from_user
+    subscription = get_bot_user(user.id)
+    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
     settings = load_settings()
     stripe_key = settings.get("stripe_secret_key")
     if not stripe_key:
-        await query.message.reply_text("❌ سیستم پرداخت استرایپ هنوز در پنل ادمین تنظیم نشده است.")
+        await query.message.reply_text(get_text("stripe_not_set", user_lang))
         return
 
     stripe.api_key = stripe_key
     from plans import get_plan
     plan = get_plan(plan_code)
     if not plan or plan.get("price_usd", 0) == 0:
-        await query.message.reply_text("❌ این پکیج نامعتبر است یا امکان خرید مستقیم آن وجود ندارد.")
+        await query.message.reply_text(get_text("invalid_package", user_lang))
         return
 
     try:
@@ -567,17 +575,17 @@ async def handle_buy_plan(query, context, plan_code):
             plan_code=plan_code
         )
         
-        keyboard = [[InlineKeyboardButton("💳 انتقال به درگاه پرداخت استرایپ", url=session.url)]]
+        
+        keyboard = [[InlineKeyboardButton(get_text("btn_pay_stripe", user_lang), url=session.url)]]
+        plan_name_localized = plan.get(f"name_{user_lang}", plan['name'])
         await query.message.reply_text(
-            f"فاکتور رسمی برای **{plan['name']}** صادر شد.\n\n"
-            f"مبلغ: `${plan['price_usd']}`\n\n"
-            "لطفاً از طریق دکمه زیر پرداخت را انجام دهید. پس از پرداخت، اشتراک شما بلافاصله فعال می‌شود.",
+            get_text("invoice_created", user_lang, plan_name=plan_name_localized, price=plan['price_usd']),
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     except Exception as e:
         logger.error(f"Stripe Error: {str(e)}")
-        await query.message.reply_text(f"❌ خطا در ایجاد فاکتور استرایپ:\n`{str(e)[:200]}`", parse_mode=ParseMode.MARKDOWN)
+        await query.message.reply_text(get_text("stripe_error", user_lang, error=str(e)[:200]), parse_mode=ParseMode.MARKDOWN)
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -591,6 +599,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data.startswith("util|"):
         await handle_utility_callback(query, context)
         return
+    if data.startswith("lang|"):
+        await handle_lang_callback(query, context)
+        return
     if not data.startswith("dl|"):
         return
 
@@ -600,11 +611,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     _, quality, request_token = parts
     request_data = get_pending_request(request_token)
+    user_id_query = query.from_user.id if query.from_user else 0
+    subscription = get_bot_user(user_id_query) if user_id_query else None
+    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    
     if not request_data:
-        await query.message.reply_text("این درخواست منقضی شده. لینک را دوباره بفرست.")
+        await query.message.reply_text(get_text("expired_request", user_lang))
         return
     if query.from_user and request_data["telegram_user_id"] != query.from_user.id:
-        await query.message.reply_text("این دکمه برای درخواست شما نیست.")
+        await query.message.reply_text(get_text("wrong_user", user_lang))
         return
 
     url = request_data["url"]
@@ -623,7 +638,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     status_msg: Message = query.message
-    await status_msg.edit_text("در حال دانلود... لطفاً صبر کن.")
+    await status_msg.edit_text(get_text("downloading", user_lang))
     await status_msg.chat.send_action(ChatAction.UPLOAD_VIDEO)
 
     last_pct = {"val": -1}
@@ -632,7 +647,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if pct - last_pct["val"] >= 20:
             last_pct["val"] = pct
             asyncio.create_task(
-                status_msg.edit_text(f"در حال دانلود... {pct}%")
+                status_msg.edit_text(get_text("download_progress", user_lang, pct=pct))
             )
 
     if quality == "audio":
@@ -649,10 +664,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             url=url,
             metadata={"source": "تلگرام ربات", "telegram_user_id": user_id},
         )
-        await status_msg.edit_text(f"خطا: {result.error}")
+        await status_msg.edit_text(get_text("download_error", user_lang, error=result.error))
         return
 
-    await status_msg.edit_text("دانلود شد، در حال ارسال فایل...")
+    await status_msg.edit_text(get_text("sending_file", user_lang))
 
     try:
         file_path = result.file_path
@@ -764,10 +779,36 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 url=url,
                 metadata={"source": "تلگرام ربات", "telegram_user_id": user_id},
             )
-            await status_msg.edit_text(f"خطا در ارسال فایل: {str(e2)[:200]}")
+            await status_msg.edit_text(get_text("send_error", user_lang, error=str(e2)[:200]))
     finally:
         cleanup_file(result.file_path)
         delete_pending_request(request_token)
+
+
+async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if not user:
+        return
+    subscription = get_bot_user(user.id)
+    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    keyboard = [
+        [
+            InlineKeyboardButton("🇬🇧 English", callback_data="lang|en"),
+            InlineKeyboardButton("🇮🇷 فارسی", callback_data="lang|fa")
+        ]
+    ]
+    await update.message.reply_text(
+        get_text("lang_prompt", user_lang),
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def handle_lang_callback(query, context: ContextTypes.DEFAULT_TYPE):
+    action = query.data.split("|", 1)[1]
+    user = query.from_user
+    if not user:
+        return
+    set_user_language(user.id, action)
+    await query.message.reply_text(get_text("lang_changed", action))
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
@@ -809,6 +850,7 @@ def main():
     app.add_handler(CommandHandler("mylogs", mylogs_command))
     app.add_handler(CommandHandler("myid", myid_command))
     app.add_handler(CommandHandler("support", support_command))
+    app.add_handler(CommandHandler("lang", lang_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_url))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_error_handler(error_handler)

@@ -13,8 +13,10 @@ DEFAULT_SUBSCRIPTION_PLANS = {
     "free": {
         "code": "free",
         "name": "پکیج رایگان",
+        "name_en": "Free Package",
         "price_usd": 0,
         "description": "شروع رایگان با سهمیه محدود",
+        "description_en": "Free start with limited quota",
         "rules": [
             {"platform": "Twitter/X", "limit": 5, "period": "month"},
             {"platform": "Instagram", "limit": 5, "period": "month"},
@@ -23,8 +25,10 @@ DEFAULT_SUBSCRIPTION_PLANS = {
     "starter": {
         "code": "starter",
         "name": "پکیج استارتر",
+        "name_en": "Starter Package",
         "price_usd": 5,
         "description": "مناسب شروع با سهمیه روزانه و هفتگی کنترل‌شده",
+        "description_en": "Suitable for starting with controlled daily and weekly quota",
         "rules": [
             {"platform": "RadioJavan", "limit": 3, "period": "month"},
             {"platform": "Twitter/X", "limit": 13, "period": "month"},
@@ -37,8 +41,10 @@ DEFAULT_SUBSCRIPTION_PLANS = {
     "standard": {
         "code": "standard",
         "name": "پکیج استاندارد",
+        "name_en": "Standard Package",
         "price_usd": 13,
         "description": "مصرف نامحدود برای RadioJavan، Twitter/X و Instagram به همراه TikTok و YouTube محدود",
+        "description_en": "Unlimited usage for RadioJavan, Twitter/X and Instagram along with limited TikTok and YouTube",
         "rules": [
             {"platform": "RadioJavan", "limit": None, "period": None},
             {"platform": "Twitter/X", "limit": None, "period": None},
@@ -52,8 +58,10 @@ DEFAULT_SUBSCRIPTION_PLANS = {
     "pro": {
         "code": "pro",
         "name": "پکیج حرفه‌ای",
+        "name_en": "Pro Package",
         "price_usd": 23,
         "description": "پلن حرفه‌ای با پلتفرم‌های نامحدود و YouTube محدود با سقف زمان بیشتر",
+        "description_en": "Professional plan with unlimited platforms and limited YouTube with higher time cap",
         "rules": [
             {"platform": "Twitter/X", "limit": None, "period": None},
             {"platform": "Instagram", "limit": None, "period": None},
@@ -145,29 +153,37 @@ def normalize_platform(raw_platform: str | None, url: str = "") -> str:
         return "Dailymotion"
     if "pornhub.com" in host or "pornhub" in platform:
         return "PornHub"
-    return raw_platform or "نامشخص"
+    from locales import get_text
+    return raw_platform or get_text("unknown", "fa")
 
-def format_duration_limit(seconds: int | None) -> str | None:
+def format_duration_limit(seconds: int | None, lang: str = "fa") -> str | None:
     if not seconds:
         return None
     minutes = seconds // 60
-    return f"حداکثر {minutes} دقیقه"
+    return f"حداکثر {minutes} دقیقه" if lang == "fa" else f"Max {minutes} mins"
 
-def format_rule(rule: dict) -> str:
+def format_rule(rule: dict, lang: str = "fa") -> str:
+    from locales import get_text
     if rule["limit"] is None:
-        base = f"{rule['platform']}: نامحدود"
+        base = f"{rule['platform']}: {get_text('unlimited', lang)}"
     else:
-        base = f"{rule['platform']}: {rule['limit']} لینک در هر {PERIOD_LABELS.get(rule['period'], rule['period'])}"
+        period_str = PERIOD_LABELS.get(rule['period'], rule['period']) if lang == "fa" else rule['period']
+        per_str = "لینک در هر" if lang == "fa" else "links per"
+        base = f"{rule['platform']}: {rule['limit']} {per_str} {period_str}"
 
-    duration_limit = format_duration_limit(rule.get("max_duration_seconds"))
+    duration_limit = format_duration_limit(rule.get("max_duration_seconds"), lang)
     if duration_limit:
-        base = f"{base}، {duration_limit}"
+        base = f"{base}، {duration_limit}" if lang == "fa" else f"{base}, {duration_limit}"
     return base
 
-def build_plan_catalog_text() -> str:
+def build_plan_catalog_text(lang: str = "fa") -> str:
     chunks = []
     for plan in list_plans():
-        lines = [f"*{plan['name']}* - ${plan['price_usd']}/ماه"]
-        lines.extend(f"• {format_rule(rule)}" for rule in plan.get("rules", []))
+        plan_name = plan.get(f"name_{lang}", plan["name"])
+        plan_desc = plan.get(f"description_{lang}", plan.get("description", ""))
+        lines = [f"*{plan_name}* - ${plan['price_usd']}/mo"]
+        if plan_desc:
+            lines.append(f"_{plan_desc}_")
+        lines.extend(f"• {format_rule(rule, lang)}" for rule in plan.get("rules", []))
         chunks.append("\n".join(lines))
     return "\n\n".join(chunks)
