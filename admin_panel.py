@@ -1688,6 +1688,16 @@ def user_logout():
     session.pop("user_id", None)
     return redirect(url_for("landing_page"))
 
+@app.route("/<path:filename>")
+def serve_website_static(filename):
+    import os
+    if ".." in filename:
+        abort(404)
+    file_path = os.path.join(os.path.dirname(__file__), "website", filename)
+    if not os.path.exists(file_path):
+        abort(404)
+    return send_file(file_path)
+
 def run_admin_panel() -> None:
     if not ADMIN_PASSWORD:
         import sys
