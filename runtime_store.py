@@ -661,3 +661,23 @@ def get_financial_stats() -> dict:
             "total_completed": total_completed,
             "total_pending": total_pending
         }
+
+def get_user_download_history(telegram_user_id: int, limit: int = 15) -> list[dict]:
+    ensure_data_dir()
+    with sqlite3.connect(LOGS_DB) as conn:
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute(
+            "SELECT * FROM usage_events WHERE telegram_user_id = ? ORDER BY datetime(created_at) DESC LIMIT ?", 
+            (telegram_user_id, limit)
+        )
+        return [dict(r) for r in cur.fetchall()]
+
+def get_user_transactions_by_user(telegram_user_id: int) -> list[dict]:
+    ensure_data_dir()
+    with sqlite3.connect(LOGS_DB) as conn:
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute(
+            "SELECT * FROM transactions WHERE telegram_user_id = ? ORDER BY datetime(created_at) DESC", 
+            (telegram_user_id,)
+        )
+        return [dict(r) for r in cur.fetchall()]

@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>داشبورد کاربری — Gheychi Premium</title>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080A11;
+      --bg-glow: #15092A;
+      --surface: rgba(20, 22, 35, 0.65);
+      --card: rgba(30, 33, 50, 0.45);
+      --border: rgba(108, 138, 255, 0.15);
+      --text: #F8FAFC;
+      --muted: #94A3B8;
+      --primary: #818CF8;
+      --secondary: #E879F9;
+      --success: #34D399;
+      --warning: #FBBF24;
+      --danger: #F87171;
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: 'Vazirmatn', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .bg-effects {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: -1;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    
+    .bg-effects::before, .bg-effects::after {
+      content: '';
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.3;
+    }
+    
+    .bg-effects::before {
+      background: var(--primary);
+      top: -200px; right: -100px;
+    }
+    
+    .bg-effects::after {
+      background: var(--secondary);
+      bottom: -200px; left: -100px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      width: 100%;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-size: 24px;
+      font-weight: 800;
+      background: linear-gradient(to right, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .logout-btn {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      transition: all 0.2s;
+    }
+    
+    .logout-btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--text);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--surface);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    .card h2 {
+      font-size: 18px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--primary);
+    }
+
+    .info-group {
+      margin-bottom: 16px;
+    }
+    
+    .info-group label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    
+    .info-group .value {
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .progress-container {
+      margin-top: 20px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      height: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(to right, var(--primary), var(--secondary));
+      border-radius: 8px;
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th {
+      text-align: right;
+      padding: 12px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      font-weight: 500;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid rgba(108, 138, 255, 0.05);
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    .badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      background: rgba(129, 140, 248, 0.15);
+      color: var(--primary);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+    }
+
+    .btn-upgrade {
+      display: inline-block;
+      width: 100%;
+      text-align: center;
+      padding: 12px;
+      background: linear-gradient(to right, var(--primary), var(--secondary));
+      color: #fff;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      margin-top: 20px;
+      transition: opacity 0.2s;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-upgrade:hover { opacity: 0.9; }
+
+  </style>
+</head>
+<body>
+  <div class="bg-effects"></div>
+  
+  <div class="container">
+    <header>
+      <div class="logo">Gheychi Premium</div>
+      <a href="/auth/logout" class="logout-btn">خروج</a>
+    </header>
+
+    <div class="grid">
+      <!-- User Info Card -->
+      <div class="card">
+        <h2>👤 اطلاعات حساب</h2>
+        
+        <div class="info-group">
+          <label>نام شما</label>
+          <div class="value">{{ user.first_name }} {{ user.last_name or '' }}</div>
+        </div>
+        
+        <div class="info-group">
+          <label>شناسه تلگرام</label>
+          <div class="value" style="font-family: monospace;">{{ user.telegram_user_id }}</div>
+        </div>
+
+        <div class="info-group">
+          <label>طرح فعال</label>
+          <div class="value">
+            <span class="badge">{{ user.effective_plan.name }}</span>
+          </div>
+        </div>
+
+        {% if user.plan_expires_at %}
+        <div class="info-group" style="margin-top: 24px;">
+          <label>تاریخ انقضا</label>
+          <div class="value" style="font-size: 14px;">{{ user.plan_expires_at }}</div>
+          <div class="progress-container">
+            <div class="progress-bar" style="width: 100%"></div>
+          </div>
+        </div>
+        {% else %}
+        <div class="info-group" style="margin-top: 24px;">
+          <label>وضعیت انقضا</label>
+          <div class="value" style="color: var(--success);">بدون محدودیت زمانی (دائمی)</div>
+        </div>
+        {% endif %}
+
+        <form action="/dashboard/upgrade" method="get">
+          <button type="submit" class="btn-upgrade">✨ ارتقا / تمدید اشتراک</button>
+        </form>
+      </div>
+
+      <!-- History Card -->
+      <div class="card">
+        <h2>📥 آخرین دانلودهای شما</h2>
+        
+        {% if history %}
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>تاریخ و زمان</th>
+                <th>پلتفرم</th>
+                <th>کیفیت</th>
+                <th>لینک</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in history %}
+              <tr>
+                <td style="direction: ltr; text-align: right; color: var(--muted);">{{ item.created_at[:16] }}</td>
+                <td><span class="badge">{{ item.platform }}</span></td>
+                <td>{{ item.quality or 'بدون مشخصات' }}</td>
+                <td>
+                  {% if item.url %}
+                  <a href="{{ item.url }}" target="_blank" style="color: var(--primary); text-decoration: none;">مشاهده 🔗</a>
+                  {% else %}
+                  -
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+          شما هنوز فایلی دانلود نکرده‌اید.
+          <br>
+          <span style="font-size: 24px; display: block; margin-top: 10px;">👻</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

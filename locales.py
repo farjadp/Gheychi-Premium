@@ -45,6 +45,7 @@ MESSAGES = {
         "btn_best_quality": "بهترین کیفیت",
         "btn_worst_quality": "کمترین حجم",
         "btn_audio_only": "فقط صدا (MP3)",
+        "btn_dashboard": "🖥 داشبورد من",
         
         # Video Info
         "video_caption": "*{title}*\n\nپلتفرم: {platform}\nآپلودر: {uploader}\nمدت: {duration}\n\nکیفیت مورد نظر را انتخاب کن:",
@@ -58,8 +59,9 @@ MESSAGES = {
         "cmd_usage": "مشاهده سهمیه و اعتبار",
         "cmd_mylogs": "مشاهده لاگ‌های شخصی",
         "cmd_myid": "دریافت Telegram User ID",
-        "cmd_support": "تماس با پشتیبانی",
-        "cmd_lang": "تغییر زبان (Change Language)",
+        "cmd_lang": "تغییر زبان بات",
+        "cmd_support": "دریافت راهنمای پشتیبانی",
+        "cmd_dashboard": "ورود به پنل کاربری وب",
 
         "admin_panel": "پنل مدیریت",
         "dashboard": "داشبورد",
@@ -125,6 +127,7 @@ MESSAGES = {
         "btn_best_quality": "Best Quality",
         "btn_worst_quality": "Smallest Size",
         "btn_audio_only": "Audio Only (MP3)",
+        "btn_dashboard": "🖥 My Dashboard",
         
         # Video Info
         "video_caption": "*{title}*\n\nPlatform: {platform}\nUploader: {uploader}\nDuration: {duration}\n\nChoose your desired quality:",
@@ -138,8 +141,9 @@ MESSAGES = {
         "cmd_usage": "View usage and quota",
         "cmd_mylogs": "View personal logs",
         "cmd_myid": "Get Telegram User ID",
-        "cmd_support": "Contact Support",
-        "cmd_lang": "Change Language",
+        "cmd_lang": "Change bot language",
+        "cmd_support": "Get support info",
+        "cmd_dashboard": "Access Web Dashboard",
 
         "admin_panel": "Admin Panel",
         "dashboard": "Dashboard",

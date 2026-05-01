@@ -1631,6 +1631,65 @@ def stripe_webhook():
             
     return jsonify(success=True), 200
 
+# =====================================================================
+# USER WEB DASHBOARD ROUTES
+# =====================================================================
+
+@app.route("/auth/magic")
+def magic_login():
+    from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
+    from config import FLASK_SECRET_KEY
+    
+    token = request.args.get("token")
+    if not token:
+        return "کد ورود (Token) ارسال نشده است.", 400
+    
+    serializer = URLSafeTimedSerializer(FLASK_SECRET_KEY)
+    try:
+        # Token valid for 30 minutes (1800 seconds)
+        user_id = serializer.loads(token, salt='magic-link', max_age=1800)
+    except SignatureExpired:
+        return "لینک ورود شما منقضی شده است. لطفاً از طریق ربات، لینک جدیدی دریافت کنید.", 401
+    except BadTimeSignature:
+        return "لینک نامعتبر است یا دستکاری شده است.", 401
+        
+    session["user_id"] = user_id
+    return redirect(url_for("user_dashboard"))
+
+@app.route("/dashboard")
+def user_dashboard():
+    user_id = session.get("user_id")
+    if not user_id:
+        return "شما وارد نشده‌اید. لطفاً ابتدا از طریق ربات تلگرام روی دکمه ورود کلیک کنید.", 401
+        
+    from runtime_store import get_bot_user, get_user_download_history
+    import os
+    
+    # 1. Fetch user subscription details
+    user = get_bot_user(user_id)
+    if not user:
+        return "حساب کاربری یافت نشد.", 404
+        
+    # 2. Fetch history
+    history = get_user_download_history(user_id, limit=20)
+    
+    # 3. Read the template from file
+    template_path = os.path.join(os.path.dirname(__file__), "website", "user_dashboard.html")
+    with open(template_path, "r", encoding="utf-8") as f:
+        template_str = f.read()
+        
+    return render_template_string(template_str, user=user, history=history)
+
+@app.route("/dashboard/upgrade")
+def user_dashboard_upgrade():
+    # Placeholder for upgrade logic
+    return redirect("https://t.me/Gheychi_Bot") # Redirect back to bot for now or to plans logic
+
+@app.route("/auth/logout")
+def user_logout():
+    session.pop("user_id", None)
+    return redirect(url_for("landing_page"))
+
 def run_admin_panel() -> None:
     if not ADMIN_PASSWORD:
         import sys

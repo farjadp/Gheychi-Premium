@@ -24,11 +24,12 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
+from itsdangerous import URLSafeTimedSerializer
 from telegram.constants import ParseMode, ChatAction
 from telegram.error import BadRequest
 
 import stripe
-from config import STRIPE_SECRET_KEY,  ALLOWED_PLATFORMS, BOT_TOKEN, SUPPORT_CONTACT
+from config import STRIPE_SECRET_KEY, ALLOWED_PLATFORMS, BOT_TOKEN, SUPPORT_CONTACT, FLASK_SECRET_KEY, BASE_URL
 from downloader import (
     get_video_info,
     download_video,
@@ -138,7 +139,12 @@ def build_quality_keyboard(info: VideoInfo, request_token: str, lang: str = "fa"
     return InlineKeyboardMarkup(buttons)
 
 
-def build_home_keyboard(lang: str = "fa") -> InlineKeyboardMarkup:
+def build_home_keyboard(user_id: int, lang: str = "fa") -> InlineKeyboardMarkup:
+    # Generate magic link
+    serializer = URLSafeTimedSerializer(FLASK_SECRET_KEY)
+    token = serializer.dumps(user_id, salt='magic-link')
+    dashboard_url = f"{BASE_URL}/auth/magic?token={token}"
+    
     return InlineKeyboardMarkup(
         [
             [
@@ -153,6 +159,9 @@ def build_home_keyboard(lang: str = "fa") -> InlineKeyboardMarkup:
                 InlineKeyboardButton(get_text("btn_plans", lang), callback_data="util|plans"),
                 InlineKeyboardButton(get_text("btn_support", lang), callback_data="util|support"),
             ],
+            [
+                InlineKeyboardButton(get_text("btn_dashboard", lang), url=dashboard_url)
+            ]
         ]
     )
 
@@ -236,7 +245,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         text,
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=build_home_keyboard(user_lang),
+        reply_markup=build_home_keyboard(user.id, user_lang),
     )
 
 
@@ -249,7 +258,7 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     subscription = get_bot_user(user.id) if user else None
     user_lang = subscription.get("language_code", "fa") if subscription else "fa"
     text = get_text("menu_ready", user_lang)
-    await update.message.reply_text(text, reply_markup=build_home_keyboard(user_lang))
+    await update.message.reply_text(text, reply_markup=build_home_keyboard(user.id, user_lang))
 
 
 async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
