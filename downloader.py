@@ -411,6 +411,10 @@ async def download_video(
         return DownloadResult(success=False, error="فایل دانلود نشد.")
 
     except yt_dlp.utils.DownloadError as e:
+        url_lower = url.lower()
+        if "youtube.com" in url_lower or "youtu.be" in url_lower:
+            return DownloadResult(success=False, error="مشکل فنی داریم و در حال حاضر یوتیوب پشتیبانی نمیشه")
+            
         msg = str(e)
         m = re.search(r"Unsupported URL: (https?://(?:play\.)?radiojavan\.com[^\s]+)", msg)
         if m:
@@ -433,6 +437,9 @@ async def download_video(
             return DownloadResult(success=False, error="این ویدئو توسط یوتیوب محدود شده است و برای دانلود نیاز به لاگین (کوکی پریمیوم) دارد. لطفاً با پشتیبانی تماس بگیرید.")
         return DownloadResult(success=False, error=f"خطا در دانلود: {msg[:200]}")
     except Exception as e:
+        url_lower = url.lower()
+        if "youtube.com" in url_lower or "youtu.be" in url_lower:
+            return DownloadResult(success=False, error="مشکل فنی داریم و در حال حاضر یوتیوب پشتیبانی نمیشه")
         return DownloadResult(success=False, error=f"خطای غیرمنتظره: {str(e)[:200]}")
 
 
@@ -536,12 +543,19 @@ async def download_audio(
         return DownloadResult(success=True, file_path=file_path, title=title, duration=duration)
 
     except yt_dlp.utils.DownloadError as e:
+        url_lower = url.lower()
+        if "youtube.com" in url_lower or "youtu.be" in url_lower:
+            return DownloadResult(success=False, error="مشکل فنی داریم و در حال حاضر یوتیوب پشتیبانی نمیشه")
+            
         msg = str(e)
         m = re.search(r"Unsupported URL: (https?://(?:play\.)?radiojavan\.com[^\s]+)", msg)
         if m:
-            return await download_audio(m.group(1))
+            return await download_audio(m.group(1), progress_callback)
         return DownloadResult(success=False, error=f"خطا: {str(e)[:200]}")
     except Exception as e:
+        url_lower = url.lower()
+        if "youtube.com" in url_lower or "youtu.be" in url_lower:
+            return DownloadResult(success=False, error="مشکل فنی داریم و در حال حاضر یوتیوب پشتیبانی نمیشه")
         return DownloadResult(success=False, error=f"خطا: {str(e)[:200]}")
 
 

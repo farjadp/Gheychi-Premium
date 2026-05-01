@@ -205,6 +205,64 @@ def fetch_media_from_rapidapi(url: str) -> dict:
         logger.error(f"RapidAPI Error: {str(e)}")
         return {"success": False, "error": f"خطا در ارتباط با RapidAPI: {str(e)[:100]}"}
 
+def fetch_media_from_youtube_fast_api(url: str, quality: str) -> dict:
+    import re
+    vid_match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11}).*", url)
+    if not vid_match:
+        return {"success": False, "error": "لینک یوتیوب نامعتبر است."}
+        
+    video_id = vid_match.group(1)
+    api_endpoint = f"https://youtube-video-fast-downloader-24-7.p.rapidapi.com/get-video-info/{video_id}?return_available_quality=false&response_mode=default"
+    
+    settings = load_settings()
+    rapid_key = settings.get("rapidapi_key") or RAPIDAPI_KEY
+    if not rapid_key:
+        return {"success": False, "error": "کلید RapidAPI تنظیم نشده است."}
+
+    req = Request(
+        api_endpoint,
+        headers={
+            "x-rapidapi-key": rapid_key,
+            "x-rapidapi-host": "youtube-video-fast-downloader-24-7.p.rapidapi.com"
+        },
+        method="GET"
+    )
+
+    try:
+        with urlopen(req, timeout=30) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            
+            direct_url = None
+            if quality == "audio":
+                if "audio_url" in data: direct_url = data["audio_url"]
+                elif "audioUrl" in data: direct_url = data["audioUrl"]
+                elif "audios" in data and isinstance(data["audios"], list) and len(data["audios"]) > 0: direct_url = data["audios"][0].get("url")
+            
+            if not direct_url:
+                if "video_url" in data: direct_url = data["video_url"]
+                elif "videoUrl" in data: direct_url = data["videoUrl"]
+                elif "url" in data and isinstance(data["url"], str) and data["url"].startswith("http"): direct_url = data["url"]
+                elif "videos" in data and isinstance(data["videos"], list) and len(data["videos"]) > 0:
+                    videos = data["videos"]
+                    good_videos = [v for v in videos if v.get("hasAudio") is not False]
+                    if good_videos: direct_url = good_videos[0].get("url")
+                    else: direct_url = videos[0].get("url")
+                elif "data" in data and isinstance(data["data"], dict):
+                    inner = data["data"]
+                    if quality == "audio" and "audioUrl" in inner: direct_url = inner["audioUrl"]
+                    elif "videoUrl" in inner: direct_url = inner["videoUrl"]
+                    elif "url" in inner: direct_url = inner["url"]
+
+            if direct_url:
+                return {"success": True, "url": direct_url, "source": "RapidAPI (YouTube Fast)"}
+            
+            return {"success": False, "error": "فرمت مناسبی برای دانلود یافت نشد."}
+
+    except HTTPError as e:
+        return {"success": False, "error": f"خطای ارتباط با سرور یوتیوب ({e.code})"}
+    except Exception as e:
+        return {"success": False, "error": f"خطا در ارتباط با API جدید: {str(e)[:100]}"}
+
 def get_direct_media_url(url: str, quality: str = "max") -> dict:
     """Route the request to Cobalt or RapidAPI based on config.
     Implements a fallback chain: Cobalt -> RapidAPI. 
@@ -212,6 +270,19 @@ def get_direct_media_url(url: str, quality: str = "max") -> dict:
     settings = load_settings()
     errors = []
     
+    url_lower = url.lower()
+    is_youtube = "youtube.com" in url_lower or "youtu.be" in url_lower
+    
+    # Layer 0: YouTube FAST Downloader (only for youtube)
+    if is_youtube:
+        logger.info("Using YouTube FAST API for URL: %s", url)
+        res = fetch_media_from_youtube_fast_api(url, quality)
+        if res.get("success"):
+            return res
+        else:
+            logger.warning("YouTube FAST API failed: %s", res.get("error"))
+            errors.append(res.get("error", "YouTube FAST API Error"))
+
     # Layer 1: Cobalt
     if settings.get("use_cobalt_api", USE_COBALT_API) and is_cobalt_supported_url(url):
         logger.info("Using Cobalt API for URL: %s", url)
