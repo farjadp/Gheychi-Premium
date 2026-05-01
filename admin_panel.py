@@ -1286,40 +1286,6 @@ def _usage_lines_for_user(telegram_user_id: int) -> list[str]:
 def landing_page():
     return send_file("website/index.html")
 
-@app.route("/about-product")
-def about_product_page():
-    return send_file("website/about-product.html")
-
-@app.route("/about-us")
-def about_us_page():
-    return send_file("website/about-us.html")
-
-@app.route("/features")
-def features_page():
-    return send_file("website/features.html")
-
-@app.route("/pricing")
-def pricing_page():
-    return send_file("website/pricing.html")
-
-@app.route("/contact")
-def contact_page():
-    return send_file("website/contact.html")
-
-@app.route("/privacy")
-def privacy_page():
-    return send_file("website/privacy.html")
-
-@app.route("/terms")
-def terms_page():
-    return send_file("website/terms.html")
-
-@app.route("/static_site/<path:filename>")
-def serve_website_static(filename):
-    import os
-    file_path = os.path.join(os.path.dirname(__file__), "website", filename)
-    if not os.path.exists(file_path):
-        abort(404)
     return send_file(file_path)
 
 @app.route("/admin")
