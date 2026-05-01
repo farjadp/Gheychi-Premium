@@ -10,6 +10,11 @@ from dataclasses import dataclass, field
 from typing import Optional, Callable
 import subprocess
 
+# Ensure common paths are in PATH for ffmpeg/ffprobe
+for ext_path in ["/opt/homebrew/bin", "/usr/local/bin"]:
+    if ext_path not in os.environ.get("PATH", "") and os.path.exists(ext_path):
+        os.environ["PATH"] = f"{ext_path}:{os.environ.get('PATH', '')}"
+
 import yt_dlp
 
 from config import DOWNLOAD_DIR
