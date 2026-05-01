@@ -92,6 +92,8 @@ def _purge_expired_requests() -> None:
 BOT_COMMANDS = [
     BotCommand("start", "شروع و نمایش منوی اصلی"),
     BotCommand("menu", "نمایش منوی سریع"),
+    BotCommand("dashboard", "ورود به داشبورد کاربری"),
+    BotCommand("lang", "تغییر زبان | Change Language"),
     BotCommand("plans", "مشاهده پکیج‌ها"),
     BotCommand("myplan", "مشاهده پلن فعلی"),
     BotCommand("usage", "مشاهده سهمیه و اعتبار"),
@@ -808,11 +810,31 @@ async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
     await update.message.reply_text(
-        get_text("lang_prompt", user_lang),
+        "Please select your language:\nلطفاً زبان خود را انتخاب کنید:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-async def handle_lang_callback(query, context: ContextTypes.DEFAULT_TYPE):
+
+async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if not user:
+        return
+    subscription = get_bot_user(user.id)
+    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    
+    # Generate magic link
+    serializer = URLSafeTimedSerializer(FLASK_SECRET_KEY)
+    token = serializer.dumps(user.id, salt='magic-link')
+    dashboard_url = f"{BASE_URL}/auth/magic?token={token}"
+    
+    keyboard = [[InlineKeyboardButton(get_text("btn_dashboard", user_lang), url=dashboard_url)]]
+    await update.message.reply_text(
+        get_text("login_link", user_lang, link=dashboard_url) if "login_link" in locales[user_lang] else f"لینک ورود به داشبورد شما:\n{dashboard_url}",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
     action = query.data.split("|", 1)[1]
     user = query.from_user
     if not user:
@@ -878,6 +900,7 @@ def main():
     app.add_handler(CommandHandler("myid", myid_command))
     app.add_handler(CommandHandler("support", support_command))
     app.add_handler(CommandHandler("lang", lang_command))
+    app.add_handler(CommandHandler("dashboard", dashboard_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_url))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_error_handler(error_handler)

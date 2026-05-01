@@ -424,8 +424,8 @@ async def download_video(
                 success=False,
                 error="دانلود از Twitter/X نیاز به احراز هویت دارد.\nلطفاً با پشتیبانی تماس بگیر تا کوکی تنظیم شود.",
             )
-        if "login required" in msg.lower() or "loginrequired" in msg.lower():
-            return DownloadResult(success=False, error="این ویدئو نیاز به لاگین دارد.")
+        if "login required" in msg.lower() or "loginrequired" in msg.lower() or "confirm you're not a bot" in msg.lower():
+            return DownloadResult(success=False, error="این ویدئو توسط یوتیوب محدود شده است و برای دانلود نیاز به لاگین (کوکی پریمیوم) دارد. لطفاً با پشتیبانی تماس بگیرید.")
         return DownloadResult(success=False, error=f"خطا در دانلود: {msg[:200]}")
     except Exception as e:
         return DownloadResult(success=False, error=f"خطای غیرمنتظره: {str(e)[:200]}")
