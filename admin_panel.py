@@ -736,7 +736,7 @@ PAGE_TEMPLATE = """
           <div class="field">
             <label>متن پیام (پشتیبانی از Markdown تلگرام)</label>
             <textarea id="broadcast-editor" name="message_text" placeholder="مثلاً: *کاربران گرامی*
-تخفیف ویژه آغاز شد!" style="min-height: 150px" required></textarea>
+تخفیف ویژه آغاز شد!" style="min-height: 150px"></textarea>
           </div>
           <button class="btn" type="submit">🚀 شروع ارسال سراسری به {{ stats.users }} کاربر</button>
         </form>
