@@ -833,8 +833,7 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
+async def handle_lang_callback(query, context: ContextTypes.DEFAULT_TYPE):
     action = query.data.split("|", 1)[1]
     user = query.from_user
     if not user:

@@ -10,7 +10,9 @@ DEFAULT_MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "50"))
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 SUPPORT_CONTACT = os.getenv("SUPPORT_CONTACT", "")
-BASE_URL = os.getenv("BASE_URL", "http://127.0.1:8000")
+BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+if not BASE_URL.startswith("http://") and not BASE_URL.startswith("https://"):
+    BASE_URL = "https://" + BASE_URL
 FLASK_SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "fallback-secret-for-magic-links")
 
 # Cobalt / RapidAPI Settings
