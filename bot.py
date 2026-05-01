@@ -55,7 +55,7 @@ from runtime_store import (
     cleanup_expired_requests,
     record_transaction,
 )
-from locales import get_text
+from locales import get_text, MESSAGES as locales
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
