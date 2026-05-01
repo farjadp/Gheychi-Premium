@@ -1286,6 +1286,34 @@ def _usage_lines_for_user(telegram_user_id: int) -> list[str]:
 def landing_page():
     return send_file("website/index.html")
 
+@app.route("/about-product")
+def about_product_page():
+    return send_file("website/about-product.html")
+
+@app.route("/about-us")
+def about_us_page():
+    return send_file("website/about-us.html")
+
+@app.route("/features")
+def features_page():
+    return send_file("website/features.html")
+
+@app.route("/pricing")
+def pricing_page():
+    return send_file("website/pricing.html")
+
+@app.route("/contact")
+def contact_page():
+    return send_file("website/contact.html")
+
+@app.route("/privacy")
+def privacy_page():
+    return send_file("website/privacy.html")
+
+@app.route("/terms")
+def terms_page():
+    return send_file("website/terms.html")
+
 @app.route("/static_site/<path:filename>")
 def serve_website_static(filename):
     import os
@@ -1447,6 +1475,10 @@ def users_api():
 def _send_broadcast_background(text: str, user_ids: list):
     from config import BOT_TOKEN
     import time
+    import markdown
+    
+    # Convert markdown from EasyMDE to HTML for safe telegram sending
+    html_text = markdown.markdown(text)
     
     async def _send_all():
         bot = Bot(token=BOT_TOKEN)
@@ -1455,7 +1487,7 @@ def _send_broadcast_background(text: str, user_ids: list):
         async with bot:
             for uid in user_ids:
                 try:
-                    await bot.send_message(chat_id=uid, text=text, parse_mode="Markdown")
+                    await bot.send_message(chat_id=uid, text=html_text, parse_mode="HTML")
                     success_count += 1
                 except Exception as e:
                     error_count += 1

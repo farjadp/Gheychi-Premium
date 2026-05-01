@@ -97,7 +97,58 @@ def fetch_media_from_rapidapi(url: str) -> dict:
     url_lower = url.lower()
     is_youtube = "youtube.com" in url_lower or "youtu.be" in url_lower
     if is_youtube:
-        return {"success": False, "error": "مسیر مستقیم RapidAPI برای یوتیوب فعال نیست (محدودیت IP گوگل). ارسال به لایه بعدی..."}
+        import re
+        # Extract video ID
+        vid_match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11}).*", url)
+        if not vid_match:
+            return {"success": False, "error": "لینک یوتیوب نامعتبر است."}
+            
+        video_id = vid_match.group(1)
+        api_endpoint = "https://youtube-media-downloader.p.rapidapi.com/v2/video/details"
+        
+        # Support both Env and Admin Panel key
+        rapid_key = settings.get("rapidapi_key") or RAPIDAPI_KEY
+        if not rapid_key:
+            return {"success": False, "error": "کلید RapidAPI تنظیم نشده است."}
+            
+        url_with_params = f"{api_endpoint}?videoId={video_id}"
+        req = Request(
+            url_with_params,
+            headers={
+                "X-RapidAPI-Key": rapid_key,
+                "X-RapidAPI-Host": "youtube-media-downloader.p.rapidapi.com"
+            },
+            method="GET"
+        )
+        try:
+            with urlopen(req, timeout=30) as response:
+                data = json.loads(response.read().decode('utf-8'))
+                
+                # Find best video format with audio
+                best_url = None
+                items = data.get("videos", {}).get("items", [])
+                
+                # Filter to MP4 and hasAudio if possible
+                audio_video_items = [i for i in items if i.get("hasAudio") is True and i.get("extension") == "mp4"]
+                
+                if audio_video_items:
+                    # Sort by height descending
+                    audio_video_items.sort(key=lambda x: x.get("height", 0), reverse=True)
+                    best_url = audio_video_items[0].get("url")
+                elif items:
+                    # Fallback to any best video
+                    items.sort(key=lambda x: x.get("height", 0), reverse=True)
+                    best_url = items[0].get("url")
+                    
+                if best_url:
+                    return {"success": True, "url": best_url, "source": "RapidAPI (YouTube)"}
+                
+                return {"success": False, "error": "فرمت مناسبی برای دانلود یوتیوب یافت نشد."}
+        except HTTPError as e:
+            return {"success": False, "error": f"خطای YouTube API: {e.code}"}
+        except Exception as e:
+            logger.error(f"RapidAPI YT Error: {str(e)}")
+            return {"success": False, "error": f"خطا در ارتباط با سرور یوتیوب: {str(e)[:100]}"}
     
     if not rapid_key or not rapid_host:
         return {"success": False, "error": "تنظیمات RapidAPI تکمیل نشده است."}

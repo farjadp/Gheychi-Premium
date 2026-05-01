@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing | Gheychi Premium</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static_site/style.css">
+    <style>
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+        .pricing-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 40px;
+            text-align: center;
+            backdrop-filter: blur(var(--glass-blur));
+            transition: transform 0.3s, box-shadow 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .pricing-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+        .pricing-card.popular {
+            border-color: var(--primary);
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.15);
+        }
+        .pricing-card.popular::before {
+            content: 'Most Popular';
+            position: absolute;
+            top: 20px;
+            right: -35px;
+            background: var(--primary);
+            color: white;
+            font-size: 0.8rem;
+            font-weight: bold;
+            padding: 5px 40px;
+            transform: rotate(45deg);
+        }
+        .price {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 20px 0;
+        }
+        .price span {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: normal;
+        }
+        .pricing-features {
+            list-style: none;
+            margin: 30px 0;
+            padding: 0;
+            text-align: left;
+        }
+        .pricing-features li {
+            margin-bottom: 15px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+        }
+        .pricing-features li::before {
+            content: '✓';
+            color: var(--success);
+            margin-right: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-effects">
+        <div class="glow-orb purple-orb"></div>
+        <div class="glow-orb pink-orb"></div>
+    </div>
+
+    <nav class="navbar" id="navbar">
+        <div class="container nav-content">
+            <a href="/" class="logo">
+                <span class="logo-icon">✂️</span>
+                Gheychi Premium
+            </a>
+            <div class="nav-links">
+                <a href="/features">Features</a>
+                <a href="/pricing" class="active">Pricing</a>
+                <a href="/about-product">Product</a>
+                <a href="/about-us">About Us</a>
+                <a href="https://t.me/gheychipremium_bot" target="_blank" class="btn btn-primary btn-small">Start Bot</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="page-header container animate-up">
+        <h1 class="page-title">Simple, <span class="gradient-text">Transparent Pricing</span></h1>
+        <p class="page-subtitle">Choose the plan that fits your downloading needs. Upgrade or cancel anytime.</p>
+    </div>
+
+    <section class="section pt-0">
+        <div class="container">
+            <div class="pricing-grid">
+                <!-- Free Plan -->
+                <div class="pricing-card fade-in">
+                    <h3>Free</h3>
+                    <div class="price">$0<span>/mo</span></div>
+                    <p style="color: var(--text-muted);">Perfect for light users.</p>
+                    <ul class="pricing-features">
+                        <li>Standard download speed</li>
+                        <li>Max file size: 50MB</li>
+                        <li>5 downloads per day</li>
+                        <li>Basic formats (MP4, MP3)</li>
+                    </ul>
+                    <a href="https://t.me/gheychipremium_bot" target="_blank" class="btn btn-secondary btn-large" style="width: 100%;">Start Free</a>
+                </div>
+
+                <!-- Premium Plan -->
+                <div class="pricing-card popular fade-in delay-1">
+                    <h3>Premium</h3>
+                    <div class="price">$4.99<span>/mo</span></div>
+                    <p style="color: var(--text-muted);">For the power downloader.</p>
+                    <ul class="pricing-features">
+                        <li>Lightning fast speed</li>
+                        <li>Max file size: 2GB (Telegram limit)</li>
+                        <li>Unlimited downloads</li>
+                        <li>4K resolution support</li>
+                        <li>Priority support</li>
+                    </ul>
+                    <a href="https://t.me/gheychipremium_bot" target="_blank" class="btn btn-primary btn-large" style="width: 100%;">Get Premium</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container footer-content">
+            <div class="footer-col" style="flex: 2; min-width: 250px;">
+                <a href="/" class="logo" style="font-size: 1.2rem;">
+                    <span class="logo-icon">✂️</span> Gheychi Premium
+                </a>
+                <p style="color: var(--text-muted); margin-top: 10px; font-size: 0.95rem;">
+                    The ultimate cross-platform media downloader. Seamlessly bridging Telegram and Web.
+                </p>
+            </div>
+            <div class="footer-col">
+                <h4>Product</h4>
+                <div class="footer-links" style="flex-direction: column; gap: 8px;">
+                    <a href="/features">Features</a>
+                    <a href="/pricing">Pricing</a>
+                    <a href="/about-product">Roadmap</a>
+                </div>
+            </div>
+            <div class="footer-col">
+                <h4>Company</h4>
+                <div class="footer-links" style="flex-direction: column; gap: 8px;">
+                    <a href="/about-us">About Us</a>
+                    <a href="/contact">Contact</a>
+                </div>
+            </div>
+            <div class="footer-col">
+                <h4>Legal</h4>
+                <div class="footer-links" style="flex-direction: column; gap: 8px;">
+                    <a href="/privacy">Privacy Policy</a>
+                    <a href="/terms">Terms of Service</a>
+                </div>
+            </div>
+        </div>
+        <div class="container footer-bottom">
+            <p>&copy; 2026 Gheychi Premium. All rights reserved.</p>
+        </div>
+    </footer>
+    <script src="/static_site/script.js"></script>
+</body>
+</html>

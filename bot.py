@@ -160,6 +160,7 @@ def build_home_keyboard(user_id: int, lang: str = "fa") -> InlineKeyboardMarkup:
                 InlineKeyboardButton(get_text("btn_support", lang), callback_data="util|support"),
             ],
             [
+                InlineKeyboardButton(get_text("btn_lang", lang) if "btn_lang" in locales[lang] else "🌐 Language / زبان", callback_data="lang|choose"),
                 InlineKeyboardButton(get_text("btn_dashboard", lang), url=dashboard_url)
             ]
         ]
@@ -816,8 +817,25 @@ async def handle_lang_callback(query, context: ContextTypes.DEFAULT_TYPE):
     user = query.from_user
     if not user:
         return
+        
+    subscription = get_bot_user(user.id)
+    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    
+    if action == "choose":
+        keyboard = [
+            [
+                InlineKeyboardButton("🇬🇧 English", callback_data="lang|en"),
+                InlineKeyboardButton("🇮🇷 فارسی", callback_data="lang|fa")
+            ]
+        ]
+        await query.message.reply_text(
+            get_text("lang_prompt", user_lang),
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+
     set_user_language(user.id, action)
-    await query.message.reply_text(get_text("lang_changed", action))
+    await query.message.reply_text(get_text("lang_changed", action), reply_markup=build_home_keyboard(user.id, action))
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):

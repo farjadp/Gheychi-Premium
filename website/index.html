@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gheychi Premium | The Ultimate Downloader Bot</title>
+    <title>Gheychi Premium | The Ultimate Downloader</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -13,18 +13,20 @@
     <div class="bg-effects">
         <div class="glow-orb purple-orb"></div>
         <div class="glow-orb pink-orb"></div>
+        <div class="glow-orb accent-orb"></div>
     </div>
 
-    <nav class="navbar">
+    <nav class="navbar" id="navbar">
         <div class="container nav-content">
-            <a href="#" class="logo">
+            <a href="/" class="logo">
                 <span class="logo-icon">✂️</span>
                 Gheychi Premium
             </a>
             <div class="nav-links">
-                <a href="#features">Features</a>
-                <a href="#how-it-works">How it Works</a>
-                <a href="#roadmap">Roadmap</a>
+                <a href="/features">Features</a>
+                <a href="/pricing">Pricing</a>
+                <a href="/about-product">Product</a>
+                <a href="/about-us">About Us</a>
                 <a href="https://t.me/gheychipremium_bot" target="_blank" class="btn btn-primary btn-small">Start Bot</a>
             </div>
         </div>
@@ -32,32 +34,36 @@
 
     <header class="hero">
         <div class="container hero-content">
-            <h1 class="hero-title animate-up">Download Any Video,<br><span class="gradient-text">Zero Compromises.</span></h1>
-            <p class="hero-subtitle animate-up delay-1">The fastest, most reliable Telegram bot for downloading media from YouTube, Instagram, X (Twitter), and 100+ other platforms.</p>
+            <h1 class="hero-title animate-up">Download Any Video,<br><span class="gradient-text">Like Magic.</span></h1>
+            <p class="hero-subtitle animate-up delay-1">Send a link to our Telegram bot, get your Magic Link, and download in original quality from your personal web dashboard. Fast, secure, and hassle-free.</p>
+            
             <div class="hero-cta animate-up delay-2">
-                <a href="https://t.me/gheychipremium_bot" target="_blank" class="btn btn-primary btn-large">
+                <a href="https://t.me/gheychipremium_bot" target="_blank" class="btn btn-primary btn-large" style="animation: pulse 2s infinite;">
                     <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>
-                    Open in Telegram
+                    Open Telegram Bot
                 </a>
-                <a href="#features" class="btn btn-secondary btn-large">Learn More</a>
+                <a href="/features" class="btn btn-secondary btn-large">Explore Features</a>
             </div>
             
             <div class="hero-image-wrapper animate-up delay-3">
                 <div class="glass-mockup">
                     <div class="mockup-header">
                         <div class="dots"><span></span><span></span><span></span></div>
-                        <div class="mockup-title">@gheychipremium_bot</div>
+                        <div class="mockup-title">Telegram ➔ Dashboard Flow</div>
                     </div>
-                    <div class="mockup-body">
-                        <div class="chat-bubble user">https://youtube.com/watch?v=dQw4w9WgXcQ</div>
-                        <div class="chat-bubble bot">
+                    <div class="mockup-body" style="background: rgba(0,0,0,0.2); position: relative;">
+                        <!-- Step 1: Telegram -->
+                        <div class="chat-bubble user" id="sim-step-1" style="opacity: 0;">https://instagram.com/p/awesome-video</div>
+                        <div class="chat-bubble bot" id="sim-step-2" style="opacity: 0;">
                             <strong>Gheychi Premium</strong><br>
-                            Fetching your video... ⏳
+                            Link processed! Access your downloads here:<br>
+                            <a href="#" style="color:var(--primary); font-weight:bold; display:block; margin-top:10px;">✨ Open Web Dashboard</a>
                         </div>
-                        <div class="chat-bubble bot media-bubble">
-                            <div class="video-placeholder">▶</div>
-                            <strong>Rick Astley - Never Gonna Give You Up</strong><br>
-                            Resolution: 1080p | Size: 45MB
+                        <!-- Step 3: Web Dashboard Simulation -->
+                        <div class="media-bubble fade-in" id="sim-step-3" style="position: absolute; bottom: -20px; right: 20px; background: rgba(20,25,40,0.95); padding: 15px; border-radius: 12px; border: 1px solid var(--primary); box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 250px; opacity: 0;">
+                            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 5px;">Dashboard - Latest File</div>
+                            <div class="video-placeholder" style="height: 100px; font-size: 1.2rem;">▶</div>
+                            <button class="btn btn-primary btn-small" style="width: 100%; margin-top: 10px;">Download MP4</button>
                         </div>
                     </div>
                 </div>
@@ -65,129 +71,40 @@
         </div>
     </header>
 
-    <section id="features" class="features section">
-        <div class="container">
-            <div class="section-header fade-in">
-                <h2>Why choose Gheychi Premium?</h2>
-                <p>Designed for power users who demand speed, quality, and reliability.</p>
-            </div>
-            
-            <div class="features-grid">
-                <div class="feature-card fade-in">
-                    <div class="feature-icon">⚡</div>
-                    <h3>Lightning Fast</h3>
-                    <p>Powered by Cobalt API and high-end servers to ensure your downloads finish in seconds, not minutes.</p>
-                </div>
-                <div class="feature-card fade-in delay-1">
-                    <div class="feature-icon">🌐</div>
-                    <h3>100+ Platforms</h3>
-                    <p>Support for YouTube, Instagram, X, TikTok, Reddit, Pinterest, and virtually any media link you can find.</p>
-                </div>
-                <div class="feature-card fade-in delay-2">
-                    <div class="feature-icon">🎥</div>
-                    <h3>Original Quality</h3>
-                    <p>Download up to 4K resolutions and pristine audio quality. What you see is exactly what you get.</p>
-                </div>
-                <div class="feature-card fade-in">
-                    <div class="feature-icon">🌍</div>
-                    <h3>Bilingual Support</h3>
-                    <p>Fully functional in both English and Persian, switching languages is just a tap away.</p>
-                </div>
-                <div class="feature-card fade-in delay-1">
-                    <div class="feature-icon">💎</div>
-                    <h3>Premium Limits</h3>
-                    <p>Subscribe to our premium plans to unlock 2GB file limits and unlimited daily quotas.</p>
-                </div>
-                <div class="feature-card fade-in delay-2">
-                    <div class="feature-icon">🛡️</div>
-                    <h3>Privacy First</h3>
-                    <p>No tracking, no spam. Your downloaded links are processed and forgotten instantly.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="how-it-works" class="how-it-works section">
-        <div class="container">
-            <div class="section-header fade-in">
-                <h2>How it Works</h2>
-                <p>Three simple steps to your media.</p>
-            </div>
-            
-            <div class="steps-container">
-                <div class="step fade-in">
-                    <div class="step-number">1</div>
-                    <h3>Copy Link</h3>
-                    <p>Find the video or audio you want to download and copy its URL.</p>
-                </div>
-                <div class="step fade-in delay-1">
-                    <div class="step-number">2</div>
-                    <h3>Send to Bot</h3>
-                    <p>Paste the link into Gheychi Premium bot on Telegram.</p>
-                </div>
-                <div class="step fade-in delay-2">
-                    <div class="step-number">3</div>
-                    <h3>Enjoy</h3>
-                    <p>Select your desired quality and download directly to your device.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="roadmap" class="roadmap section">
-        <div class="container">
-            <div class="section-header fade-in">
-                <h2>Product Roadmap</h2>
-                <p>What we're building next.</p>
-            </div>
-            
-            <div class="timeline">
-                <div class="timeline-item fade-in">
-                    <div class="timeline-dot completed"></div>
-                    <div class="timeline-content">
-                        <h3>V1.0 - Core Engine</h3>
-                        <p>Cobalt Integration, Telegram Bot, Admin Panel, Basic Analytics. <span class="badge success">Completed</span></p>
-                    </div>
-                </div>
-                <div class="timeline-item fade-in">
-                    <div class="timeline-dot completed"></div>
-                    <div class="timeline-content">
-                        <h3>V2.0 - Global Reach</h3>
-                        <p>Bilingual Support (EN/FA), Stripe Payments, Dynamic Subscriptions, Landing Page. <span class="badge success">Completed</span></p>
-                    </div>
-                </div>
-                <div class="timeline-item fade-in">
-                    <div class="timeline-dot active"></div>
-                    <div class="timeline-content">
-                        <h3>V3.0 - Intelligent Processing</h3>
-                        <p>Audio Extraction (MP3), Custom Video Trimming, Format Conversion within Telegram. <span class="badge primary">In Progress</span></p>
-                    </div>
-                </div>
-                <div class="timeline-item fade-in">
-                    <div class="timeline-dot"></div>
-                    <div class="timeline-content">
-                        <h3>V4.0 - Web Application</h3>
-                        <p>Full web-based downloader dashboard, API Access for Developers. <span class="badge outline">Upcoming</span></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
     <footer class="footer">
         <div class="container footer-content">
-            <div class="footer-brand">
-                <a href="#" class="logo">
-                    <span class="logo-icon">✂️</span>
-                    Gheychi Premium
+            <div class="footer-col" style="flex: 2; min-width: 250px;">
+                <a href="/" class="logo" style="font-size: 1.2rem;">
+                    <span class="logo-icon">✂️</span> Gheychi Premium
                 </a>
-                <p>Your ultimate media companion on Telegram.</p>
+                <p style="color: var(--text-muted); margin-top: 10px; font-size: 0.95rem;">
+                    The ultimate cross-platform media downloader. Seamlessly bridging Telegram and Web.
+                </p>
             </div>
-            <div class="footer-links">
-                <a href="https://t.me/gheychipremium_bot">Telegram Bot</a>
-                <a href="/admin">Admin Login</a>
-                <a href="#">Privacy Policy</a>
-                <a href="#">Terms of Service</a>
+            
+            <div class="footer-col">
+                <h4>Product</h4>
+                <div class="footer-links" style="flex-direction: column; gap: 8px;">
+                    <a href="/features">Features</a>
+                    <a href="/pricing">Pricing</a>
+                    <a href="/about-product">Roadmap</a>
+                </div>
+            </div>
+
+            <div class="footer-col">
+                <h4>Company</h4>
+                <div class="footer-links" style="flex-direction: column; gap: 8px;">
+                    <a href="/about-us">About Us</a>
+                    <a href="/contact">Contact</a>
+                </div>
+            </div>
+
+            <div class="footer-col">
+                <h4>Legal</h4>
+                <div class="footer-links" style="flex-direction: column; gap: 8px;">
+                    <a href="/privacy">Privacy Policy</a>
+                    <a href="/terms">Terms of Service</a>
+                </div>
             </div>
         </div>
         <div class="container footer-bottom">
@@ -196,5 +113,31 @@
     </footer>
 
     <script src="/static_site/script.js"></script>
+    <script>
+        // Simulate the Telegram to Web flow
+        document.addEventListener('DOMContentLoaded', () => {
+            const s1 = document.getElementById('sim-step-1');
+            const s2 = document.getElementById('sim-step-2');
+            const s3 = document.getElementById('sim-step-3');
+            
+            setTimeout(() => {
+                s1.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+                s1.style.opacity = "1";
+                s1.style.transform = "translateY(0)";
+            }, 1000);
+            
+            setTimeout(() => {
+                s2.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+                s2.style.opacity = "1";
+                s2.style.transform = "translateY(0)";
+            }, 2500);
+            
+            setTimeout(() => {
+                s3.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+                s3.style.opacity = "1";
+                s3.style.transform = "translateY(-20px)";
+            }, 4000);
+        });
+    </script>
 </body>
 </html>
