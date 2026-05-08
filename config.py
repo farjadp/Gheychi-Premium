@@ -16,8 +16,9 @@ if not BASE_URL.startswith("http://") and not BASE_URL.startswith("https://"):
 FLASK_SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "fallback-secret-for-magic-links")
 
 # Cobalt / RapidAPI Settings
+# Cobalt / RapidAPI Settings
 USE_COBALT_API = os.getenv("USE_COBALT_API", "True").lower() == "true"
-COBALT_API_URL = os.getenv("COBALT_API_URL", "https://api.cobalt.tools/")
+COBALT_API_URL = os.getenv("COBALT_API_URL", "https://cobalt-api-v10-452069892013.europe-west1.run.app/")
 COBALT_API_JWT = os.getenv("COBALT_API_JWT", "")
 USE_RAPIDAPI = os.getenv("USE_RAPIDAPI", "False").lower() == "true"
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "")

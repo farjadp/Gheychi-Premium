@@ -10,8 +10,8 @@ from dataclasses import dataclass, field
 from typing import Optional, Callable
 import subprocess
 
-# Ensure common paths are in PATH for ffmpeg/ffprobe
-for ext_path in ["/opt/homebrew/bin", "/usr/local/bin"]:
+# Ensure common paths are in PATH for ffmpeg/ffprobe and Node.js (for yt-dlp JS challenge solving)
+for ext_path in ["/opt/homebrew/bin", "/usr/local/bin", os.path.expanduser("~/.volta/bin"), os.path.expanduser("~/.volta/tools/image/node/22.21.1/bin")]:
     if ext_path not in os.environ.get("PATH", "") and os.path.exists(ext_path):
         os.environ["PATH"] = f"{ext_path}:{os.environ.get('PATH', '')}"
 
@@ -177,6 +177,17 @@ def _get_cookies_file(platform: str | None) -> str | None:
     return None
 
 
+# Locate Node.js binary for yt-dlp JS challenge solving (needed for YouTube)
+_NODE_PATHS = [
+    os.path.expanduser("~/.volta/tools/image/node/22.21.1/bin/node"),
+    os.path.expanduser("~/.volta/bin/node"),
+    "/usr/local/bin/node",
+    "/opt/homebrew/bin/node",
+    "node",
+]
+_NODE_BIN = next((p for p in _NODE_PATHS if os.path.isfile(p) and os.access(p, os.X_OK)), "node")
+
+
 def _base_ydl_opts(output_template: str, platform: str | None = None) -> dict:
     max_file_size_bytes = get_max_file_size_bytes()
     opts = {
@@ -188,6 +199,7 @@ def _base_ydl_opts(output_template: str, platform: str | None = None) -> dict:
         "noplaylist": True,
         "max_filesize": max_file_size_bytes,
         "extractor_args": {"youtube": ["player_client=android"]},
+        "js_runtimes": {"node": {"path": _NODE_BIN}},
     }
     cookies_file = _get_cookies_file(platform)
     if cookies_file:
@@ -229,6 +241,7 @@ async def get_video_info(url: str) -> VideoInfo:
         "no_warnings": True,
         "skip_download": True,
         "noplaylist": True,
+        "js_runtimes": {"node": {"path": _NODE_BIN}},
     }
     cookies_file = _get_cookies_file(url)
     if cookies_file:
