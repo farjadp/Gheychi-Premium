@@ -196,6 +196,10 @@ _NODE_BIN = next((p for p in _NODE_PATHS if p == "node" or (os.path.isfile(p) an
 
 def _base_ydl_opts(output_template: str, platform: str | None = None) -> dict:
     max_file_size_bytes = get_max_file_size_bytes()
+    cookies_file = _get_cookies_file(platform)
+    # Use 'web' client when cookies are available (android client returns 400 with cookies)
+    # Fall back to 'android' when no cookies (better for unauthenticated access)
+    player_client = "web" if cookies_file else "android"
     opts = {
         "outtmpl": output_template,
         "ignoreconfig": True,
@@ -204,10 +208,9 @@ def _base_ydl_opts(output_template: str, platform: str | None = None) -> dict:
         "noprogress": True,
         "noplaylist": True,
         "max_filesize": max_file_size_bytes,
-        "extractor_args": {"youtube": ["player_client=android"]},
+        "extractor_args": {"youtube": [f"player_client={player_client}"]},
         "js_runtimes": {"node": {"path": _NODE_BIN}},
     }
-    cookies_file = _get_cookies_file(platform)
     if cookies_file:
         opts["cookiefile"] = cookies_file
     return opts
