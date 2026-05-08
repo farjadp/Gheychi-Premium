@@ -164,16 +164,20 @@ PLATFORM_COOKIE_ENV = {
 def _get_cookies_file(platform: str | None) -> str | None:
     """Return path to cookies file for the given platform, or global fallback."""
     key = (platform or "").lower()
-    # Try platform-specific first
+    # Try platform-specific env var first
     for pname, env_var in PLATFORM_COOKIE_ENV.items():
         if pname in key:
             path = os.environ.get(env_var)
             if path and os.path.exists(path):
                 return path
-    # Fall back to global COOKIES_FILE
+    # Fall back to global COOKIES_FILE env var
     global_path = os.environ.get("COOKIES_FILE")
     if global_path and os.path.exists(global_path):
         return global_path
+    # Fall back to local cookie/cookies.txt file (committed to repo)
+    local_cookie = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookie", "cookies.txt")
+    if os.path.exists(local_cookie):
+        return local_cookie
     return None
 
 
@@ -183,9 +187,11 @@ _NODE_PATHS = [
     os.path.expanduser("~/.volta/bin/node"),
     "/usr/local/bin/node",
     "/opt/homebrew/bin/node",
-    "node",
+    "/usr/bin/node",
+    "/bin/node",
+    "node",  # fallback: let subprocess find it via PATH
 ]
-_NODE_BIN = next((p for p in _NODE_PATHS if os.path.isfile(p) and os.access(p, os.X_OK)), "node")
+_NODE_BIN = next((p for p in _NODE_PATHS if p == "node" or (os.path.isfile(p) and os.access(p, os.X_OK))), "node")
 
 
 def _base_ydl_opts(output_template: str, platform: str | None = None) -> dict:
