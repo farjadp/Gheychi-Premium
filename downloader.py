@@ -125,8 +125,11 @@ def _download_file(url: str, destination: Path, progress_callback: Optional[Call
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-Site": "none",
         "Sec-Fetch-User": "?1",
-        "Referer": "https://twitter.com/",
     }
+    
+    # Only set Twitter referer for Twitter direct links if absolutely needed
+    if "twimg.com" in url or "twitter.com" in url or "x.com" in url:
+        headers["Referer"] = "https://twitter.com/"
     req = Request(url, headers=headers)
     with urlopen(req, timeout=60) as response:
         content_type = response.headers.get("Content-Type", "").lower()
