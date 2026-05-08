@@ -31,6 +31,7 @@ from runtime_store import (
     get_transaction,
     update_transaction_status,
     get_financial_stats,
+    get_analytics_stats,
 )
 
 app = Flask(__name__)
@@ -359,6 +360,9 @@ PAGE_TEMPLATE = """
     <button class="nav-item active" onclick="showTab('dashboard')">
       <span class="icon">📊</span> {{ _t('dashboard') }}
     </button>
+    <button class="nav-item" onclick="showTab('analytics')">
+      <span class="icon">📈</span> آمار و تحلیل
+    </button>
     <button class="nav-item" onclick="showTab('finance')">
       <span class="icon">💵</span> {{ _t('finance') }}
     </button>
@@ -474,6 +478,48 @@ PAGE_TEMPLATE = """
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: Analytics ── -->
+    <div class="tab-panel" id="tab-analytics">
+      <div class="card">
+        <div class="card-title"><span class="icon">📈</span> آمار و تحلیل پلتفرم‌ها (۳۰ روز گذشته)</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>پلتفرم</th>
+                <th>کل درخواست‌ها</th>
+                <th>موفق</th>
+                <th>محدودیت کاربر/پلن</th>
+                <th>خطای سیستم</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for stat in analytics_stats %}
+              <tr>
+                <td><div class="cell-main">{{ stat.platform }}</div></td>
+                <td><div class="cell-main" style="font-size:18px;">{{ stat.total }}</div></td>
+                <td>
+                  <div class="cell-main" style="color:var(--green)">{{ stat.success }}</div>
+                  <div class="cell-sub">{{ stat.success_pct }}%</div>
+                </td>
+                <td>
+                  <div class="cell-main" style="color:var(--yellow)">{{ stat.failed_user }}</div>
+                  <div class="cell-sub">{{ stat.failed_user_pct }}%</div>
+                </td>
+                <td>
+                  <div class="cell-main" style="color:var(--red)">{{ stat.failed_system }}</div>
+                  <div class="cell-sub">{{ stat.failed_system_pct }}%</div>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="5" style="text-align:center;color:var(--muted);">اطلاعاتی یافت نشد</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1299,6 +1345,7 @@ def admin_index():
         user["usage_lines"] = _usage_lines_for_user(user["telegram_user_id"])
 
     stats = get_dashboard_stats()
+    analytics_stats = get_analytics_stats(days=30)
     saved = request.args.get("saved") == "1"
     import os
     env_stripe_secret_set = bool(os.getenv("STRIPE_SECRET_KEY"))
@@ -1314,6 +1361,7 @@ def admin_index():
         settings=settings,
         logs=logs,
         stats=stats,
+        analytics_stats=analytics_stats,
         transactions=list_transactions(limit=100),
         fin_stats=get_financial_stats(),
         users=users,

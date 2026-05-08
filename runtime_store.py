@@ -681,3 +681,58 @@ def get_user_transactions_by_user(telegram_user_id: int) -> list[dict]:
             (telegram_user_id,)
         )
         return [dict(r) for r in cur.fetchall()]
+
+def get_analytics_stats(days: int = 30) -> list[dict]:
+    init_logs_db()
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    with closing(sqlite3.connect(LOGS_DB)) as conn:
+        conn.row_factory = sqlite3.Row
+        
+        rows = conn.execute(
+            """
+            SELECT platform, event_type, COUNT(*) as count 
+            FROM activity_logs 
+            WHERE created_at >= ? 
+            GROUP BY platform, event_type
+            """,
+            (since,)
+        ).fetchall()
+
+    stats = {}
+    for row in rows:
+        plat = row["platform"] or "ناشناس"
+        evt = row["event_type"]
+        cnt = row["count"]
+        
+        if plat not in stats:
+            stats[plat] = {
+                "total": 0,
+                "success": 0,
+                "failed_user": 0,
+                "failed_system": 0,
+            }
+            
+        if evt in ("download_sent", "document_fallback_sent"):
+            stats[plat]["success"] += cnt
+            stats[plat]["total"] += cnt
+        elif evt in ("subscription_blocked", "platform_blocked", "download_rejected"):
+            stats[plat]["failed_user"] += cnt
+            stats[plat]["total"] += cnt
+        elif evt in ("metadata_failed", "download_failed", "send_failed", "document_fallback_failed", "unhandled_error"):
+            stats[plat]["failed_system"] += cnt
+            stats[plat]["total"] += cnt
+
+    result = []
+    for plat, data in stats.items():
+        total = data["total"]
+        if total == 0:
+            continue
+            
+        data["success_pct"] = round((data["success"] / total) * 100)
+        data["failed_user_pct"] = round((data["failed_user"] / total) * 100)
+        data["failed_system_pct"] = round((data["failed_system"] / total) * 100)
+            
+        result.append({"platform": plat, **data})
+        
+    result.sort(key=lambda x: x["total"], reverse=True)
+    return result
