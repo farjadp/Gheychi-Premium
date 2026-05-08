@@ -29,11 +29,14 @@ def fetch_media_from_cobalt(url: str, quality: str = "max") -> dict:
     if quality not in ["max", "1080", "720", "480", "360", "audio"]:
         quality = "max"
         
+    # Cobalt v10 payload format
     payload = {
         "url": url,
-        "vQuality": quality if quality != "audio" else "max",
-        "isAudioOnly": quality == "audio"
+        "videoQuality": "1080" if quality in ["1080", "max"] else quality,
+        "alwaysProxy": True
     }
+    if quality == "audio":
+        payload["downloadMode"] = "audio"
 
     headers = {
         "Accept": "application/json",
@@ -273,17 +276,7 @@ def get_direct_media_url(url: str, quality: str = "max") -> dict:
     url_lower = url.lower()
     is_youtube = "youtube.com" in url_lower or "youtu.be" in url_lower
     
-    # Layer 0: YouTube FAST Downloader (only for youtube)
-    if is_youtube:
-        logger.info("Using YouTube FAST API for URL: %s", url)
-        res = fetch_media_from_youtube_fast_api(url, quality)
-        if res.get("success"):
-            return res
-        else:
-            logger.warning("YouTube FAST API failed: %s", res.get("error"))
-            errors.append(res.get("error", "YouTube FAST API Error"))
-
-    # Layer 1: Cobalt
+    # Layer 0: Dedicated Cobalt
     if settings.get("use_cobalt_api", USE_COBALT_API) and is_cobalt_supported_url(url):
         logger.info("Using Cobalt API for URL: %s", url)
         res = fetch_media_from_cobalt(url, quality)
@@ -292,6 +285,16 @@ def get_direct_media_url(url: str, quality: str = "max") -> dict:
         else:
             logger.warning("Cobalt failed: %s", res.get("error"))
             errors.append(res.get("error", "Cobalt Error"))
+
+    # Layer 1: YouTube FAST Downloader (only for youtube)
+    if is_youtube:
+        logger.info("Using YouTube FAST API for URL: %s", url)
+        res = fetch_media_from_youtube_fast_api(url, quality)
+        if res.get("success"):
+            return res
+        else:
+            logger.warning("YouTube FAST API failed: %s", res.get("error"))
+            errors.append(res.get("error", "YouTube FAST API Error"))
             
     # Layer 2: RapidAPI
     rapid_key = settings.get("rapidapi_key") or RAPIDAPI_KEY
