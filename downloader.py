@@ -412,8 +412,6 @@ async def download_video(
 
     except yt_dlp.utils.DownloadError as e:
         url_lower = url.lower()
-        if "youtube.com" in url_lower or "youtu.be" in url_lower:
-            return DownloadResult(success=False, error="مشکل فنی داریم و در حال حاضر یوتیوب پشتیبانی نمیشه")
             
         msg = str(e)
         m = re.search(r"Unsupported URL: (https?://(?:play\.)?radiojavan\.com[^\s]+)", msg)
@@ -438,8 +436,6 @@ async def download_video(
         return DownloadResult(success=False, error=f"خطا در دانلود: {msg[:200]}")
     except Exception as e:
         url_lower = url.lower()
-        if "youtube.com" in url_lower or "youtu.be" in url_lower:
-            return DownloadResult(success=False, error="مشکل فنی داریم و در حال حاضر یوتیوب پشتیبانی نمیشه")
         return DownloadResult(success=False, error=f"خطای غیرمنتظره: {str(e)[:200]}")
 
 
@@ -544,9 +540,6 @@ async def download_audio(
 
     except yt_dlp.utils.DownloadError as e:
         url_lower = url.lower()
-        if "youtube.com" in url_lower or "youtu.be" in url_lower:
-            return DownloadResult(success=False, error="مشکل فنی داریم و در حال حاضر یوتیوب پشتیبانی نمیشه")
-            
         msg = str(e)
         m = re.search(r"Unsupported URL: (https?://(?:play\.)?radiojavan\.com[^\s]+)", msg)
         if m:
@@ -554,8 +547,6 @@ async def download_audio(
         return DownloadResult(success=False, error=f"خطا: {str(e)[:200]}")
     except Exception as e:
         url_lower = url.lower()
-        if "youtube.com" in url_lower or "youtu.be" in url_lower:
-            return DownloadResult(success=False, error="مشکل فنی داریم و در حال حاضر یوتیوب پشتیبانی نمیشه")
         return DownloadResult(success=False, error=f"خطا: {str(e)[:200]}")
 
 
