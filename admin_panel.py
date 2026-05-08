@@ -485,7 +485,18 @@ PAGE_TEMPLATE = """
     <!-- ── TAB: Analytics ── -->
     <div class="tab-panel" id="tab-analytics">
       <div class="card">
-        <div class="card-title"><span class="icon">📈</span> آمار و تحلیل پلتفرم‌ها (۳۰ روز گذشته)</div>
+        <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <span><span class="icon">📈</span> آمار و تحلیل پلتفرم‌ها</span>
+          <select onchange="window.location.href='/?days='+this.value+'&tab=analytics'" style="background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-family:inherit;">
+            <option value="7" {% if analytics_days == 7 %}selected{% endif %}>۷ روز گذشته</option>
+            <option value="30" {% if analytics_days == 30 %}selected{% endif %}>۳۰ روز گذشته</option>
+            <option value="90" {% if analytics_days == 90 %}selected{% endif %}>۹۰ روز گذشته</option>
+            <option value="0" {% if analytics_days == 0 %}selected{% endif %}>کل تاریخچه</option>
+          </select>
+        </div>
+        <div class="card" style="margin-bottom: 20px;">
+          <canvas id="analyticsChart" style="max-height: 400px; width:100%;"></canvas>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -883,7 +894,7 @@ PAGE_TEMPLATE = """
   <script>
     const titles = {
       dashboard: 'داشبورد', settings: 'تنظیمات', broadcast: 'پیام سراسری',
-      subscriptions: 'اشتراک‌ها', plans: 'پلن‌ها', logs: 'لاگ‌ها'
+      subscriptions: 'اشتراک‌ها', plans: 'پلن‌ها', logs: 'لاگ‌ها', analytics: 'آمار و تحلیل', finance: 'مالی'
     };
     function showTab(name) {
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -892,11 +903,53 @@ PAGE_TEMPLATE = """
       document.querySelectorAll('.nav-item').forEach(b => {
         if (b.getAttribute('onclick') === "showTab('" + name + "')") b.classList.add('active');
       });
-      document.getElementById('page-title').textContent = titles[name];
+      document.getElementById('page-title').textContent = titles[name] || name;
     }
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    if (tabParam) {
+        showTab(tabParam);
+    } else {
+        {% if saved %}
+        showTab('settings');
+        {% endif %}
+    }
+
     {% if saved %}
       setTimeout(() => document.querySelector('.flash') && (document.querySelector('.flash').style.opacity = '0'), 3000);
     {% endif %}
+
+    // --- Chart.js Setup ---
+    document.addEventListener("DOMContentLoaded", function() {
+        const ctx = document.getElementById('analyticsChart');
+        if (ctx) {
+            const statsData = {{ analytics_stats | tojson }};
+            const labels = statsData.map(d => d.platform);
+            const successData = statsData.map(d => d.success);
+            const userFailData = statsData.map(d => d.failed_user);
+            const systemFailData = statsData.map(d => d.failed_system);
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'موفق', data: successData, backgroundColor: '#10b981' },
+                        { label: 'محدودیت کاربر/پلن', data: userFailData, backgroundColor: '#f59e0b' },
+                        { label: 'خطای سیستم', data: systemFailData, backgroundColor: '#ef4444' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true }
+                    }
+                }
+            });
+        }
+    });
 
     // --- Table Pagination & Sorting ---
     function makeTableInteractive(tableId, rowsPerPage) {
@@ -1181,6 +1234,7 @@ PAGE_TEMPLATE = """
     }
   });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>
 """
@@ -1345,7 +1399,11 @@ def admin_index():
         user["usage_lines"] = _usage_lines_for_user(user["telegram_user_id"])
 
     stats = get_dashboard_stats()
-    analytics_stats = get_analytics_stats(days=30)
+    try:
+        analytics_days = int(request.args.get("days", 30))
+    except ValueError:
+        analytics_days = 30
+    analytics_stats = get_analytics_stats(days=analytics_days)
     saved = request.args.get("saved") == "1"
     import os
     env_stripe_secret_set = bool(os.getenv("STRIPE_SECRET_KEY"))
@@ -1362,6 +1420,7 @@ def admin_index():
         logs=logs,
         stats=stats,
         analytics_stats=analytics_stats,
+        analytics_days=analytics_days,
         transactions=list_transactions(limit=100),
         fin_stats=get_financial_stats(),
         users=users,
@@ -1729,7 +1788,7 @@ def user_dashboard():
 @app.route("/dashboard/upgrade")
 def user_dashboard_upgrade():
     # Placeholder for upgrade logic
-    return redirect("https://t.me/Gheychi_Bot") # Redirect back to bot for now or to plans logic
+    return redirect("https://t.me/gheychipremium_bot") # Redirect back to bot for now or to plans logic
 
 @app.route("/auth/logout")
 def user_logout():

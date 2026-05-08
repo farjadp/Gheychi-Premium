@@ -684,19 +684,28 @@ def get_user_transactions_by_user(telegram_user_id: int) -> list[dict]:
 
 def get_analytics_stats(days: int = 30) -> list[dict]:
     init_logs_db()
-    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     with closing(sqlite3.connect(LOGS_DB)) as conn:
         conn.row_factory = sqlite3.Row
         
-        rows = conn.execute(
-            """
-            SELECT platform, event_type, COUNT(*) as count 
-            FROM activity_logs 
-            WHERE created_at >= ? 
-            GROUP BY platform, event_type
-            """,
-            (since,)
-        ).fetchall()
+        if days > 0:
+            since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+            rows = conn.execute(
+                """
+                SELECT platform, event_type, COUNT(*) as count 
+                FROM activity_logs 
+                WHERE created_at >= ? 
+                GROUP BY platform, event_type
+                """,
+                (since,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT platform, event_type, COUNT(*) as count 
+                FROM activity_logs 
+                GROUP BY platform, event_type
+                """
+            ).fetchall()
 
     stats = {}
     for row in rows:
