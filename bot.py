@@ -685,6 +685,27 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_path = result.file_path
         caption = result.title or "ویدئو"
 
+        # Check against Telegram Bot API's hard limit of 50MB (52428800 bytes)
+        import os
+        if file_path and os.path.exists(file_path):
+            if os.path.getsize(file_path) > 50 * 1024 * 1024:
+                error_msg = f"حجم فایل ({os.path.getsize(file_path) // (1024*1024)} مگابایت) بیشتر از سقف ۵۰ مگابایت مجاز سرورهای عمومی تلگرام است."
+                
+                # If we have a direct url from Cobalt/API, give it to the user
+                if hasattr(result, 'direct_url') and result.direct_url:
+                    error_msg += "\n\nبه دلیل این محدودیت، فایل به صورت مستقیم در تلگرام ارسال نشد. اما می‌توانید ویدیو را مستقیماً از طریق دکمه زیر دانلود کنید:"
+                    keyboard = [[InlineKeyboardButton("📥 دانلود مستقیم (مرورگر)", url=result.direct_url)]]
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    await status_msg.edit_text(error_msg, reply_markup=reply_markup)
+                else:
+                    error_msg += "\n\nمتاسفانه لینک دانلود مستقیمی برای این کیفیت در دسترس نیست."
+                    await status_msg.edit_text(error_msg)
+                    
+                add_log("ERROR", "send_failed", "Telegram 50MB limit exceeded", platform=platform_name, url=url, metadata={"source": "تلگرام ربات", "telegram_user_id": user_id})
+                cleanup_file(result.file_path)
+                delete_pending_request(request_token)
+                return
+
         if quality == "audio":
             await status_msg.chat.send_action(ChatAction.UPLOAD_VOICE)
             

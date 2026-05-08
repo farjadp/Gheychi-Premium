@@ -44,6 +44,7 @@ class DownloadResult:
     width: Optional[int] = None
     height: Optional[int] = None
     duration: Optional[int] = None
+    direct_url: Optional[str] = None
 
 def _extract_metadata(file_path: str) -> dict:
     """Extract width and height. Do NOT touch the file or extract duration (as it's often broken in HLS downlods)."""
@@ -337,7 +338,8 @@ async def download_video(
                     return DownloadResult(
                         success=True, file_path=str(destination), title="ویدئو", 
                         source=api_result.get("source", "API (Cobalt)"),
-                        width=meta["width"], height=meta["height"], duration=meta["duration"]
+                        width=meta["width"], height=meta["height"], duration=meta["duration"],
+                        direct_url=direct_url
                     )
             except Exception as e:
                 logger.error(f"Failed to download from API direct URL: {e}")
