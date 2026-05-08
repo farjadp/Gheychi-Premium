@@ -349,15 +349,15 @@ async def download_video(
     # H.264 (avc) is the only codec Telegram inline player supports reliably.
     # We use a format selector that does NOT require merging (to avoid ffmpeg dependency).
     if quality == "best":
-        format_selector = "best[vcodec^=avc][ext=mp4]/best[ext=mp4]/best"
+        format_selector = "best[vcodec^=avc][ext=mp4][protocol^=http]/best[ext=mp4][protocol^=http]/best[vcodec^=avc][ext=mp4]/best[ext=mp4]/best"
     elif quality == "worst":
-        format_selector = "worst[ext=mp4]/worst"
+        format_selector = "worst[ext=mp4][protocol^=http]/worst[ext=mp4]/worst"
     elif quality == "audio":
-        format_selector = "bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio"
+        format_selector = "bestaudio[ext=m4a]/bestaudio/best"
     else:
         # Specific height, e.g. "720"
-        format_selector = f"best[height<={quality}][vcodec^=avc][ext=mp4]/best[height<={quality}][ext=mp4]/best"
-
+        format_selector = f"best[height<={quality}][vcodec^=avc][ext=mp4][protocol^=http]/best[height<={quality}][ext=mp4][protocol^=http]/best[height<={quality}][vcodec^=avc][ext=mp4]/best[height<={quality}][ext=mp4]/best[height<={quality}]/best"
+    
     loop = asyncio.get_running_loop()
     downloaded_files: list[str] = []
 
@@ -403,6 +403,19 @@ async def download_video(
         info = await loop.run_in_executor(None, _download)
         title = info.get("title", "ویدئو") if info else "ویدئو"
 
+        direct_url = None
+        if info:
+            url_cand = info.get("url")
+            if url_cand and ".m3u8" not in url_cand and "manifest" not in url_cand:
+                direct_url = url_cand
+            if not direct_url and "requested_formats" in info:
+                for f in info["requested_formats"]:
+                    if f.get("vcodec") != "none" and "url" in f:
+                        cand = f["url"]
+                        if cand and ".m3u8" not in cand and "manifest" not in cand:
+                            direct_url = cand
+                            break
+
         # Find the actual downloaded file
         file_path = None
         if downloaded_files:
@@ -428,14 +441,21 @@ async def download_video(
                 return DownloadResult(
                     success=False,
                     error=f"فایل بزرگتر از {max_file_size_bytes // (1024*1024)} مگابایت است.",
+                    direct_url=direct_url
                 )
             meta = _extract_metadata(file_path)
             return DownloadResult(
                 success=True, file_path=file_path, title=title,
-                width=meta["width"], height=meta["height"], duration=meta["duration"]
+                width=meta["width"], height=meta["height"], duration=meta["duration"],
+                direct_url=direct_url
             )
 
-        return DownloadResult(success=False, error="فایل دانلود نشد.")
+        if info:
+            size = info.get("filesize") or info.get("filesize_approx", 0)
+            if size and size > max_file_size_bytes:
+                return DownloadResult(success=False, error=f"exceeded_size:{size}", direct_url=direct_url)
+
+        return DownloadResult(success=False, error="فایل دانلود نشد.", direct_url=direct_url)
 
     except yt_dlp.utils.DownloadError as e:
         url_lower = url.lower()

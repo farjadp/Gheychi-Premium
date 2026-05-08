@@ -676,6 +676,26 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             url=url,
             metadata={"source": "تلگرام ربات", "telegram_user_id": user_id},
         )
+        
+        if result.error and result.error.startswith("exceeded_size"):
+            from runtime_store import get_max_file_size_bytes
+            parts = result.error.split(":")
+            size_mb = (int(parts[1]) // (1024*1024)) if len(parts) > 1 and parts[1].isdigit() else get_max_file_size_bytes() // (1024*1024)
+            
+            error_msg = f"حجم فایل ({size_mb} مگابایت) بیشتر از سقف مجاز دانلود سرور است."
+            
+            if hasattr(result, 'direct_url') and result.direct_url:
+                error_msg += "\n\nبه دلیل این محدودیت، فایل به صورت مستقیم در تلگرام ارسال نشد. اما می‌توانید ویدیو را مستقیماً از طریق دکمه زیر دانلود کنید:"
+                keyboard = [[InlineKeyboardButton("📥 دانلود مستقیم (مرورگر)", url=result.direct_url)]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await status_msg.edit_text(error_msg, reply_markup=reply_markup)
+            else:
+                error_msg += "\n\nمتاسفانه لینک دانلود مستقیمی برای این کیفیت در دسترس نیست."
+                await status_msg.edit_text(error_msg)
+            
+            delete_pending_request(request_token)
+            return
+
         await status_msg.edit_text(get_text("download_error", user_lang, error=result.error))
         return
 
