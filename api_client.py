@@ -286,17 +286,7 @@ def get_direct_media_url(url: str, quality: str = "max") -> dict:
             logger.warning("Cobalt failed: %s", res.get("error"))
             errors.append(res.get("error", "Cobalt Error"))
 
-    # Layer 1: YouTube FAST Downloader (only for youtube)
-    if is_youtube:
-        logger.info("Using YouTube FAST API for URL: %s", url)
-        res = fetch_media_from_youtube_fast_api(url, quality)
-        if res.get("success"):
-            return res
-        else:
-            logger.warning("YouTube FAST API failed: %s", res.get("error"))
-            errors.append(res.get("error", "YouTube FAST API Error"))
-            
-    # Layer 2: RapidAPI
+    # Layer 1: RapidAPI (primary for YouTube - most reliable)
     rapid_key = settings.get("rapidapi_key") or RAPIDAPI_KEY
     if rapid_key:
         logger.info("Using RapidAPI for URL: %s", url)
@@ -306,5 +296,15 @@ def get_direct_media_url(url: str, quality: str = "max") -> dict:
         else:
             logger.warning("RapidAPI failed: %s", res.get("error"))
             errors.append(res.get("error", "RapidAPI Error"))
+
+    # Layer 2: YouTube FAST Downloader (fallback for youtube)
+    if is_youtube:
+        logger.info("Using YouTube FAST API for URL: %s", url)
+        res = fetch_media_from_youtube_fast_api(url, quality)
+        if res.get("success"):
+            return res
+        else:
+            logger.warning("YouTube FAST API failed: %s", res.get("error"))
+            errors.append(res.get("error", "YouTube FAST API Error"))
             
     return {"success": False, "error": " | ".join(errors) if errors else "هیچ واسط دانلودر مستقیمی (API) فعال نیست."}
