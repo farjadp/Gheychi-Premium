@@ -100,6 +100,33 @@ def _parse_radiojavan_url(url: str) -> Optional[dict]:
     return None
 
 
+def _is_youtube_url(url: str | None) -> bool:
+    url_lower = (url or "").lower()
+    return "youtube.com" in url_lower or "youtu.be" in url_lower
+
+
+def _extract_youtube_video_id(url: str) -> str | None:
+    parsed = urlparse(url)
+    host = parsed.netloc.lower()
+    if "youtu.be" in host:
+        video_id = parsed.path.strip("/").split("/")[0]
+        return video_id if re.fullmatch(r"[0-9A-Za-z_-]{11}", video_id or "") else None
+    if "youtube.com" in host:
+        query_id = parse_qs(parsed.query).get("v", [""])[0]
+        if re.fullmatch(r"[0-9A-Za-z_-]{11}", query_id or ""):
+            return query_id
+        match = re.search(r"/(?:shorts|embed|live)/([0-9A-Za-z_-]{11})", parsed.path)
+        if match:
+            return match.group(1)
+    return None
+
+
+def _normalize_youtube_url(url: str) -> str:
+    """Drop tracking params that sometimes confuse API fallbacks."""
+    video_id = _extract_youtube_video_id(url)
+    return f"https://www.youtube.com/watch?v={video_id}" if video_id else url
+
+
 def _fetch_radiojavan_info(obj_type: str, obj_id: str) -> dict:
     from urllib.parse import quote
     api_url = f"https://play.radiojavan.com/api/p/{obj_type}?id={quote(obj_id)}"
@@ -207,12 +234,38 @@ _NODE_PATHS = [
 _NODE_BIN = next((p for p in _NODE_PATHS if p == "node" or (os.path.isfile(p) and os.access(p, os.X_OK))), "node")
 
 
-def _base_ydl_opts(output_template: str, platform: str | None = None) -> dict:
+def _youtube_ydl_profiles(url: str) -> list[dict]:
+    if not _is_youtube_url(url):
+        return [{"name": "default", "use_cookies": True, "clients": None}]
+
+    has_cookies = bool(_get_cookies_file(url))
+    profiles: list[dict] = []
+    if has_cookies:
+        profiles.append({"name": "youtube-default-cookies", "use_cookies": True, "clients": None})
+    profiles.append({"name": "youtube-default-no-cookies", "use_cookies": False, "clients": None})
+    if has_cookies:
+        profiles.append({
+            "name": "youtube-embedded-cookies",
+            "use_cookies": True,
+            "clients": ["web_embedded", "android"],
+        })
+    profiles.append({
+        "name": "youtube-embedded-no-cookies",
+        "use_cookies": False,
+        "clients": ["web_embedded", "android"],
+    })
+    return profiles
+
+
+def _base_ydl_opts(
+    output_template: str,
+    platform: str | None = None,
+    *,
+    use_cookies: bool = True,
+    youtube_clients: list[str] | None = None,
+) -> dict:
     max_file_size_bytes = get_max_file_size_bytes()
-    cookies_file = _get_cookies_file(platform)
-    # YouTube player clients: web_embedded is more reliable than web recently.
-    # android works without cookies. We list multiple so yt-dlp can fallback.
-    player_client = "web_embedded,android" if cookies_file else "android,web_embedded"
+    cookies_file = _get_cookies_file(platform) if use_cookies else None
     opts = {
         "outtmpl": output_template,
         "ignoreconfig": True,
@@ -221,9 +274,20 @@ def _base_ydl_opts(output_template: str, platform: str | None = None) -> dict:
         "noprogress": True,
         "noplaylist": True,
         "max_filesize": max_file_size_bytes,
-        "extractor_args": {"youtube": [f"player_client={player_client}"]},
         "js_runtimes": {"node": {"path": _NODE_BIN}},
     }
+    if _is_youtube_url(platform):
+        youtube_args: dict[str, list[str]] = {}
+        if youtube_clients:
+            youtube_args["player_client"] = youtube_clients
+        youtube_po_token = os.getenv("YOUTUBE_PO_TOKEN", "").strip()
+        if youtube_po_token:
+            youtube_args["po_token"] = [youtube_po_token]
+        youtube_visitor_data = os.getenv("YOUTUBE_VISITOR_DATA", "").strip()
+        if youtube_visitor_data:
+            youtube_args["visitor_data"] = [youtube_visitor_data]
+        if youtube_args:
+            opts["extractor_args"] = {"youtube": youtube_args}
     if cookies_file:
         opts["cookiefile"] = cookies_file
     return opts
@@ -263,7 +327,6 @@ async def get_video_info(url: str) -> VideoInfo:
         "no_warnings": True,
         "skip_download": True,
         "noplaylist": True,
-        "extractor_args": {"youtube": ["player_client=web_embedded,android"]},
         "js_runtimes": {"node": {"path": _NODE_BIN}},
     }
     cookies_file = _get_cookies_file(url)
@@ -306,6 +369,31 @@ async def get_video_info(url: str) -> VideoInfo:
     )
 
 
+def _download_error_result(e: yt_dlp.utils.DownloadError, max_file_size_bytes: int) -> DownloadResult:
+    msg = str(e)
+    if "Unsupported URL" in msg:
+        return DownloadResult(success=False, error="این لینک پشتیبانی نمی‌شود.")
+    if "Private video" in msg:
+        return DownloadResult(success=False, error="ویدئو خصوصی است.")
+    if "max filesize" in msg.lower() or "filesize" in msg.lower():
+        return DownloadResult(
+            success=False,
+            error=f"فایل بزرگتر از {max_file_size_bytes // (1024*1024)} مگابایت است.",
+        )
+    if "guest token" in msg.lower() or "bad guest token" in msg.lower():
+        return DownloadResult(
+            success=False,
+            error="دانلود از Twitter/X نیاز به احراز هویت دارد.\nلطفاً با پشتیبانی تماس بگیر تا کوکی تنظیم شود.",
+        )
+    if "login required" in msg.lower() or "loginrequired" in msg.lower() or "confirm you're not a bot" in msg.lower():
+        return DownloadResult(success=False, error="این ویدئو توسط یوتیوب محدود شده است و برای دانلود نیاز به لاگین (کوکی پریمیوم) دارد. لطفاً با پشتیبانی تماس بگیرید.")
+    if "http error 403" in msg.lower() and "youtube" in msg.lower():
+        return DownloadResult(success=False, error="یوتیوب لینک دانلود را برای این سرور رد کرد. کوکی یوتیوب را تازه کنید یا PO Token تنظیم کنید.")
+    if "http error 400" in msg.lower() and "youtube" in msg.lower():
+        return DownloadResult(success=False, error="درخواست YouTube توسط yt-dlp رد شد. کوکی یوتیوب احتمالا منقضی یا با این سرور ناسازگار است.")
+    return DownloadResult(success=False, error=f"خطا در دانلود: {msg[:200]}")
+
+
 async def download_video(
     url: str,
     quality: str = "best",
@@ -319,7 +407,8 @@ async def download_video(
     request_id = uuid.uuid4().hex
     output_template = str(download_dir / f"{request_id}.%(ext)s")
     max_file_size_bytes = get_max_file_size_bytes()
-    rj_info = _parse_radiojavan_url(url)
+    source_url = _normalize_youtube_url(url) if _is_youtube_url(url) else url
+    rj_info = _parse_radiojavan_url(source_url)
 
     if rj_info:
         return DownloadResult(
@@ -327,9 +416,11 @@ async def download_video(
             error="لینک RadioJavan ترجیحاً به‌صورت فایل صوتی قابل دانلود است، در صورت امکان دکمه دانلود صوت را انتخاب کنید.",
         )
 
-    if is_cobalt_supported_url(url):
+    # For YouTube, signed direct URLs returned by third-party APIs often 403 on Railway.
+    # Let yt-dlp generate URLs from the current server first, then use APIs only as a final fallback.
+    if is_cobalt_supported_url(source_url) and not _is_youtube_url(source_url):
         loop = asyncio.get_running_loop()
-        api_result = await loop.run_in_executor(None, lambda: get_direct_media_url(url, quality))
+        api_result = await loop.run_in_executor(None, lambda: get_direct_media_url(source_url, quality))
         if api_result["success"]:
             direct_url = api_result["url"]
             destination = download_dir / f"{request_id}.mp4"
@@ -372,48 +463,65 @@ async def download_video(
         format_selector = f"best[height<={quality}][vcodec^=avc][ext=mp4][protocol^=http]/best[height<={quality}][ext=mp4][protocol^=http]/best[height<={quality}][vcodec^=avc][ext=mp4]/best[height<={quality}][ext=mp4]/best[height<={quality}]/best"
     
     loop = asyncio.get_running_loop()
-    downloaded_files: list[str] = []
+    last_download_error: yt_dlp.utils.DownloadError | None = None
+    last_direct_url: str | None = None
 
-    def _progress_hook(d: dict):
-        if d["status"] == "finished":
-            downloaded_files.append(d["filename"])
-        elif d["status"] == "downloading" and progress_callback:
-            total = d.get("total_bytes") or d.get("total_bytes_estimate", 0)
-            downloaded = d.get("downloaded_bytes", 0)
-            if total:
-                pct = int(downloaded / total * 100)
-                loop.call_soon_threadsafe(progress_callback, pct)
+    for profile in _youtube_ydl_profiles(source_url):
+        downloaded_files: list[str] = []
 
-    opts = _base_ydl_opts(output_template, platform=url)
-    opts["format"] = format_selector
-    opts["progress_hooks"] = [_progress_hook]
-    opts["merge_output_format"] = "mp4"
-    opts["postprocessors"] = [
-        {
-            "key": "FFmpegVideoConvertor",
-            "preferedformat": "mp4",
-        }
-    ]
-    # Force H.264 + AAC re-encode so Telegram inline player always works.
-    # Only triggered when the downloaded codec is NOT already H.264.
-    opts["postprocessor_args"] = {
-        "ffmpeg": [
-            "-vcodec", "libx264",
-            "-acodec", "aac",
-            "-crf", "23",
-            "-preset", "fast",
-            "-movflags", "+faststart",
+        def _progress_hook(d: dict):
+            if d["status"] == "finished":
+                downloaded_files.append(d["filename"])
+            elif d["status"] == "downloading" and progress_callback:
+                total = d.get("total_bytes") or d.get("total_bytes_estimate", 0)
+                downloaded = d.get("downloaded_bytes", 0)
+                if total:
+                    pct = int(downloaded / total * 100)
+                    loop.call_soon_threadsafe(progress_callback, pct)
+
+        opts = _base_ydl_opts(
+            output_template,
+            platform=source_url,
+            use_cookies=profile["use_cookies"],
+            youtube_clients=profile["clients"],
+        )
+        opts["format"] = format_selector
+        opts["progress_hooks"] = [_progress_hook]
+        opts["merge_output_format"] = "mp4"
+        opts["postprocessors"] = [
+            {
+                "key": "FFmpegVideoConvertor",
+                "preferedformat": "mp4",
+            }
         ]
-    }
-    opts["prefer_ffmpeg"] = True
+        # Force H.264 + AAC re-encode so Telegram inline player always works.
+        # Only triggered when the downloaded codec is NOT already H.264.
+        opts["postprocessor_args"] = {
+            "ffmpeg": [
+                "-vcodec", "libx264",
+                "-acodec", "aac",
+                "-crf", "23",
+                "-preset", "fast",
+                "-movflags", "+faststart",
+            ]
+        }
+        opts["prefer_ffmpeg"] = True
 
-    def _download():
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            return info
+        def _download():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(source_url, download=True)
+                return info
 
-    try:
-        info = await loop.run_in_executor(None, _download)
+        try:
+            logger.info("yt-dlp download attempt: %s", profile["name"])
+            info = await loop.run_in_executor(None, _download)
+        except yt_dlp.utils.DownloadError as e:
+            last_download_error = e
+            logger.warning("yt-dlp attempt failed (%s): %s", profile["name"], str(e)[:300])
+            if _is_youtube_url(source_url):
+                continue
+            break
+
         title = info.get("title", "ویدئو") if info else "ویدئو"
 
         direct_url = None
@@ -428,6 +536,7 @@ async def download_video(
                         if cand and ".m3u8" not in cand and "manifest" not in cand:
                             direct_url = cand
                             break
+        last_direct_url = direct_url
 
         # Find the actual downloaded file
         file_path = None
@@ -443,7 +552,10 @@ async def download_video(
 
         if not file_path:
             # Fallback: find any file with this request_id prefix
-            matches = list(download_dir.glob(f"{request_id}.*"))
+            matches = [
+                path for path in download_dir.glob(f"{request_id}.*")
+                if not path.name.endswith(".part") and path.suffix != ".ytdl"
+            ]
             if matches:
                 file_path = str(matches[0])
 
@@ -468,35 +580,46 @@ async def download_video(
             if size and size > max_file_size_bytes:
                 return DownloadResult(success=False, error=f"exceeded_size:{size}", direct_url=direct_url)
 
-        return DownloadResult(success=False, error="فایل دانلود نشد.", direct_url=direct_url)
+        if not _is_youtube_url(source_url):
+            return DownloadResult(success=False, error="فایل دانلود نشد.", direct_url=direct_url)
+        logger.warning("yt-dlp attempt produced no file (%s)", profile["name"])
 
-    except yt_dlp.utils.DownloadError as e:
-        url_lower = url.lower()
-            
-        msg = str(e)
+    if _is_youtube_url(source_url):
+        api_result = await loop.run_in_executor(None, lambda: get_direct_media_url(source_url, quality))
+        if api_result.get("success"):
+            destination = download_dir / f"{request_id}.mp4"
+            try:
+                def _do_download():
+                    def _safe_progress(pct: int):
+                        if progress_callback:
+                            loop.call_soon_threadsafe(progress_callback, pct)
+                    _download_file(api_result["url"], destination, _safe_progress)
+                await loop.run_in_executor(None, _do_download)
+                if destination.exists() and destination.stat().st_size > 0:
+                    file_size = destination.stat().st_size
+                    if file_size > max_file_size_bytes:
+                        destination.unlink(missing_ok=True)
+                        return DownloadResult(success=False, error=f"فایل از محدودیت مگابایت بزرگتر است.")
+                    meta = _extract_metadata(str(destination))
+                    return DownloadResult(
+                        success=True, file_path=str(destination), title="ویدئو",
+                        source=api_result.get("source", "API"),
+                        width=meta["width"], height=meta["height"], duration=meta["duration"],
+                        direct_url=api_result["url"],
+                    )
+            except Exception as e:
+                logger.error("YouTube API fallback direct download failed: %s", e)
+
+    if last_download_error:
+        msg = str(last_download_error)
         m = re.search(r"Unsupported URL: (https?://(?:play\.)?radiojavan\.com[^\s]+)", msg)
         if m:
             return await download_video(m.group(1), quality, progress_callback)
-        if "Unsupported URL" in msg:
-            return DownloadResult(success=False, error="این لینک پشتیبانی نمی‌شود.")
-        if "Private video" in msg:
-            return DownloadResult(success=False, error="ویدئو خصوصی است.")
-        if "max filesize" in msg.lower() or "filesize" in msg.lower():
-            return DownloadResult(
-                success=False,
-                error=f"فایل بزرگتر از {max_file_size_bytes // (1024*1024)} مگابایت است.",
-            )
-        if "guest token" in msg.lower() or "bad guest token" in msg.lower():
-            return DownloadResult(
-                success=False,
-                error="دانلود از Twitter/X نیاز به احراز هویت دارد.\nلطفاً با پشتیبانی تماس بگیر تا کوکی تنظیم شود.",
-            )
-        if "login required" in msg.lower() or "loginrequired" in msg.lower() or "confirm you're not a bot" in msg.lower():
-            return DownloadResult(success=False, error="این ویدئو توسط یوتیوب محدود شده است و برای دانلود نیاز به لاگین (کوکی پریمیوم) دارد. لطفاً با پشتیبانی تماس بگیرید.")
-        return DownloadResult(success=False, error=f"خطا در دانلود: {msg[:200]}")
-    except Exception as e:
-        url_lower = url.lower()
-        return DownloadResult(success=False, error=f"خطای غیرمنتظره: {str(e)[:200]}")
+        result = _download_error_result(last_download_error, max_file_size_bytes)
+        result.direct_url = last_direct_url
+        return result
+
+    return DownloadResult(success=False, error="فایل دانلود نشد.", direct_url=last_direct_url)
 
 
 async def download_audio(
@@ -508,7 +631,8 @@ async def download_audio(
     request_id = uuid.uuid4().hex
     output_template = str(download_dir / f"{request_id}.%(ext)s")
     max_file_size_bytes = get_max_file_size_bytes()
-    rj_info = _parse_radiojavan_url(url)
+    source_url = _normalize_youtube_url(url) if _is_youtube_url(url) else url
+    rj_info = _parse_radiojavan_url(source_url)
 
     def _extract_audio_duration(f_path: str) -> Optional[int]:
         try:
@@ -561,30 +685,47 @@ async def download_audio(
         except Exception as e:
             return DownloadResult(success=False, error=f"خطا در دانلود RadioJavan: {str(e)[:200]}")
 
-    opts = _base_ydl_opts(output_template, platform=url)
-    opts["format"] = "bestaudio/best"
-    opts["postprocessors"] = [
-        {
-            "key": "FFmpegExtractAudio",
-            "preferredcodec": "mp3",
-            "preferredquality": "192",
-        }
-    ]
-
     loop = asyncio.get_running_loop()
+    last_download_error: yt_dlp.utils.DownloadError | None = None
 
-    def _download():
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            return info
+    for profile in _youtube_ydl_profiles(source_url):
+        opts = _base_ydl_opts(
+            output_template,
+            platform=source_url,
+            use_cookies=profile["use_cookies"],
+            youtube_clients=profile["clients"],
+        )
+        opts["format"] = "bestaudio/best"
+        opts["postprocessors"] = [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "192",
+            }
+        ]
 
-    try:
-        info = await loop.run_in_executor(None, _download)
+        def _download():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(source_url, download=True)
+                return info
+
+        try:
+            logger.info("yt-dlp audio attempt: %s", profile["name"])
+            info = await loop.run_in_executor(None, _download)
+        except yt_dlp.utils.DownloadError as e:
+            last_download_error = e
+            logger.warning("yt-dlp audio attempt failed (%s): %s", profile["name"], str(e)[:300])
+            if _is_youtube_url(source_url):
+                continue
+            break
+
         title = info.get("title", "صوت") if info else "صوت"
 
         # Use request_id to find the specific file, not the newest in dir
         file_path = str(download_dir / f"{request_id}.mp3")
         if not os.path.exists(file_path):
+            if _is_youtube_url(source_url):
+                continue
             return DownloadResult(success=False, error="فایل صوتی دانلود نشد.")
 
         file_size = os.path.getsize(file_path)
@@ -598,16 +739,14 @@ async def download_audio(
         duration = _extract_audio_duration(file_path)
         return DownloadResult(success=True, file_path=file_path, title=title, duration=duration)
 
-    except yt_dlp.utils.DownloadError as e:
-        url_lower = url.lower()
-        msg = str(e)
+    if last_download_error:
+        msg = str(last_download_error)
         m = re.search(r"Unsupported URL: (https?://(?:play\.)?radiojavan\.com[^\s]+)", msg)
         if m:
             return await download_audio(m.group(1), progress_callback)
-        return DownloadResult(success=False, error=f"خطا: {str(e)[:200]}")
-    except Exception as e:
-        url_lower = url.lower()
-        return DownloadResult(success=False, error=f"خطا: {str(e)[:200]}")
+        return _download_error_result(last_download_error, max_file_size_bytes)
+
+    return DownloadResult(success=False, error="فایل صوتی دانلود نشد.")
 
 
 def cleanup_file(file_path: str):

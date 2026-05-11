@@ -144,47 +144,208 @@ LOGIN_TEMPLATE = '''
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ورود به پنل ادمین</title>
+  <title>Control Room Login</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800;900&family=Azeret+Mono:wght@400;500;700&display=swap');
+    :root {
+      --sand: #f6efe3;
+      --sand-deep: #eadfcb;
+      --ink: #1d1a17;
+      --muted: #6d655c;
+      --brand: #e76f51;
+      --accent: #2a9d8f;
+      --gold: #e9c46a;
+      --line: rgba(50, 37, 28, 0.12);
+    }
+    * { box-sizing: border-box; }
     body {
-      margin: 0; background: #0b0d14; color: #a5acca; font-family: 'Vazirmatn', sans-serif;
-      display: flex; justify-content: center; align-items: center; height: 100vh;
-      background-image: radial-gradient(circle at top right, rgba(99, 102, 241, 0.1), transparent 400px),
-                        radial-gradient(circle at bottom left, rgba(236, 72, 153, 0.1), transparent 400px);
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: 'Vazirmatn', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background:
+        radial-gradient(circle at top left, rgba(233, 196, 106, 0.34), transparent 24%),
+        radial-gradient(circle at bottom right, rgba(42, 157, 143, 0.18), transparent 22%),
+        linear-gradient(135deg, #f8f2e7 0%, #efe3d1 100%);
+      padding: 20px;
+    }
+    .shell {
+      width: min(980px, 100%);
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      background: rgba(255, 249, 241, 0.82);
+      border: 1px solid var(--line);
+      border-radius: 34px;
+      overflow: hidden;
+      box-shadow: 0 28px 70px rgba(83, 56, 33, 0.14);
+      backdrop-filter: blur(18px);
+    }
+    .panel {
+      padding: 42px;
+    }
+    .story {
+      background: linear-gradient(180deg, rgba(33, 27, 22, 0.96), rgba(50, 38, 30, 0.92));
+      color: #fff8ef;
+      position: relative;
+    }
+    .story::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at top right, rgba(231, 111, 81, 0.28), transparent 24%),
+        radial-gradient(circle at bottom left, rgba(42, 157, 143, 0.18), transparent 22%);
+    }
+    .story > * { position: relative; z-index: 1; }
+    .badge {
+      width: 58px;
+      height: 58px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, var(--gold), var(--brand));
+      display: grid;
+      place-items: center;
+      font-size: 28px;
+      color: #241711;
+      margin-bottom: 22px;
+      box-shadow: 0 16px 30px rgba(0, 0, 0, 0.2);
+    }
+    .kicker {
+      font-family: 'Azeret Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      color: rgba(255, 248, 239, 0.62);
+      margin-bottom: 14px;
+    }
+    h1 {
+      margin: 0 0 16px;
+      font-size: 40px;
+      line-height: 1.05;
+      font-weight: 900;
+      letter-spacing: -0.05em;
+    }
+    .story p {
+      margin: 0;
+      color: rgba(255, 248, 239, 0.78);
+      line-height: 2;
+      font-size: 14px;
+    }
+    .story-foot {
+      margin-top: 28px;
+      padding-top: 22px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      font-size: 12px;
+      font-weight: 700;
     }
     .login-box {
-      background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(20px); border-radius: 24px; padding: 40px; width: 100%; max-width: 350px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
-    h2 { color: #f8fafc; margin-top: 0; margin-bottom: 30px; font-weight: 700; }
+    .login-box h2 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+    }
+    .login-box .sub {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.9;
+      margin-bottom: 28px;
+    }
     input {
-      width: 100%; padding: 14px 20px; margin-bottom: 20px; border-radius: 12px;
-      background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.05);
-      color: #fff; font-family: inherit; font-size: 15px; outline: none; transition: 0.2s;
-      box-sizing: border-box; text-align: left; direction: ltr;
+      width: 100%;
+      padding: 15px 16px;
+      margin-bottom: 18px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 15px;
+      outline: none;
+      transition: 0.2s;
+      text-align: left;
+      direction: ltr;
     }
-    input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+    input:focus {
+      border-color: rgba(231, 111, 81, 0.45);
+      box-shadow: 0 0 0 4px rgba(231, 111, 81, 0.1);
+      background: rgba(255, 255, 255, 0.92);
+    }
     .btn {
-      width: 100%; padding: 14px; border: none; border-radius: 12px;
-      background: linear-gradient(135deg, #6366f1, #ec4899); color: white;
-      font-family: inherit; font-weight: 600; font-size: 15px; cursor: pointer; transition: 0.3s;
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--brand), #b84b33);
+      color: white;
+      font-family: inherit;
+      font-weight: 800;
+      font-size: 15px;
+      cursor: pointer;
+      transition: 0.2s;
+      box-shadow: 0 18px 26px rgba(184, 75, 51, 0.24);
     }
-    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
-    .error { color: #f43f5e; font-size: 13px; margin-bottom: 20px; background: rgba(244,63,94,0.1); padding: 10px; border-radius: 8px; }
+    .btn:hover { transform: translateY(-1px); }
+    .error {
+      color: #b63c4c;
+      font-size: 13px;
+      margin-bottom: 18px;
+      background: rgba(209, 73, 91, 0.1);
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(209, 73, 91, 0.14);
+    }
+    .tiny {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.9;
+    }
+    @media (max-width: 860px) {
+      .shell { grid-template-columns: 1fr; }
+      .panel { padding: 28px; }
+      h1 { font-size: 32px; }
+    }
   </style>
 </head>
 <body>
-  <div class="login-box">
-    <h2><span style="font-size:24px; vertical-align:middle; margin-left:10px;">✂️</span> ورود به مرکز فرماندهی</h2>
-    {% if error %}
-      <div class="error">{{ error }}</div>
-    {% endif %}
-    <form method="POST" action="/login">
-      <input type="password" name="password" placeholder="Admin Password" required autofocus>
-      <button type="submit" class="btn">ورود ایمن</button>
-    </form>
+  <div class="shell">
+    <section class="panel story">
+      <div class="badge">✂️</div>
+      <div class="kicker">GHEYCHI PREMIUM / CONTROL ROOM</div>
+      <h1>مرکز فرماندهی<br>نسخه‌ی جدید</h1>
+      <p>ورود به پنل مدیریتی با ظاهر تازه برای کنترل کاربران، لاگ‌ها، درآمد و تنظیمات سرویس. این لایه برای استفاده‌ی روزانه سریع‌تر و خواناتر بازطراحی شده است.</p>
+      <div class="story-foot">
+        <span class="chip">Realtime Monitoring</span>
+        <span class="chip">Subscriptions</span>
+        <span class="chip">Finance</span>
+      </div>
+    </section>
+    <section class="panel login-box">
+      <h2>ورود مدیر</h2>
+      <div class="sub">برای دسترسی به ابزارهای مدیریت، رمز عبور ادمین را وارد کن.</div>
+      {% if error %}
+        <div class="error">{{ error }}</div>
+      {% endif %}
+      <form method="POST" action="/login">
+        <input type="password" name="password" placeholder="Admin Password" required autofocus>
+        <button type="submit" class="btn">ورود امن</button>
+      </form>
+      <div class="tiny">نشست مدیریتی بعد از ورود به‌صورت موقت فعال می‌ماند و فرم‌ها با CSRF محافظت می‌شوند.</div>
+    </section>
   </div>
 </body>
 </html>
