@@ -23,6 +23,7 @@ from runtime_store import (
     get_usage_snapshot,
     init_logs_db,
     list_bot_users,
+    count_bot_users,
     list_logs,
     get_dashboard_stats,
     load_settings,
@@ -273,6 +274,25 @@ PAGE_TEMPLATE = """
     .table-wrap { overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
     .table-wrap::-webkit-scrollbar { height: 6px; }
     .table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+    .pagination {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .pagination-btn {
+      padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600;
+      color: var(--ink); text-decoration: none; background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08); transition: all 0.2s;
+    }
+    .pagination-btn:hover:not(.disabled) {
+      background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15);
+      transform: translateY(-1px);
+    }
+    .pagination-btn.disabled {
+      opacity: 0.4; cursor: not-allowed;
+    }
+    .pagination-info {
+      font-size: 14px; color: var(--muted); font-weight: 500;
+    }
     table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; font-weight:500; }
     thead th {
       text-align: right; padding: 14px 16px;
@@ -734,13 +754,15 @@ PAGE_TEMPLATE = """
         </div>
 
         <div class="card">
-          <div class="card-title"><span class="icon">👥</span> لیست کاربران</div>
+          <div class="card-title"><span class="icon">👥</span> لیست کاربران ({{ total_users }} کاربر)</div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>کاربر</th>
                   <th>پلن فعال</th>
+                  <th>تاریخ عضویت</th>
+                  <th>آخرین استفاده</th>
                   <th>انقضا</th>
                   <th>مصرف</th>
                 </tr>
@@ -766,6 +788,8 @@ PAGE_TEMPLATE = """
                       <div class="cell-sub">{{ user.assigned_note }}</div>
                     {% endif %}
                   </td>
+                  <td><div class="cell-sub">{{ user.created_at[:10] if user.created_at else '—' }}</div></td>
+                  <td><div class="cell-sub">{{ user.last_usage[:16].replace('T', ' ') if user.last_usage else '—' }}</div></td>
                   <td><div class="cell-sub">{{ user.plan_expires_at[:10] if user.plan_expires_at else '∞' }}</div></td>
                   <td>
                     {% for line in user.usage_lines %}
@@ -777,6 +801,24 @@ PAGE_TEMPLATE = """
               </tbody>
             </table>
           </div>
+          <!-- Pagination Controls -->
+          {% if total_pages > 1 %}
+          <div class="pagination">
+            {% if page > 1 %}
+            <a href="{{ url_for('admin_index', page=page-1) }}" class="pagination-btn">← قبلی</a>
+            {% else %}
+            <span class="pagination-btn disabled">← قبلی</span>
+            {% endif %}
+
+            <span class="pagination-info">صفحه {{ page }} از {{ total_pages }}</span>
+
+            {% if page < total_pages %}
+            <a href="{{ url_for('admin_index', page=page+1) }}" class="pagination-btn">بعدی →</a>
+            {% else %}
+            <span class="pagination-btn disabled">بعدی →</span>
+            {% endif %}
+          </div>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -1394,7 +1436,15 @@ def admin_index():
     init_logs_db()
     settings = load_settings()
     logs = list_logs(limit=200)
-    users = list_bot_users(limit=100)
+
+    # Pagination for users
+    page = int(request.args.get("page", 1))
+    per_page = 20
+    total_users = count_bot_users()
+    total_pages = (total_users + per_page - 1) // per_page
+    offset = (page - 1) * per_page
+
+    users = list_bot_users(limit=per_page, offset=offset)
     for user in users:
         user["usage_lines"] = _usage_lines_for_user(user["telegram_user_id"])
 
@@ -1433,7 +1483,10 @@ def admin_index():
         env_stripe_secret_set=env_stripe_secret_set,
         env_stripe_webhook_set=env_stripe_webhook_set,
         lang=lang,
-        _t=_t
+        _t=_t,
+        page=page,
+        total_pages=total_pages,
+        total_users=total_users,
     )
 
 
@@ -1538,10 +1591,22 @@ def logs_api():
 @app.get("/api/users")
 @_requires_auth
 def users_api():
-    users = list_bot_users(limit=200)
+    page = int(request.args.get("page", 1))
+    per_page = int(request.args.get("per_page", 20))
+    offset = (page - 1) * per_page
+
+    users = list_bot_users(limit=per_page, offset=offset)
     for user in users:
         user["usage_lines"] = _usage_lines_for_user(user["telegram_user_id"])
-    return jsonify(users)
+
+    total = count_bot_users()
+    return jsonify({
+        "users": users,
+        "page": page,
+        "per_page": per_page,
+        "total": total,
+        "total_pages": (total + per_page - 1) // per_page
+    })
 
 
 
@@ -1632,20 +1697,124 @@ def confirm_transaction():
     tx = get_transaction(tx_id)
     if not tx or tx["status"] != "Pending":
         return redirect(url_for("admin_index"))
-        
-    from plans import get_plan
-    plan = get_plan(tx["plan_code"])
-    if plan:
-        assign_user_plan(
-            telegram_user_id=tx["telegram_user_id"],
-            plan_code=tx["plan_code"],
-            months=1,
-            note=f"تایید تراکنش معلق: {tx_id}"
-        )
-        update_transaction_status(tx_id, "Completed")
-        add_log("INFO", "transaction_manual_confirm", f"تراکنش مالی به صورت دستی تایید شد {tx_id[:12]}.", metadata={"source": "پنل ادمین"})
-        
+
+    _activate_paid_plan(
+        telegram_user_id=tx["telegram_user_id"],
+        plan_code=tx["plan_code"],
+        note=f"تایید تراکنش معلق: {tx_id}",
+        tx_id=tx_id,
+    )
+    add_log(
+        "INFO",
+        "transaction_manual_confirm",
+        f"تراکنش مالی به صورت دستی تایید شد {tx_id[:12]}.",
+        metadata={"source": "پنل ادمین"},
+    )
+
     return redirect(url_for("admin_index", saved="1"))
+
+
+def _format_payment_success_message(user: dict, plan: dict) -> str:
+    """Build a bilingual (fa + en) payment confirmation message with plan
+    name, expiry date and per-platform rules. Used by both the Stripe
+    webhook and the manual /finance/confirm endpoint."""
+    from locales import get_text
+    from plans import format_rule
+
+    expiry_iso = user.get("plan_expires_at")
+    if expiry_iso:
+        # ISO timestamp in UTC; show only the date for clarity
+        expiry_short = expiry_iso.split("T", 1)[0]
+        expiry_fa = expiry_short
+        expiry_en = expiry_short
+    else:
+        expiry_fa = get_text("payment_success_unlimited_expiry", "fa")
+        expiry_en = get_text("payment_success_unlimited_expiry", "en")
+
+    rules_fa = "\n".join(f"• {format_rule(r, 'fa')}" for r in plan.get("rules", [])) or "—"
+    rules_en = "\n".join(f"• {format_rule(r, 'en')}" for r in plan.get("rules", [])) or "—"
+
+    plan_name_fa = plan.get("name_fa") or plan.get("name", "")
+    plan_name_en = plan.get("name_en") or plan.get("name", "")
+    price = plan.get("price_usd", 0)
+
+    fa_part = (
+        f"{get_text('payment_success_title', 'fa')}\n\n"
+        + get_text(
+            "payment_success_body",
+            "fa",
+            plan_name=plan_name_fa,
+            expiry=expiry_fa,
+            price=price,
+            rules=rules_fa,
+        )
+    )
+    en_part = (
+        f"{get_text('payment_success_title', 'en')}\n\n"
+        + get_text(
+            "payment_success_body",
+            "en",
+            plan_name=plan_name_en,
+            expiry=expiry_en,
+            price=price,
+            rules=rules_en,
+        )
+    )
+    return f"{fa_part}\n\n━━━━━━━━━━━━━━\n\n{en_part}"
+
+
+def _send_telegram_message(chat_id: int, text: str) -> bool:
+    """Fire-and-forget Telegram send from a sync Flask handler.
+    Returns True on success, False otherwise (errors are logged)."""
+    try:
+        loop = asyncio.new_event_loop()
+        try:
+            bot = Bot(token=BOT_TOKEN)
+            loop.run_until_complete(
+                bot.send_message(chat_id=chat_id, text=text, parse_mode="Markdown")
+            )
+        finally:
+            loop.close()
+        return True
+    except Exception as exc:
+        add_log(
+            "ERROR",
+            "telegram_notify_failed",
+            f"Failed to send Telegram message to {chat_id}: {str(exc)[:200]}",
+            metadata={"telegram_user_id": chat_id},
+        )
+        return False
+
+
+def _activate_paid_plan(telegram_user_id: int, plan_code: str, *, note: str, tx_id: str | None = None) -> bool:
+    """Activate the plan for the user, mark transaction as completed,
+    and send the bilingual confirmation message. Returns True on success."""
+    from plans import get_plan
+    plan = get_plan(plan_code)
+    if not plan:
+        add_log("ERROR", "activation_failed", f"Unknown plan_code: {plan_code}",
+                metadata={"telegram_user_id": telegram_user_id, "tx_id": tx_id})
+        return False
+
+    user = assign_user_plan(
+        telegram_user_id,
+        plan_code,
+        months=1,
+        note=note,
+    )
+    if tx_id:
+        update_transaction_status(tx_id, "Completed")
+
+    message = _format_payment_success_message(user, plan)
+    _send_telegram_message(telegram_user_id, message)
+
+    add_log(
+        "INFO",
+        "payment_success",
+        f"اشتراک {plan_code} فعال شد و پیام تأیید برای کاربر ارسال شد.",
+        metadata={"telegram_user_id": telegram_user_id, "plan_code": plan_code, "tx_id": tx_id},
+    )
+    return True
 
 
 @app.route('/webhook/stripe', methods=['POST'])
@@ -1687,48 +1856,19 @@ def stripe_webhook():
             parts = client_reference_id.split("_", 1)
             if len(parts) != 2:
                 raise ValueError(f"Malformed client_reference_id: {client_reference_id}")
-                
+
             user_id_str, plan_code = parts
             user_id = int(user_id_str)
-            
-            # Verify plan exists before assign
-            from plans import get_plan
-            plan = get_plan(plan_code)
-            if not plan:
-                raise ValueError(f"Unknown plan_code: {plan_code}")
-            
-            # Update transaction
-            update_transaction_status(session.id, "Completed")
-            
-            # Activate plan
-            user = assign_user_plan(
+
+            ok = _activate_paid_plan(
                 user_id,
                 plan_code,
-                months=1,
-                note="Stripe Auto-Payment"
+                note="Stripe Auto-Payment",
+                tx_id=session.id,
             )
-            
-            # Log it
-            add_log(
-                "INFO",
-                "payment_success",
-                f"اشتراک {plan_code} از طریق استرایپ فعال شد.",
-                metadata={"telegram_user_id": user_id, "plan_code": plan_code}
-            )
-            
-            # Send confirmation message
-            import asyncio
-            bot = Bot(token=BOT_TOKEN)
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(
-                bot.send_message(
-                    chat_id=user_id,
-                    text=f"🎉 ترکنش استرایپ موفق بود!\n\nاشتراک *{plan['name']}* شما برای ۱ ماه فعال گردید.",
-                    parse_mode="Markdown"
-                )
-            )
-            loop.close()
-            
+            if not ok:
+                raise ValueError(f"Activation failed for plan {plan_code}")
+
         except Exception as e:
             error_msg = str(e)[:300]
             add_log("ERROR", "webhook_process_error", error_msg, metadata={"client_reference_id": client_reference_id})

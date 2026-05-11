@@ -79,7 +79,12 @@ MESSAGES = {
         "users": "کاربران",
         "registered": "ثبت‌شده",
         "active_subs": "اشتراک فعال",
-        "paid_plan": "پلن پولی"
+        "paid_plan": "پلن پولی",
+
+        # Payment success notification
+        "payment_success_title": "🎉 پرداخت با موفقیت انجام شد!",
+        "payment_success_body": "اشتراک *{plan_name}* شما فعال شد.\n\n📅 تاریخ انقضا: `{expiry}`\n💳 مبلغ پرداختی: `${price}`\n\n*قابلیت‌های پلن شما:*\n{rules}\n\n*دستورهای کاربردی:*\n• /menu — منوی سریع\n• /usage — مشاهده سهمیه باقی‌مانده\n• /myplan — جزئیات پلن شما\n• /dashboard — ورود به داشبورد وب\n\nکافیست لینک ویدئو را برای بات بفرستید تا دانلود شود. 🚀",
+        "payment_success_unlimited_expiry": "بدون محدودیت زمانی"
     },
     "en": {
         "bot_start": "Hello! Welcome to the Downloader Bot.\n\nJust send me a video link and I'll download it for you.\n\nCurrent Plan: *{plan_name}*\n\n*Supported Platforms:*\n{platforms}\n\nMax File Size: *{max_mb} MB*\n\nCommands:\n/menu - Show quick menu\n/plans - View packages\n/myplan - View current plan\n/mylogs - View personal logs\n/usage - View usage quota\n/myid - Get Telegram User ID\n/lang - Change Language\n/support - Contact Support",
@@ -161,7 +166,12 @@ MESSAGES = {
         "users": "Users",
         "registered": "Registered",
         "active_subs": "Active Subs",
-        "paid_plan": "Paid Plan"
+        "paid_plan": "Paid Plan",
+
+        # Payment success notification
+        "payment_success_title": "🎉 Payment received successfully!",
+        "payment_success_body": "Your *{plan_name}* subscription is now active.\n\n📅 Expires on: `{expiry}`\n💳 Amount paid: `${price}`\n\n*Your plan benefits:*\n{rules}\n\n*Useful commands:*\n• /menu — Quick menu\n• /usage — View remaining quota\n• /myplan — View plan details\n• /dashboard — Open web dashboard\n\nJust send any video link to the bot to start downloading. 🚀",
+        "payment_success_unlimited_expiry": "No expiry"
     }
 }
 

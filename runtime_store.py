@@ -394,7 +394,24 @@ def assign_user_plan(
     return get_bot_user(telegram_user_id)
 
 
-def list_bot_users(limit: int = 200) -> list[dict[str, Any]]:
+def get_user_last_usage(telegram_user_id: int) -> str | None:
+    """Return ISO timestamp of the most recent usage event for a user, or None."""
+    init_logs_db()
+    with closing(sqlite3.connect(LOGS_DB)) as conn:
+        row = conn.execute(
+            """
+            SELECT created_at FROM usage_events
+            WHERE telegram_user_id = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (telegram_user_id,),
+        ).fetchone()
+        return row[0] if row else None
+
+
+def list_bot_users(limit: int = 200, offset: int = 0) -> list[dict[str, Any]]:
+    """List users with pagination support. Also includes last_usage for each user."""
     init_logs_db()
     with closing(sqlite3.connect(LOGS_DB)) as conn:
         conn.row_factory = sqlite3.Row
@@ -404,16 +421,25 @@ def list_bot_users(limit: int = 200) -> list[dict[str, Any]]:
                    plan_started_at, plan_expires_at, assigned_note, created_at, updated_at
             FROM bot_users
             ORDER BY updated_at DESC
-            LIMIT ?
+            LIMIT ? OFFSET ?
             """,
-            (limit,),
+            (limit, offset),
         ).fetchall()
     users: list[dict[str, Any]] = []
     for row in rows:
         user = _row_to_user(row)
         if user is not None:
+            user["last_usage"] = get_user_last_usage(user["telegram_user_id"])
             users.append(user)
     return users
+
+
+def count_bot_users() -> int:
+    """Return total count of users for pagination."""
+    init_logs_db()
+    with closing(sqlite3.connect(LOGS_DB)) as conn:
+        row = conn.execute("SELECT COUNT(*) FROM bot_users").fetchone()
+        return int(row[0])
 
 
 def record_usage_event(
