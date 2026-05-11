@@ -245,6 +245,17 @@ def _youtube_ydl_profiles(url: str) -> list[dict]:
     profiles.append({"name": "youtube-default-no-cookies", "use_cookies": False, "clients": None})
     if has_cookies:
         profiles.append({
+            "name": "youtube-mweb-cookies",
+            "use_cookies": True,
+            "clients": ["mweb"],
+        })
+    profiles.append({
+        "name": "youtube-mweb-no-cookies",
+        "use_cookies": False,
+        "clients": ["mweb"],
+    })
+    if has_cookies:
+        profiles.append({
             "name": "youtube-embedded-cookies",
             "use_cookies": True,
             "clients": ["web_embedded", "android"],
@@ -371,26 +382,31 @@ async def get_video_info(url: str) -> VideoInfo:
 
 def _download_error_result(e: yt_dlp.utils.DownloadError, max_file_size_bytes: int) -> DownloadResult:
     msg = str(e)
+    msg_lower = msg.lower()
     if "Unsupported URL" in msg:
         return DownloadResult(success=False, error="این لینک پشتیبانی نمی‌شود.")
     if "Private video" in msg:
         return DownloadResult(success=False, error="ویدئو خصوصی است.")
-    if "max filesize" in msg.lower() or "filesize" in msg.lower():
+    if "max filesize" in msg_lower or "filesize" in msg_lower:
         return DownloadResult(
             success=False,
             error=f"فایل بزرگتر از {max_file_size_bytes // (1024*1024)} مگابایت است.",
         )
-    if "guest token" in msg.lower() or "bad guest token" in msg.lower():
+    if "guest token" in msg_lower or "bad guest token" in msg_lower:
         return DownloadResult(
             success=False,
             error="دانلود از Twitter/X نیاز به احراز هویت دارد.\nلطفاً با پشتیبانی تماس بگیر تا کوکی تنظیم شود.",
         )
-    if "login required" in msg.lower() or "loginrequired" in msg.lower() or "confirm you're not a bot" in msg.lower():
-        return DownloadResult(success=False, error="این ویدئو توسط یوتیوب محدود شده است و برای دانلود نیاز به لاگین (کوکی پریمیوم) دارد. لطفاً با پشتیبانی تماس بگیرید.")
-    if "http error 403" in msg.lower() and "youtube" in msg.lower():
-        return DownloadResult(success=False, error="یوتیوب لینک دانلود را برای این سرور رد کرد. کوکی یوتیوب را تازه کنید یا PO Token تنظیم کنید.")
-    if "http error 400" in msg.lower() and "youtube" in msg.lower():
-        return DownloadResult(success=False, error="درخواست YouTube توسط yt-dlp رد شد. کوکی یوتیوب احتمالا منقضی یا با این سرور ناسازگار است.")
+    if (
+        "login required" in msg_lower
+        or "loginrequired" in msg_lower
+        or ("confirm" in msg_lower and "not a bot" in msg_lower)
+    ):
+        return DownloadResult(success=False, error="youtube_auth_required")
+    if "http error 403" in msg_lower and "youtube" in msg_lower:
+        return DownloadResult(success=False, error="youtube_auth_required")
+    if "http error 400" in msg_lower and "youtube" in msg_lower:
+        return DownloadResult(success=False, error="youtube_cookie_invalid")
     return DownloadResult(success=False, error=f"خطا در دانلود: {msg[:200]}")
 
 

@@ -71,7 +71,15 @@ def run_updater():
     while True:
         try:
             logger.info("Running scheduled yt-dlp update...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "-U", "yt-dlp"])
+            subprocess.check_call([
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "-U",
+                "yt-dlp",
+                "bgutil-ytdlp-pot-provider",
+            ])
             logger.info("yt-dlp update completed successfully.")
         except Exception as e:
             logger.error("Failed to update yt-dlp: %s", e)
