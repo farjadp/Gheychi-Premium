@@ -128,9 +128,21 @@ def _download_file(url: str, destination: Path, progress_callback: Optional[Call
         "Sec-Fetch-User": "?1",
     }
     
-    # Only set Twitter referer for Twitter direct links if absolutely needed
-    if "twimg.com" in url or "twitter.com" in url or "x.com" in url:
+    # Platform-specific referers to prevent 403 on direct URLs
+    url_lower = url.lower()
+    if "twimg.com" in url_lower or "twitter.com" in url_lower or "x.com" in url_lower:
         headers["Referer"] = "https://twitter.com/"
+    elif "googlevideo.com" in url_lower or "youtube.com" in url_lower or "youtu.be" in url_lower:
+        headers["Referer"] = "https://www.youtube.com/"
+        headers["Origin"] = "https://www.youtube.com"
+        headers["sec-ch-ua"] = '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"'
+        headers["sec-ch-ua-mobile"] = "?0"
+        headers["sec-ch-ua-platform"] = '"Windows"'
+    elif "fbcdn.net" in url_lower or "facebook.com" in url_lower:
+        headers["Referer"] = "https://www.facebook.com/"
+    elif "cdninstagram.com" in url_lower or "instagram.com" in url_lower:
+        headers["Referer"] = "https://www.instagram.com/"
+
     req = Request(url, headers=headers)
     with urlopen(req, timeout=60) as response:
         content_type = response.headers.get("Content-Type", "").lower()
@@ -198,9 +210,9 @@ _NODE_BIN = next((p for p in _NODE_PATHS if p == "node" or (os.path.isfile(p) an
 def _base_ydl_opts(output_template: str, platform: str | None = None) -> dict:
     max_file_size_bytes = get_max_file_size_bytes()
     cookies_file = _get_cookies_file(platform)
-    # Use 'web' client when cookies are available (android client returns 400 with cookies)
-    # Fall back to 'android' when no cookies (better for unauthenticated access)
-    player_client = "web" if cookies_file else "android"
+    # YouTube player clients: web_embedded is more reliable than web recently.
+    # android works without cookies. We list multiple so yt-dlp can fallback.
+    player_client = "web_embedded,android" if cookies_file else "android,web_embedded"
     opts = {
         "outtmpl": output_template,
         "ignoreconfig": True,
@@ -251,6 +263,7 @@ async def get_video_info(url: str) -> VideoInfo:
         "no_warnings": True,
         "skip_download": True,
         "noplaylist": True,
+        "extractor_args": {"youtube": ["player_client=web_embedded,android"]},
         "js_runtimes": {"node": {"path": _NODE_BIN}},
     }
     cookies_file = _get_cookies_file(url)
