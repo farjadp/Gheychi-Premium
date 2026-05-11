@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gheychi Premium — پنل مدیریت</title>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+  <style>
+    :root { --bg:#06070d; --surface:rgba(15,17,25,0.8); --card:rgba(22,25,38,0.7); --border:rgba(255,255,255,0.06); --ink:#e8ecf4; --muted:#6b7394; --accent:#7c8aff; --accent2:#b57bee; --green:#2dd4bf; --red:#f87171; --yellow:#facc15; --radius:16px; }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:"Vazirmatn",system-ui,sans-serif; background:var(--bg); background-image:radial-gradient(ellipse at 70% 0%,rgba(100,80,200,0.08) 0%,transparent 50%),radial-gradient(ellipse at 20% 100%,rgba(80,60,180,0.05) 0%,transparent 40%); background-attachment:fixed; color:var(--ink); min-height:100vh; display:flex; }
+
+    .sidebar { width:240px; min-height:100vh; flex-shrink:0; background:var(--surface); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border-left:1px solid var(--border); display:flex; flex-direction:column; padding:28px 16px; position:sticky; top:0; }
+    .logo { display:flex; align-items:center; gap:10px; padding:0 8px 24px; margin-bottom:20px; border-bottom:1px solid rgba(255,255,255,0.05); }
+    .logo-icon { width:38px; height:38px; border-radius:10px; background:linear-gradient(135deg,var(--accent),var(--accent2)); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+    .logo-text { font-weight:800; font-size:15px; line-height:1.3; }
+    .logo-text span { display:block; font-size:11px; color:var(--muted); font-weight:500; }
+    .nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; color:var(--muted); font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s; margin-bottom:2px; border:none; background:transparent; width:100%; text-align:right; font-family:inherit; }
+    .nav-item:hover { background:rgba(255,255,255,0.03); color:var(--ink); }
+    .nav-item.active { background:rgba(124,138,255,0.1); color:var(--accent); border-right:2px solid var(--accent); }
+    .nav-item .icon { font-size:16px; width:20px; text-align:center; flex-shrink:0; }
+    .sidebar-footer { margin-top:auto; padding-top:16px; border-top:1px solid rgba(255,255,255,0.05); display:flex; justify-content:center; gap:12px; }
+    .sidebar-footer a { text-decoration:none; font-size:18px; opacity:0.5; transition:opacity 0.2s; }
+    .sidebar-footer a:hover { opacity:1; }
+
+    .main { flex:1; padding:32px 40px; max-width:1300px; min-width:0; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; }
+    .page-title { font-size:24px; font-weight:800; }
+    .flash { display:flex; align-items:center; gap:8px; background:rgba(45,212,191,0.1); color:var(--green); border:1px solid rgba(45,212,191,0.2); border-radius:10px; padding:10px 18px; font-size:13px; font-weight:600; }
+
+    .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
+    .stat-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; backdrop-filter:blur(12px); transition:transform 0.2s, border-color 0.2s; }
+    .stat-card:hover { transform:translateY(-2px); border-color:rgba(255,255,255,0.1); }
+    .stat-card .label { font-size:12px; color:var(--muted); margin-bottom:8px; font-weight:600; }
+    .stat-card .value { font-size:32px; font-weight:900; }
+    .stat-card .sub { font-size:11px; color:var(--muted); margin-top:4px; }
+    .stat-card.green .value { color:var(--green); } .stat-card.red .value { color:var(--red); } .stat-card.blue .value { color:var(--accent); } .stat-card.purple .value { color:var(--accent2); }
+
+    .tab-panel { display:none; animation:fadeIn 0.25s ease; }
+    .tab-panel.active { display:block; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    .grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:24px; backdrop-filter:blur(12px); }
+    .card-title { font-size:16px; font-weight:700; margin-bottom:20px; display:flex; align-items:center; gap:8px; }
+    .card-title .icon { font-size:18px; }
+
+    .field { margin-bottom:18px; }
+    .field label { display:block; font-size:13px; color:var(--muted); margin-bottom:6px; font-weight:600; }
+    .field input, .field select, .field textarea { width:100%; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.07); color:var(--ink); border-radius:10px; padding:10px 14px; font-family:inherit; font-size:14px; font-weight:500; transition:all 0.2s; }
+    .field input:focus, .field select:focus, .field textarea:focus { outline:none; border-color:var(--accent2); background:rgba(0,0,0,0.35); }
+    .field textarea { min-height:80px; resize:vertical; }
+    .toggle-row { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+    .toggle-row:last-child { border-bottom:none; }
+    .toggle-label { font-size:14px; font-weight:600; }
+    .toggle-sub { font-size:12px; color:var(--muted); margin-top:3px; }
+    .toggle { position:relative; display:inline-block; width:44px; height:24px; }
+    .toggle input { opacity:0; width:0; height:0; }
+    .slider { position:absolute; inset:0; background:rgba(255,255,255,0.1); border-radius:24px; cursor:pointer; transition:0.25s; }
+    .slider:before { content:""; position:absolute; width:18px; height:18px; left:3px; bottom:3px; background:white; border-radius:50%; transition:0.25s; }
+    .toggle input:checked + .slider { background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+    .toggle input:checked + .slider:before { transform:translateX(20px); }
+    .checks-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:14px 0 20px; }
+    .check-item { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.05); font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s; background:rgba(0,0,0,0.1); }
+    .check-item:has(input:checked) { border-color:var(--accent); background:rgba(124,138,255,0.08); }
+    .check-item input { accent-color:var(--accent); width:15px; height:15px; cursor:pointer; }
+    .btn { display:inline-flex; align-items:center; gap:8px; padding:10px 20px; border-radius:10px; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; border:none; background:linear-gradient(135deg,var(--accent),var(--accent2)); color:white; transition:all 0.2s; }
+    .btn:hover { transform:translateY(-1px); opacity:0.95; }
+    .btn-sm { padding:6px 14px; font-size:13px; border-radius:8px; }
+    .btn-outline { background:transparent; border:1px solid rgba(255,255,255,0.1); color:var(--ink); }
+    .btn-outline:hover { background:rgba(255,255,255,0.04); }
+    .btn-danger { background:rgba(248,113,113,0.15); color:var(--red); border:1px solid rgba(248,113,113,0.2); }
+
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    thead th { text-align:right; padding:12px 14px; color:var(--muted); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.1); white-space:nowrap; }
+    thead th:first-child { border-radius:0 10px 0 0; } thead th:last-child { border-radius:10px 0 0 0; }
+    tbody td { padding:12px 14px; border-bottom:1px solid rgba(255,255,255,0.03); vertical-align:middle; }
+    tbody tr:hover td { background:rgba(255,255,255,0.015); }
+    .cell-main { font-weight:600; font-size:14px; } .cell-sub { font-size:12px; color:var(--muted); }
+
+    .badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; white-space:nowrap; }
+    .badge.INFO, .badge.ok { background:rgba(45,212,191,0.12); color:var(--green); }
+    .badge.ERROR, .badge.err { background:rgba(248,113,113,0.12); color:var(--red); }
+    .badge.WARN { background:rgba(250,204,21,0.12); color:var(--yellow); }
+    .badge.plan-free { background:rgba(107,115,148,0.12); color:var(--muted); }
+    .badge.plan-starter { background:rgba(45,212,191,0.12); color:var(--green); }
+    .badge.plan-standard { background:rgba(124,138,255,0.12); color:var(--accent); }
+    .badge.plan-pro { background:rgba(181,123,238,0.12); color:var(--accent2); }
+
+    .avatar { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,rgba(124,138,255,0.2),rgba(181,123,238,0.2)); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; color:var(--ink); flex-shrink:0; }
+    .user-cell { display:flex; align-items:center; gap:12px; }
+
+    .pagination { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.04); }
+    .pagination-btn { padding:7px 14px; border-radius:8px; font-size:13px; font-weight:600; color:var(--ink); text-decoration:none; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); transition:all 0.2s; }
+    .pagination-btn:hover:not(.disabled) { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.12); }
+    .pagination-btn.disabled { opacity:0.4; cursor:not-allowed; }
+    .pagination-info { font-size:13px; color:var(--muted); }
+
+    .url-cell { max-width:200px; word-break:break-all; color:var(--muted); font-size:12px; font-family:monospace; }
+    .url-cell a { color:var(--accent); text-decoration:none; }
+
+    .plan-card { background:linear-gradient(180deg,rgba(30,33,50,0.5) 0%,rgba(20,22,35,0.3) 100%); border:1px solid rgba(255,255,255,0.05); border-radius:var(--radius); padding:24px; box-shadow:0 8px 24px rgba(0,0,0,0.15); transition:transform 0.3s ease; }
+    .plan-card:hover { transform:translateY(-3px); border-color:rgba(255,255,255,0.08); }
+    .plan-name { font-size:18px; font-weight:800; margin-bottom:6px; }
+    .plan-price { font-size:28px; font-weight:900; color:var(--accent2); margin-bottom:4px; }
+    .plan-price span { font-size:14px; color:var(--muted); }
+    .plan-desc { font-size:13px; color:var(--muted); margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.05); }
+    .plan-rule { font-size:13px; color:#b4bada; padding:4px 0; display:flex; align-items:center; gap:6px; }
+    .plan-rule::before { content:"•"; color:var(--accent2); }
+
+    .tag { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600; }
+    .tag-success { background:rgba(45,212,191,0.15); color:var(--green); }
+    .tag-warning { background:rgba(250,204,21,0.15); color:var(--yellow); }
+    .tag-danger { background:rgba(248,113,113,0.15); color:var(--red); }
+
+    .stat-box { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }
+    .stat-box h3 { font-size:13px; color:var(--muted); margin-bottom:10px; font-weight:600; }
+    .stat-box .value { font-size:28px; font-weight:900; color:var(--ink); }
+    .stat-box .label { font-size:12px; color:var(--muted); margin-top:6px; }
+
+    .mb { margin-bottom:20px; }
+
+    @media (max-width:900px) { .sidebar { width:200px; } .main { padding:20px; } .stats { grid-template-columns:repeat(2,1fr); } }
+    @media (max-width:600px) { body { flex-direction:column; } .sidebar { width:100%; min-height:auto; position:relative; border-left:none; border-bottom:1px solid var(--border); } .main { padding:16px; } .stats { grid-template-columns:1fr 1fr; } .grid-2, .grid-3 { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="logo"><div class="logo-icon">✂️</div><div class="logo-text">Gheychi Premium<span>پنل مدیریت</span></div></div>
+    <button class="nav-item active" onclick="showTab('dashboard')"><span class="icon">📊</span> داشبورد</button>
+    <button class="nav-item" onclick="showTab('analytics')"><span class="icon">📈</span> آمار و تحلیل</button>
+    <button class="nav-item" onclick="showTab('finance')"><span class="icon">💵</span> مالی</button>
+    <button class="nav-item" onclick="showTab('users')"><span class="icon">👥</span> کاربران</button>
+    <button class="nav-item" onclick="showTab('subscriptions')"><span class="icon">💳</span> اشتراک‌ها</button>
+    <button class="nav-item" onclick="showTab('plans')"><span class="icon">📦</span> پلن‌ها</button>
+    <button class="nav-item" onclick="showTab('settings')"><span class="icon">⚙️</span> تنظیمات</button>
+    <button class="nav-item" onclick="showTab('broadcast')"><span class="icon">📢</span> پیام سراسری</button>
+    <button class="nav-item" onclick="showTab('logs')"><span class="icon">📋</span> لاگ‌ها</button>
+    <div class="sidebar-footer"><a href="/set_lang/fa">🇮🇷</a><a href="/set_lang/en">🇬🇧</a></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar"><div class="page-title" id="page-title">داشبورد</div>{% if saved %}<div class="flash">✅ تنظیمات ذخیره شد</div>{% endif %}</div>
+
+    <div class="stats">
+      <div class="stat-card blue"><div class="label">کل رویدادها</div><div class="value">{{ stats.total_logs }}</div><div class="sub">در دیتابیس</div></div>
+      <div class="stat-card red"><div class="label">خطاها</div><div class="value">{{ stats.errors }}</div><div class="sub">از کل</div></div>
+      <div class="stat-card green"><div class="label">کاربران</div><div class="value">{{ stats.users }}</div><div class="sub">ثبت شده</div></div>
+      <div class="stat-card purple"><div class="label">اشتراک‌های فعال</div><div class="value">{{ stats.paid_users }}</div><div class="sub">پرداخت شده</div></div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="tab-panel active" id="tab-dashboard">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title"><span class="icon">🕐</span> آخرین رویدادها</div>
+          <div class="table-wrap">
+            <table><thead><tr><th>زمان</th><th>سطح</th><th>رویداد</th><th>پلتفرم</th></tr></thead>
+            <tbody>
+              {% for log in logs[:10] %}
+              <tr><td><div class="cell-sub">{{ log.created_at[11:19] }}</div></td><td><span class="badge {{ log.level }}">{{ log.level }}</span></td><td><div class="cell-main">{{ log.event_type }}</div></td><td><div class="cell-sub">{{ log.platform or "—" }}</div></td></tr>
+              {% endfor %}
+            </tbody></table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">👥</span> کاربران اخیر</div>
+          <div class="table-wrap">
+            <table><thead><tr><th>کاربر</th><th>پلن</th><th>وضعیت</th></tr></thead>
+            <tbody>
+              {% for user in users[:8] %}
+              <tr>
+                <td><div class="user-cell"><div class="avatar">{{ (user.first_name or 'U')[0] }}</div><div><div class="cell-main">{{ user.first_name or '—' }} <span style="font-size:10px">{{ flag_map(user.language_code) if user.language_code else '' }}</span></div><div class="cell-sub">@{{ user.username or '—' }}</div></div></div></td>
+                <td><span class="badge plan-{{ user.effective_plan_code }}">{{ user.effective_plan.name }}</span></td>
+                <td>{% if user.is_subscription_active %}<span class="badge ok">فعال</span>{% else %}<span class="badge err">منقضی</span>{% endif %}</td>
+              </tr>
+              {% endfor %}
+            </tbody></table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div class="tab-panel" id="tab-analytics">
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between; flex-wrap:wrap; gap:10px;">
+          <span><span class="icon">📈</span> آمار و تحلیل</span>
+          <select onchange="window.location.href='/?days='+this.value+'&tab=analytics'" style="background:rgba(0,0,0,0.2); color:var(--ink); border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-family:inherit;">
+            <option value="7" {% if analytics_days == 7 %}selected{% endif %}>۷ روز</option>
+            <option value="30" {% if analytics_days == 30 %}selected{% endif %}>۳۰ روز</option>
+            <option value="90" {% if analytics_days == 90 %}selected{% endif %}>۹۰ روز</option>
+            <option value="0" {% if analytics_days == 0 %}selected{% endif %}>کل</option>
+          </select>
+        </div>
+        <div class="card" style="margin-bottom:16px; padding:16px;"><canvas id="analyticsChart" style="max-height:350px; width:100%;"></canvas></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>پلتفرم</th><th>کل</th><th>موفق</th><th>محدودیت</th><th>خطا</th></tr></thead>
+          <tbody>
+            {% for stat in analytics_stats %}
+            <tr><td><div class="cell-main">{{ stat.platform }}</div></td><td><div class="cell-main">{{ stat.total }}</div></td><td><div class="cell-main" style="color:var(--green)">{{ stat.success }}</div><div class="cell-sub">{{ stat.success_pct }}%</div></td><td><div class="cell-main" style="color:var(--yellow)">{{ stat.failed_user }}</div><div class="cell-sub">{{ stat.failed_user_pct }}%</div></td><td><div class="cell-main" style="color:var(--red)">{{ stat.failed_system }}</div><div class="cell-sub">{{ stat.failed_system_pct }}%</div></td></tr>
+            {% else %}<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">اطلاعاتی یافت نشد</td></tr>{% endfor %}
+          </tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- FINANCE -->
+    <div class="tab-panel" id="tab-finance">
+      <div class="grid-3 mb">
+        <div class="stat-box"><h3>💰 کل درآمد</h3><div class="value">${{ fin_stats.total_revenue }}</div><div class="label">تراکنش‌های موفق</div></div>
+        <div class="stat-box"><h3>✅ تکمیل شده</h3><div class="value">{{ fin_stats.total_completed }}</div><div class="label">تعداد</div></div>
+        <div class="stat-box"><h3>⏳ معلق</h3><div class="value">{{ fin_stats.total_pending }}</div><div class="label">تعداد</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="icon">🧾</span> لیست تراکنش‌ها</div>
+        <div class="table-wrap">
+          <table><thead><tr><th>شناسه</th><th>کاربر</th><th>مبلغ</th><th>درگاه</th><th>پلن</th><th>زمان</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+          <tbody>
+            {% for tx in transactions %}
+            <tr>
+              <td style="font-family:monospace; font-size:11px;">{{ tx.tx_id[:12] }}..</td>
+              <td><span class="badge" style="background:rgba(124,138,255,0.1);">UID: {{ tx.telegram_user_id }}</span></td>
+              <td style="color:var(--accent); font-weight:700;">${{ tx.amount_usd }}</td>
+              <td>{{ tx.payment_method }}</td><td>{{ tx.plan_code }}</td>
+              <td dir="ltr" class="cell-sub">{{ tx.created_at.replace("T", " ")[:16] }}</td>
+              <td>{% if tx.status == 'Completed' %}<span class="tag tag-success">Completed</span>{% endif %}{% if tx.status == 'Pending' %}<span class="tag tag-warning">Pending</span>{% endif %}{% if tx.status == 'Failed' %}<span class="tag tag-danger">Failed</span>{% endif %}</td>
+              <td>{% if tx.status == 'Pending' %}<form method="post" action="{{ url_for('confirm_transaction') }}" style="display:inline;"><input type="hidden" name="csrf_token" value="{{ session.get('csrf_token', '') }}"><input type="hidden" name="tx_id" value="{{ tx.tx_id }}"><button type="submit" class="btn btn-sm" style="padding:4px 10px; font-size:11px;">تایید</button></form>{% else %}-{% endif %}</td>
+            </tr>
+            {% else %}<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px;">تراکنشی یافت نشد</td></tr>{% endfor %}
+          </tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div class="tab-panel" id="tab-users">
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between; flex-wrap:wrap; gap:10px;">
+          <span><span class="icon">👥</span> لیست کاربران ({{ total_users }} کاربر)</span>
+          <span style="font-size:13px; color:var(--muted);">صفحه {{ page }} از {{ total_pages }}</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>کاربر</th><th>ID</th><th>پلن</th><th>تاریخ عضویت</th><th>آخرین استفاده</th><th>انقضا</th><th>مصرف</th></tr></thead>
+            <tbody>
+              {% for user in users %}
+              <tr>
+                <td><div class="user-cell"><div class="avatar">{{ (user.first_name or 'U')[0] }}</div><div><div class="cell-main">{{ user.first_name or '—' }} <span style="font-size:10px">{{ flag_map(user.language_code) if user.language_code else '' }}</span></div><div class="cell-sub">@{{ user.username or '—' }}</div></div></div></td>
+                <td><div class="cell-sub" style="font-family:monospace;">{{ user.telegram_user_id }}</div></td>
+                <td><span class="badge plan-{{ user.effective_plan_code }}">{{ user.effective_plan.name }}</span>{% if not user.is_subscription_active and user.plan_code != 'free' %}<div class="cell-sub" style="color:var(--red)">منقضی</div>{% endif %}</td>
+                <td><div class="cell-sub">{{ user.created_at[:10] if user.created_at else '—' }}</div></td>
+                <td><div class="cell-sub">{{ user.last_usage[:16].replace('T', ' ') if user.last_usage else '—' }}</div></td>
+                <td><div class="cell-sub">{{ user.plan_expires_at[:10] if user.plan_expires_at else '∞' }}</div></td>
+                <td>{% for line in user.usage_lines %}<div class="cell-sub">{{ line }}</div>{% endfor %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if total_pages > 1 %}
+        <div class="pagination">
+          {% if page > 1 %}<a href="{{ url_for('admin_index', page=page-1) }}" class="pagination-btn">← قبلی</a>{% else %}<span class="pagination-btn disabled">← قبلی</span>{% endif %}
+          <span class="pagination-info">صفحه {{ page }} از {{ total_pages }}</span>
+          {% if page < total_pages %}<a href="{{ url_for('admin_index', page=page+1) }}" class="pagination-btn">بعدی →</a>{% else %}<span class="pagination-btn disabled">بعدی →</span>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- SUBSCRIPTIONS -->
+    <div class="tab-panel" id="tab-subscriptions">
+      <div class="grid-2" style="align-items:start">
+        <div class="card">
+          <div class="card-title"><span class="icon">💳</span> اختصاص اشتراک</div>
+          <form method="post" action="{{ url_for('assign_subscription') }}">
+            <input type="hidden" name="csrf_token" value="{{ session.get('csrf_token', '') }}">
+            <div class="field"><label>Telegram User ID</label><input type="number" name="telegram_user_id" placeholder="123456789" required></div>
+            <div class="field"><label>پلن</label><select name="plan_code">{% for plan in plans %}<option value="{{ plan.code }}">{{ plan.name }} — ${{ plan.price_usd }}/ماه</option>{% endfor %}</select></div>
+            <div class="field"><label>تعداد ماه</label><input type="number" name="months" min="1" value="1"></div>
+            <div class="field"><label>یادداشت</label><textarea name="assigned_note" placeholder="پرداخت از طریق واریز مستقیم"></textarea></div>
+            <button class="btn" type="submit">✅ ثبت یا تمدید</button>
+          </form>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">📋</span> راهنما</div>
+          <p style="font-size:13px; color:var(--muted); line-height:2;">• آیدی عددی تلگرام کاربر را وارد کنید.<br>• پلن رایگان یا پولی انتخاب کنید.<br>• در بخش کاربران وضعیت را مشاهده کنید.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- PLANS -->
+    <div class="tab-panel" id="tab-plans">
+      <div class="grid-2">
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-title" style="justify-content:space-between; width:100%;">
+            <span><span class="icon">📦</span> تنظیمات پکیج‌ها</span>
+            <button type="button" class="btn btn-sm btn-outline" onclick="toggleJsonEditor()">کد خام (JSON)</button>
+          </div>
+          <form method="post" action="{{ url_for('update_plans') }}" id="plans-form">
+            <input type="hidden" name="csrf_token" value="{{ session.get('csrf_token', '') }}">
+            <div id="visual-editor"><div class="tabs" id="plan-tabs" style="margin-bottom:16px;"></div><div id="plan-editor-content"></div></div>
+            <div id="raw-json-editor" style="display:none; margin-top:16px;">
+              <p style="font-size:13px; color:var(--yellow); background:rgba(250,204,21,0.08); padding:10px; border-radius:8px; margin-bottom:12px;">⚠️ محیط پیشرفته</p>
+              <div class="field"><textarea id="plans-json-textarea" name="plans_json" style="font-family:monospace; direction:ltr; text-align:left; min-height:350px; background:#080a12; color:#a5acca; padding:14px; border-radius:10px; width:100%; border:1px solid rgba(255,255,255,0.05);">{{ plans_json_str }}</textarea></div>
+            </div>
+            <div style="margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.05);"><button class="btn" type="submit">💾 ذخیره پکیج‌ها</button></div>
+          </form>
+        </div>
+        {% for plan in plans %}
+        <div class="plan-card">
+          <div class="plan-name">{{ plan.name }}</div>
+          <div class="plan-price">{% if plan.price_usd == 0 %}رایگان{% else %}${{ plan.price_usd }}<span>/ماه</span>{% endif %}</div>
+          <div class="plan-desc">{{ plan.description }}</div>
+          {% for rule in plan.rules %}<div class="plan-rule">{{ format_rule(rule) }}</div>{% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="tab-panel" id="tab-settings">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title"><span class="icon">⚙️</span> تنظیمات سرویس</div>
+          <form method="post" action="{{ url_for('update_settings') }}">
+            <input type="hidden" name="csrf_token" value="{{ session.get('csrf_token', '') }}">
+            <div class="field"><label>حداکثر حجم فایل (MB)</label><input type="number" name="max_file_size_mb" min="1" max="2000" value="{{ settings.max_file_size_mb }}"></div>
+            <div class="toggle-row"><div><div class="toggle-label">فعال بودن دانلود</div><div class="toggle-sub">غیرفعال برای تعمیر و نگهداری</div></div><label class="toggle"><input type="checkbox" name="downloads_enabled" value="1" {% if settings.downloads_enabled %}checked{% endif %}><span class="slider"></span></label></div>
+            <div style="margin-top:16px; margin-bottom:8px; font-size:12px; color:var(--muted);">پلتفرم‌های مجاز</div>
+            <div class="checks-grid">
+              {% for platform in all_platforms %}<label class="check-item"><input type="checkbox" name="allowed_platforms" value="{{ platform }}" {% if platform in settings.allowed_platforms %}checked{% endif %}> {{ platform }}</label>{% endfor %}
+            </div>
+            <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+              <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:16px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+                <div><div style="font-size:14px; font-weight:700; margin-bottom:4px;">پشتیبان‌گیری</div><div style="font-size:12px; color:var(--muted);">فایل‌های پایتون، دیتابیس sqlite و JSON</div></div>
+                <a href="/backup/download" class="btn btn-outline"><span class="icon">📦</span> دانلود ZIP</a>
+              </div>
+              <div style="font-size:13px; font-weight:600; color:var(--accent); margin-bottom:10px;">کلیدها و توکن‌ها</div>
+              <div class="toggle-row" style="padding:6px 0;"><div><div class="toggle-label">API کبالت</div><div class="toggle-sub">دانلود ایمن Twitter و Instagram</div></div><label class="toggle"><input type="checkbox" name="use_cobalt_api" value="1" {% if settings.use_cobalt_api %}checked{% endif %}><span class="slider"></span></label></div>
+              <div class="field" style="margin-top:10px;"><label>Cobalt API URL</label><input type="text" name="cobalt_api_url" value="{{ settings.cobalt_api_url or '' }}" placeholder="https://api.cobalt.tools/"></div>
+              <div class="field"><label>Cobalt JWT (اختیاری)</label><input type="password" name="cobalt_api_jwt" value="{{ settings.cobalt_api_jwt or '' }}"></div>
+              <div class="field"><label>RapidAPI Key</label><input type="password" name="rapidapi_key" value="{{ settings.rapidapi_key or '' }}" placeholder="اختیاری"></div>
+              <div style="margin-top:16px; font-size:13px; font-weight:600; color:var(--accent);">Stripe</div>
+              <div class="field" style="margin-top:10px;"><label>Stripe Secret Key</label>{% if env_stripe_secret_set %}<input type="text" readonly value="••••••••[last4]" style="cursor:not-allowed; opacity:0.5;"><small style="color:var(--accent); font-size:11px;">Managed via Environment Variable</small>{% else %}<input type="password" name="stripe_secret_key" value="{{ settings.stripe_secret_key or '' }}" placeholder="sk_...">{% endif %}</div>
+              <div class="field"><label>Stripe Webhook Secret</label>{% if env_stripe_webhook_set %}<input type="text" readonly value="••••••••[last4]" style="cursor:not-allowed; opacity:0.5;"><small style="color:var(--accent); font-size:11px;">Managed via Environment Variable</small>{% else %}<input type="password" name="stripe_webhook_secret" value="{{ settings.stripe_webhook_secret or '' }}" placeholder="whsec_...">{% endif %}</div>
+            </div>
+            <button class="btn" style="width:100%; justify-content:center; margin-top:10px;" type="submit">💾 ذخیره تنظیمات</button>
+          </form>
+          <p style="font-size:12px; color:var(--muted); margin-top:12px;">آخرین به‌روزرسانی: {{ settings.updated_at }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- BROADCAST -->
+    <div class="tab-panel" id="tab-broadcast">
+      <div class="card">
+        <div class="card-title"><span class="icon">📢</span> ارسال پیام سراسری</div>
+        <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">پیام با سرعت کنترل‌شده به تمام کاربران ارسال می‌شود. وضعیت در بخش لاگ‌ها مشخص خواهد شد.</p>
+        <form method="post" action="{{ url_for('send_broadcast') }}">
+          <input type="hidden" name="csrf_token" value="{{ session.get('csrf_token', '') }}">
+          <div class="field"><label>متن پیام (Markdown تلگرام)</label><textarea id="broadcast-editor" name="message_text" placeholder="*کاربران گرامی*\nتخفیف ویژه آغاز شد!" style="min-height:150px"></textarea></div>
+          <button class="btn" type="submit">🚀 ارسال به {{ stats.users }} کاربر</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- LOGS -->
+    <div class="tab-panel" id="tab-logs">
+      <div class="card">
+        <div class="card-title"><span class="icon">📋</span> لاگ‌های سیستم</div>
+        <div class="table-wrap">
+          <table><thead><tr><th>زمان</th><th>سطح</th><th>رویداد</th><th>شرح</th><th>پلتفرم</th><th>لینک</th><th>منبع</th></tr></thead>
+          <tbody>
+            {% for log in logs %}
+            <tr><td><div class="cell-sub" style="white-space:nowrap">{{ log.created_at[5:19].replace('T',' ') }}</div></td><td><span class="badge {{ log.level }}">{{ log.level }}</span></td><td><div class="cell-main">{{ log.event_type }}</div></td><td style="max-width:300px"><div class="cell-sub">{{ log.message[:120] }}</div></td><td><div class="cell-sub">{{ log.platform or "—" }}</div></td><td><div class="url-cell">{{ log.url[:60] ~ '…' if log.url and log.url|length > 60 else (log.url or "—") }}</div></td><td>{% if log.metadata and log.metadata.get('source') %}<span class="badge INFO">{{ log.metadata.get('source') }}</span>{% else %}<span style="color:var(--muted)">—</span>{% endif %}</td></tr>
+            {% endfor %}
+          </tbody></table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    const titles = { dashboard:'داشبورد', analytics:'آمار و تحلیل', finance:'مالی', users:'کاربران', subscriptions:'اشتراک‌ها', plans:'پلن‌ها', settings:'تنظیمات', broadcast:'پیام سراسری', logs:'لاگ‌ها' };
+    function showTab(name) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.add('active');
+      document.querySelectorAll('.nav-item').forEach(b => { if(b.getAttribute('onclick') === "showTab('" + name + "')") b.classList.add('active'); });
+      document.getElementById('page-title').textContent = titles[name] || name;
+    }
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    if(tabParam) showTab(tabParam);
+    {% if saved %}setTimeout(() => { const f = document.querySelector('.flash'); if(f) f.style.opacity='0'; }, 3000);{% endif %}
+
+    // Chart.js
+    document.addEventListener("DOMContentLoaded", function() {
+      const ctx = document.getElementById('analyticsChart');
+      if(ctx) {
+        const statsData = {{ analytics_stats | tojson }};
+        new Chart(ctx, { type:'bar', data:{ labels:statsData.map(d=>d.platform), datasets:[ {label:'موفق', data:statsData.map(d=>d.success), backgroundColor:'#10b981'}, {label:'محدودیت', data:statsData.map(d=>d.failed_user), backgroundColor:'#f59e0b'}, {label:'خطا', data:statsData.map(d=>d.failed_system), backgroundColor:'#ef4444'} ] }, options:{ responsive:true, scales:{ x:{stacked:true}, y:{stacked:true} } } });
+      }
+    });
+
+    // Plan Editor
+    let rawJsonData = {};
+    try { rawJsonData = JSON.parse(document.getElementById('plans-json-textarea').value); } catch(e) { console.error(e); }
+    let currentPlanId = Object.keys(rawJsonData)[0] || null;
+    function toggleJsonEditor() {
+      const raw = document.getElementById('raw-json-editor'), vis = document.getElementById('visual-editor');
+      if(raw.style.display === 'none') { raw.style.display='block'; vis.style.display='none'; syncVisualToJson(); }
+      else { raw.style.display='none'; vis.style.display='block'; try { rawJsonData=JSON.parse(document.getElementById('plans-json-textarea').value); renderVisualEditor(); } catch(e){ alert('JSON نامعتبر'); raw.style.display='block'; vis.style.display='none'; } }
+    }
+    function syncVisualToJson() { document.getElementById('plans-json-textarea').value = JSON.stringify(rawJsonData, null, 2); }
+    function handleDataChange() { syncVisualToJson(); }
+    function switchPlan(planId) { currentPlanId = planId; renderVisualEditor(); }
+    function addRule(planId) { if(!rawJsonData[planId].rules) rawJsonData[planId].rules=[]; rawJsonData[planId].rules.push({platform:"Twitter/X", limit:null, period:"month"}); handleDataChange(); renderVisualEditor(); }
+    function removeRule(planId, idx) { rawJsonData[planId].rules.splice(idx,1); handleDataChange(); renderVisualEditor(); }
+    function renderVisualEditor() {
+      const tabs = document.getElementById('plan-tabs'), content = document.getElementById('plan-editor-content');
+      tabs.innerHTML = ''; content.innerHTML = '';
+      Object.keys(rawJsonData).forEach(pid => {
+        const btn = document.createElement('button'); btn.type='button'; btn.className='tab-btn ' + (pid===currentPlanId?'active':'');
+        btn.innerHTML = `<span class="icon">📦</span> ${rawJsonData[pid].name || pid}`; btn.onclick = () => switchPlan(pid); tabs.appendChild(btn);
+      });
+      if(!currentPlanId || !rawJsonData[currentPlanId]) return;
+      const plan = rawJsonData[currentPlanId];
+      let html = `<div style="background:rgba(0,0,0,0.15); padding:20px; border-radius:14px; border:1px solid rgba(255,255,255,0.05);">
+        <div class="grid-2" style="margin-bottom:12px;">
+          <div class="field" style="margin-bottom:0;"><label>شناسه سیستمی</label><input type="text" value="${currentPlanId}" disabled style="opacity:0.5;"></div>
+          <div class="field" style="margin-bottom:0;"><label>نام نمایشی</label><input type="text" value="${plan.name||''}" onchange="rawJsonData['${currentPlanId}'].name=this.value; renderVisualEditor(); handleDataChange();"></div>
+        </div>
+        <div class="field"><label>قیمت ماهانه ($)</label><input type="number" value="${plan.price_usd||0}" onchange="rawJsonData['${currentPlanId}'].price_usd=parseInt(this.value)||0; handleDataChange();"></div>
+        <div class="field"><label>توضیحات</label><input type="text" value="${plan.description||''}" onchange="rawJsonData['${currentPlanId}'].description=this.value; handleDataChange();"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin:20px 0 12px;"><label style="font-size:15px; font-weight:700; color:var(--accent);">محدودیت‌ها</label><button type="button" class="btn btn-sm" onclick="addRule('${currentPlanId}')" style="background:rgba(45,212,191,0.15); color:var(--green);"><span class="icon">+</span> افزودن</button></div>`;
+      if(plan.rules && plan.rules.length>0) {
+        plan.rules.forEach((rule, idx) => {
+          html += `<div style="background:rgba(255,255,255,0.02); padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.04); margin-bottom:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+            <div class="field" style="margin-bottom:0; flex:1; min-width:130px;"><label>پلتفرم</label><select onchange="rawJsonData['${currentPlanId}'].rules[${idx}].platform=this.value; handleDataChange();">${['Twitter/X','Instagram','YouTube','SoundCloud','TikTok','PornHub','Facebook','Vimeo','RadioJavan','Twitch','و بیش از ۱۰۰۰ سایت دیگر'].map(p => `<option value="${p}" ${rule.platform===p?'selected':''}>${p}</option>`).join('')}</select></div>
+            <div class="field" style="margin-bottom:0; width:90px;"><label>تعداد</label><input type="number" placeholder="∞" value="${rule.limit===null?'':rule.limit}" onchange="rawJsonData['${currentPlanId}'].rules[${idx}].limit=this.value===''?null:parseInt(this.value); handleDataChange();"></div>
+            <div class="field" style="margin-bottom:0; width:110px;"><label>بازه</label><select onchange="rawJsonData['${currentPlanId}'].rules[${idx}].period=this.value; handleDataChange();"><option value="month" ${rule.period==='month'?'selected':''}>ماه</option><option value="week" ${rule.period==='week'?'selected':''}>هفته</option><option value="day" ${rule.period==='day'?'selected':''}>روز</option></select></div>
+            <div class="field" style="margin-bottom:0; width:110px;"><label>سقف زمان (ثانیه)</label><input type="number" placeholder="∞" value="${rule.max_duration_seconds||''}" onchange="rawJsonData['${currentPlanId}'].rules[${idx}].max_duration_seconds=this.value===''?null:parseInt(this.value); handleDataChange();"></div>
+            <button type="button" class="btn btn-sm btn-danger" onclick="removeRule('${currentPlanId}',${idx})" style="padding:8px; height:40px;"><span class="icon">🗑️</span></button>
+          </div>`;
+        });
+      } else { html += `<div style="padding:15px; text-align:center; color:var(--muted); font-size:14px; border:1px dashed rgba(255,255,255,0.1); border-radius:10px;">هیچ محدودیتی اضافه نشده</div>`; }
+      html += '</div>'; content.innerHTML = html;
+    }
+    document.addEventListener('DOMContentLoaded', () => renderVisualEditor());
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const el = document.getElementById('broadcast-editor');
+      if(el) new EasyMDE({ element:el, spellChecker:false, direction:"rtl", toolbar:["bold","italic","heading","|","quote","code","link","|","preview","guide"] });
+    });
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</body>
+</html>
