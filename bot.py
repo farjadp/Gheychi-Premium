@@ -77,6 +77,7 @@ URL_PATTERN = re.compile(
     r"[^\s]*",
     re.IGNORECASE,
 )
+YOUTUBE_ERROR_CODES = {"youtube_auth_required", "youtube_cookie_invalid"}
 
 # Store pending downloads: {token: request_metadata}
 pending_requests: dict[str, dict[str, Any]] = {}
@@ -112,6 +113,13 @@ def format_duration(seconds: Optional[int]) -> str:
     if h:
         return f"{h:02d}:{m:02d}:{s:02d}"
     return f"{m:02d}:{s:02d}"
+
+
+def public_download_error(error: str | None, platform: str, lang: str) -> str:
+    """Return a stable user-facing message while raw details stay in logs."""
+    if error in YOUTUBE_ERROR_CODES or platform.lower() == "youtube":
+        return get_text("download_error_youtube", lang)
+    return get_text("download_error", lang)
 
 
 def build_quality_keyboard(info: VideoInfo, request_token: str, lang: str = "fa") -> InlineKeyboardMarkup:
@@ -460,7 +468,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
         info = await get_video_info(url)
     except Exception as e:
         add_log("ERROR", "metadata_failed", f"دریافت اطلاعات ناموفق بود: {str(e)[:200]}", url=url)
-        await status_msg.edit_text(get_text("fetch_error", user_lang, error=str(e)[:300]), parse_mode=ParseMode.MARKDOWN)
+        await status_msg.edit_text(get_text("fetch_error", user_lang))
         return
 
     platform_name = normalize_platform(info.platform, url)
@@ -696,7 +704,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             delete_pending_request(request_token)
             return
 
-        await status_msg.edit_text(get_text("download_error", user_lang, error=result.error))
+        await status_msg.edit_text(public_download_error(result.error, platform_name, user_lang))
         return
 
     await status_msg.edit_text(get_text("sending_file", user_lang))
@@ -832,7 +840,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 url=url,
                 metadata={"source": "تلگرام ربات", "telegram_user_id": user_id},
             )
-            await status_msg.edit_text(get_text("send_error", user_lang, error=str(e2)[:200]))
+            await status_msg.edit_text(get_text("send_error", user_lang))
     finally:
         cleanup_file(result.file_path)
         delete_pending_request(request_token)
