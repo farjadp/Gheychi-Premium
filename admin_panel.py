@@ -11,7 +11,7 @@ import asyncio
 import threading
 from telegram import Bot
 import stripe
-from config import STRIPE_WEBHOOK_SECRET, BOT_TOKEN
+from config import STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, BOT_TOKEN
 
 from flask import Flask, Response, jsonify, send_file, redirect, render_template_string, request, url_for, session, abort
 
@@ -800,13 +800,19 @@ def stripe_webhook():
         add_log("ERROR", "webhook_failed", f"Invalid signature: {e}", metadata={"source": "پنل ادمین"})
         return "Invalid signature", 400
 
+    # Set Stripe API key for any downstream Stripe calls
+    stripe.api_key = settings.get("stripe_secret_key") or STRIPE_SECRET_KEY
+
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        client_reference_id = getattr(session, 'client_reference_id', None)
+        # Use dict-style access (works for both dict and StripeObject)
+        client_reference_id = session.get('client_reference_id') if isinstance(session, dict) else session.get('client_reference_id', None)
+        if not client_reference_id:
+            client_reference_id = session['client_reference_id'] if 'client_reference_id' in session else None
         
         if not client_reference_id:
-            add_log("ERROR", "webhook_failed", f"Missing client_reference_id in session", metadata={"source": "پنل ادمین"})
-            return "Missing client_reference_id", 400
+            add_log("ERROR", "webhook_failed", "Missing client_reference_id in session", metadata={"source": "پنل ادمین"})
+            return jsonify(success=False, error="Missing client_reference_id"), 200
             
         try:
             parts = client_reference_id.split("_", 1)
@@ -815,20 +821,26 @@ def stripe_webhook():
 
             user_id_str, plan_code = parts
             user_id = int(user_id_str)
+            session_id = session.get('id') or session['id']
+
+            add_log("INFO", "webhook_processing", f"Activating plan {plan_code} for user {user_id} (session: {session_id[:12]}...)", metadata={"source": "پنل ادمین"})
 
             ok = _activate_paid_plan(
                 user_id,
                 plan_code,
                 note="Stripe Auto-Payment",
-                tx_id=session.id,
+                tx_id=session_id,
             )
             if not ok:
                 raise ValueError(f"Activation failed for plan {plan_code}")
 
+            add_log("INFO", "webhook_success", f"Plan {plan_code} activated for user {user_id}", metadata={"source": "پنل ادمین"})
+
         except Exception as e:
             error_msg = str(e)[:300]
             add_log("ERROR", "webhook_process_error", error_msg, metadata={"client_reference_id": client_reference_id})
-            return f"Processing error: {error_msg}", 500
+            # Still return 200 so Stripe doesn't keep retrying
+            return jsonify(success=False, error=error_msg), 200
             
     return jsonify(success=True), 200
 
