@@ -90,7 +90,7 @@ def _purge_expired_requests() -> None:
     for k in expired:
         pending_requests.pop(k, None)
 
-BOT_COMMANDS = [
+BOT_COMMANDS_FA = [
     BotCommand("start", "شروع و نمایش منوی اصلی"),
     BotCommand("menu", "نمایش منوی سریع"),
     BotCommand("dashboard", "ورود به داشبورد کاربری"),
@@ -103,10 +103,23 @@ BOT_COMMANDS = [
     BotCommand("support", "تماس با پشتیبانی"),
 ]
 
+BOT_COMMANDS_EN = [
+    BotCommand("start", "Start and show main menu"),
+    BotCommand("menu", "Show quick menu"),
+    BotCommand("dashboard", "Open web dashboard"),
+    BotCommand("lang", "Change Language | تغییر زبان"),
+    BotCommand("plans", "View packages"),
+    BotCommand("myplan", "View current plan"),
+    BotCommand("usage", "View usage and quota"),
+    BotCommand("mylogs", "View personal logs"),
+    BotCommand("myid", "Get Telegram User ID"),
+    BotCommand("support", "Contact support"),
+]
 
-def format_duration(seconds: Optional[int]) -> str:
+
+def format_duration(seconds: Optional[int], lang: str = "fa") -> str:
     if not seconds:
-        return "نامشخص"
+        return get_text("unknown_duration", lang)
     total_seconds = int(seconds)
     m, s = divmod(total_seconds, 60)
     h, m = divmod(m, 60)
@@ -276,7 +289,7 @@ async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     subscription = get_bot_user(user.id) if user else None
     user_lang = subscription.get("language_code", "fa") if subscription else "fa"
-    text = build_plan_catalog_text()
+    text = build_plan_catalog_text(user_lang)
     from plans import get_subscription_plans
     all_plans = get_subscription_plans()
     
@@ -534,7 +547,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
     )
 
-    caption = get_text("video_caption", user_lang, title=info.title, platform=info.platform, uploader=info.uploader, duration=format_duration(info.duration))
+    caption = get_text("video_caption", user_lang, title=info.title, platform=info.platform, uploader=info.uploader, duration=format_duration(info.duration, user_lang))
 
     keyboard = build_quality_keyboard(info, request_token, user_lang)
 
@@ -569,7 +582,7 @@ async def handle_buy_plan(query, context, plan_code):
                     'currency': 'usd',
                     'product_data': {
                         'name': plan['name'],
-                        'description': f"خرید اشتراک ماهانه {plan['name']} ربات تلگرام",
+                        'description': get_text("stripe_product_description", user_lang, plan_name=plan.get(f"name_{user_lang}", plan['name'])),
                     },
                     'unit_amount': int(plan['price_usd'] * 100),
                 },
@@ -690,15 +703,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parts = result.error.split(":")
             size_mb = (int(parts[1]) // (1024*1024)) if len(parts) > 1 and parts[1].isdigit() else get_max_file_size_bytes() // (1024*1024)
             
-            error_msg = f"حجم فایل ({size_mb} مگابایت) بیشتر از سقف مجاز دانلود سرور است."
-            
+            error_msg = get_text("file_size_exceeded", user_lang, size_mb=size_mb)
             if hasattr(result, 'direct_url') and result.direct_url:
-                error_msg += "\n\nبه دلیل این محدودیت، فایل به صورت مستقیم در تلگرام ارسال نشد. اما می‌توانید ویدیو را مستقیماً از طریق دکمه زیر دانلود کنید:"
-                keyboard = [[InlineKeyboardButton("📥 دانلود مستقیم (مرورگر)", url=result.direct_url)]]
+                error_msg += "\n\n" + get_text("direct_download_fallback", user_lang)
+                keyboard = [[InlineKeyboardButton(get_text("btn_direct_download", user_lang), url=result.direct_url)]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await status_msg.edit_text(error_msg, reply_markup=reply_markup)
             else:
-                error_msg += "\n\nمتاسفانه لینک دانلود مستقیمی برای این کیفیت در دسترس نیست."
+                error_msg += "\n\n" + get_text("no_direct_link", user_lang)
                 await status_msg.edit_text(error_msg)
             
             delete_pending_request(request_token)
@@ -711,22 +723,21 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         file_path = result.file_path
-        caption = result.title or "ویدئو"
+        caption = result.title or get_text("file_fallback", user_lang)
 
         # Check against Telegram Bot API's hard limit of 50MB (52428800 bytes)
         import os
         if file_path and os.path.exists(file_path):
             if os.path.getsize(file_path) > 50 * 1024 * 1024:
-                error_msg = f"حجم فایل ({os.path.getsize(file_path) // (1024*1024)} مگابایت) بیشتر از سقف ۵۰ مگابایت مجاز سرورهای عمومی تلگرام است."
-                
-                # If we have a direct url from Cobalt/API, give it to the user
+                size_mb = os.path.getsize(file_path) // (1024*1024)
+                error_msg = get_text("telegram_50mb_limit", user_lang, size_mb=size_mb)
                 if hasattr(result, 'direct_url') and result.direct_url:
-                    error_msg += "\n\nبه دلیل این محدودیت، فایل به صورت مستقیم در تلگرام ارسال نشد. اما می‌توانید ویدیو را مستقیماً از طریق دکمه زیر دانلود کنید:"
-                    keyboard = [[InlineKeyboardButton("📥 دانلود مستقیم (مرورگر)", url=result.direct_url)]]
+                    error_msg += "\n\n" + get_text("direct_download_fallback", user_lang)
+                    keyboard = [[InlineKeyboardButton(get_text("btn_direct_download", user_lang), url=result.direct_url)]]
                     reply_markup = InlineKeyboardMarkup(keyboard)
                     await status_msg.edit_text(error_msg, reply_markup=reply_markup)
                 else:
-                    error_msg += "\n\nمتاسفانه لینک دانلود مستقیمی برای این کیفیت در دسترس نیست."
+                    error_msg += "\n\n" + get_text("no_direct_link", user_lang)
                     await status_msg.edit_text(error_msg)
                     
                 add_log("ERROR", "send_failed", "Telegram 50MB limit exceeded", platform=platform_name, url=url, metadata={"source": "تلگرام ربات", "telegram_user_id": user_id})
@@ -754,7 +765,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.message.reply_audio(
                     audio=f,
                     title=caption,
-                    caption=f"🎵 {caption}\n\n🤖 {bot_id}",
+                    caption=get_text("document_caption", user_lang, title=caption),
                     performer=f"{uploader} | {bot_id}",
                     duration=result.duration or duration_seconds,
                     connect_timeout=TELEGRAM_CONNECT_TIMEOUT,
@@ -768,7 +779,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             with open(file_path, "rb") as f:
                 await query.message.reply_video(
                     video=f,
-                    caption=f"🎬 {caption}\n\n🤖 {bot_id}",
+                    caption=get_text("document_caption", user_lang, title=caption),
                     width=result.width,
                     height=result.height,
                     duration=result.duration or duration_seconds,
@@ -807,7 +818,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             with open(file_path, "rb") as f:
                 await query.message.reply_document(
                     document=f,
-                    caption=f"📁 {result.title or 'فایل'}\n\n🤖 {bot_id}",
+                    caption=get_text("document_caption", user_lang, title=result.title or get_text("file_fallback", user_lang)),
                     connect_timeout=TELEGRAM_CONNECT_TIMEOUT,
                     pool_timeout=TELEGRAM_POOL_TIMEOUT,
                     write_timeout=TELEGRAM_UPLOAD_TIMEOUT,
@@ -859,7 +870,7 @@ async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
     await update.message.reply_text(
-        "Please select your language:\nلطفاً زبان خود را انتخاب کنید:",
+        get_text("lang_prompt", user_lang),
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -878,7 +889,7 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard = [[InlineKeyboardButton(get_text("btn_dashboard", user_lang), url=dashboard_url)]]
     await update.message.reply_text(
-        get_text("login_link", user_lang, link=dashboard_url) if "login_link" in locales[user_lang] else f"لینک ورود به داشبورد شما:\n{dashboard_url}",
+        get_text("login_link", user_lang, link=dashboard_url),
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -921,7 +932,10 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def post_init(application: Application) -> None:
-    await application.bot.set_my_commands(BOT_COMMANDS)
+    await application.bot.set_my_commands(BOT_COMMANDS_FA, language_code="fa")
+    await application.bot.set_my_commands(BOT_COMMANDS_EN, language_code="en")
+    # Default for users with other languages
+    await application.bot.set_my_commands(BOT_COMMANDS_EN)
     # Drop any pending updates from a previous instance so we start clean
     # and avoid Conflict errors during restarts on Railway
     await application.bot.delete_webhook(drop_pending_updates=True)

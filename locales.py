@@ -47,10 +47,21 @@ MESSAGES = {
         "btn_worst_quality": "کمترین حجم",
         "btn_audio_only": "فقط صدا (MP3)",
         "btn_dashboard": "🖥 داشبورد من",
+        "btn_lang": "🌐 تغییر زبان",
         
         # Video Info
         "video_caption": "*{title}*\n\nپلتفرم: {platform}\nآپلودر: {uploader}\nمدت: {duration}\n\nکیفیت مورد نظر را انتخاب کن:",
         "unknown": "نامشخص",
+        "unknown_duration": "نامشخص",
+        "login_link": "لینک ورود به داشبورد شما:\n{link}",
+        "stripe_product_description": "خرید اشتراک ماهانه {plan_name} ربات تلگرام",
+        "file_size_exceeded": "حجم فایل ({size_mb} مگابایت) بیشتر از سقف مجاز دانلود سرور است.",
+        "direct_download_fallback": "به دلیل این محدودیت، فایل به صورت مستقیم در تلگرام ارسال نشد. اما می‌توانید ویدیو را مستقیماً از طریق دکمه زیر دانلود کنید:",
+        "btn_direct_download": "📥 دانلود مستقیم (مرورگر)",
+        "no_direct_link": "متاسفانه لینک دانلود مستقیمی برای این کیفیت در دسترس نیست.",
+        "telegram_50mb_limit": "حجم فایل ({size_mb} مگابایت) بیشتر از سقف ۵۰ مگابایت مجاز سرورهای عمومی تلگرام است.",
+        "document_caption": "📁 {title}\n\n🤖 @gheychipremium_bot",
+        "file_fallback": "فایل",
         
         # Commands descriptions
         "cmd_start": "شروع و نمایش منوی اصلی",
@@ -135,10 +146,21 @@ MESSAGES = {
         "btn_worst_quality": "Smallest Size",
         "btn_audio_only": "Audio Only (MP3)",
         "btn_dashboard": "🖥 My Dashboard",
+        "btn_lang": "🌐 Language",
         
         # Video Info
         "video_caption": "*{title}*\n\nPlatform: {platform}\nUploader: {uploader}\nDuration: {duration}\n\nChoose your desired quality:",
         "unknown": "Unknown",
+        "unknown_duration": "Unknown",
+        "login_link": "Your dashboard login link:\n{link}",
+        "stripe_product_description": "Monthly subscription for {plan_name} - Telegram Bot",
+        "file_size_exceeded": "File size ({size_mb} MB) exceeds the server download limit.",
+        "direct_download_fallback": "Due to this limit, the file was not sent directly in Telegram. However, you can download the video directly using the button below:",
+        "btn_direct_download": "📥 Direct Download (Browser)",
+        "no_direct_link": "Unfortunately, no direct download link is available for this quality.",
+        "telegram_50mb_limit": "File size ({size_mb} MB) exceeds Telegram's 50 MB limit for public servers.",
+        "document_caption": "📁 {title}\n\n🤖 @gheychipremium_bot",
+        "file_fallback": "File",
         
         # Commands descriptions
         "cmd_start": "Start and show main menu",
