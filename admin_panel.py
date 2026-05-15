@@ -759,11 +759,25 @@ def _activate_paid_plan(telegram_user_id: int, plan_code: str, *, note: str, tx_
     return True
 
 
-@app.route('/webhook/stripe', methods=['POST'])
+@app.route('/webhook/stripe', methods=['GET', 'POST'])
 def stripe_webhook():
+    # GET: health-check / debug endpoint
+    if request.method == 'GET':
+        settings = load_settings()
+        has_key = bool(settings.get("stripe_secret_key") or STRIPE_SECRET_KEY)
+        has_wh = bool(settings.get("stripe_webhook_secret") or STRIPE_WEBHOOK_SECRET)
+        return jsonify({
+            "webhook": "ready",
+            "stripe_secret_key_set": has_key,
+            "stripe_webhook_secret_set": has_wh,
+            "secret_key_prefix": (settings.get("stripe_secret_key") or STRIPE_SECRET_KEY or "")[:7] + "..." if has_key else "MISSING",
+        }), 200
+
     payload = request.data
     sig_header = request.headers.get("Stripe-Signature")
-    
+
+    add_log("INFO", "webhook_received", f"Stripe webhook hit from {request.remote_addr}", metadata={"source": "پنل ادمین"})
+
     if not sig_header:
         add_log("ERROR", "webhook_failed", f"Missing Stripe signature", metadata={"source": "پنل ادمین"})
         return "Missing signature", 400
