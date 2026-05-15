@@ -244,7 +244,7 @@ def get_dashboard_stats() -> dict[str, int]:
     }
 
 
-def list_logs(limit: int = 200) -> list[dict[str, Any]]:
+def list_logs(limit: int = 200, offset: int = 0) -> list[dict[str, Any]]:
     init_logs_db()
     with closing(sqlite3.connect(LOGS_DB)) as conn:
         conn.row_factory = sqlite3.Row
@@ -253,9 +253,9 @@ def list_logs(limit: int = 200) -> list[dict[str, Any]]:
             SELECT id, created_at, level, event_type, message, platform, url, metadata
             FROM activity_logs
             ORDER BY id DESC
-            LIMIT ?
+            LIMIT ? OFFSET ?
             """,
-            (limit,),
+            (limit, offset),
         ).fetchall()
 
     result: list[dict[str, Any]] = []
@@ -264,6 +264,13 @@ def list_logs(limit: int = 200) -> list[dict[str, Any]]:
         item["metadata"] = json.loads(item["metadata"]) if item["metadata"] else None
         result.append(item)
     return result
+
+
+def count_logs() -> int:
+    init_logs_db()
+    with closing(sqlite3.connect(LOGS_DB)) as conn:
+        row = conn.execute("SELECT COUNT(*) FROM activity_logs").fetchone()
+        return row[0] if row else 0
 
 
 def list_user_logs(telegram_user_id: int, limit: int = 10) -> list[dict[str, Any]]:

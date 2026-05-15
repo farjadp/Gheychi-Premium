@@ -679,6 +679,7 @@
     .badge.err,
     .tag-danger { background: rgba(209, 73, 91, 0.12); color: var(--danger); }
     .badge.WARN,
+    .badge.warn { background: rgba(233, 196, 106, 0.2); color: #8a6510; }
     .tag-warning { background: rgba(233, 196, 106, 0.22); color: #8a6510; }
     .badge.plan-free { background: rgba(29, 26, 23, 0.08); color: var(--muted); }
     .badge.plan-starter { background: rgba(42, 157, 143, 0.12); color: #16695f; }
@@ -895,7 +896,7 @@
       <div class="brand">
         <div class="brand-badge">✂️</div>
         <h1>Control Room</h1>
-        <p>مرکز فرماندهی گیچی برای مانیتورینگ کاربران، درآمد، وضعیت دانلودها و مدیریت پلن‌ها.</p>
+        <p>مرکز فرماندهی قیچی برای مانیتورینگ کاربران، درآمد، وضعیت دانلودها و مدیریت پلن‌ها.</p>
       </div>
 
       <div class="nav-group">
@@ -937,9 +938,7 @@
             <div class="eyebrow">ADMIN MONITOR / GHEYCHI PREMIUM</div>
             <div class="page-title" id="page-title">داشبورد</div>
             <p class="hero-copy">
-              این نسخه با زبان بصری جدید طراحی شده تا وضعیت سرویس، رفتار کاربران و عملیات مدیریتی را سریع‌تر بخوانی.
-              همه‌ی بخش‌ها هنوز روی همان منطق قبلی کار می‌کنند، ولی سلسله‌مراتب اطلاعاتی و تجربه‌ی استفاده از پنل کامل بازطراحی شده است.
-            </p>
+نسخه ی شماره ۱ - اپدیت در تاریخ ۱۵ می ۲۰۲۶            </p>
           </div>
           <div class="hero-side">
             {% if saved %}
@@ -1076,7 +1075,7 @@
               <p class="section-copy">توزیع موفقیت، محدودیت کاربر و خطاهای سیستمی را در بازه‌های زمانی مختلف دنبال کن.</p>
             </div>
             <div class="top-inline-actions">
-              <select onchange="window.location.href='/?days='+this.value+'&tab=analytics'">
+              <select onchange="window.location.href='/admin?days='+this.value+'&tab=analytics'">
                 <option value="7" {% if analytics_days == 7 %}selected{% endif %}>۷ روز</option>
                 <option value="30" {% if analytics_days == 30 %}selected{% endif %}>۳۰ روز</option>
                 <option value="90" {% if analytics_days == 90 %}selected{% endif %}>۹۰ روز</option>
@@ -1084,25 +1083,25 @@
               </select>
             </div>
           </div>
-          <div class="card" style="padding:18px; margin-bottom:18px;">
-            <canvas id="analyticsChart" style="max-height:360px;"></canvas>
+          <div class="card" style="padding:24px; margin-bottom:20px; background:var(--panel-strong);">
+            <canvas id="analyticsChart" style="max-height:320px; width:100%;"></canvas>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
-                <tr><th>پلتفرم</th><th>کل</th><th>موفق</th><th>محدودیت</th><th>خطا</th></tr>
+                <tr><th>پلتفرم</th><th>کل</th><th>موفق</th><th>محدودیت کاربر</th><th>خطای سیستم</th></tr>
               </thead>
               <tbody>
                 {% for stat in analytics_stats %}
                 <tr>
                   <td><div class="cell-main">{{ stat.platform }}</div></td>
-                  <td><div class="cell-main">{{ stat.total }}</div></td>
-                  <td><div class="cell-main" style="color:#16695f">{{ stat.success }}</div><div class="cell-sub">{{ stat.success_pct }}%</div></td>
-                  <td><div class="cell-main" style="color:#8a6510">{{ stat.failed_user }}</div><div class="cell-sub">{{ stat.failed_user_pct }}%</div></td>
-                  <td><div class="cell-main" style="color:var(--danger)">{{ stat.failed_system }}</div><div class="cell-sub">{{ stat.failed_system_pct }}%</div></td>
+                  <td><span class="badge">{{ stat.total }}</span></td>
+                  <td><span class="badge ok">{{ stat.success }}</span><small style="color:var(--muted);margin-right:6px;">{{ stat.success_pct }}%</small></td>
+                  <td><span class="badge warn">{{ stat.failed_user }}</span><small style="color:var(--muted);margin-right:6px;">{{ stat.failed_user_pct }}%</small></td>
+                  <td><span class="badge err">{{ stat.failed_system }}</span><small style="color:var(--muted);margin-right:6px;">{{ stat.failed_system_pct }}%</small></td>
                 </tr>
                 {% else %}
-                <tr><td colspan="5" style="text-align:center; padding:26px; color:var(--muted);">اطلاعاتی یافت نشد</td></tr>
+                <tr><td colspan="5" style="text-align:center; padding:32px; color:var(--muted);">داده‌ای برای این بازه زمانی یافت نشد</td></tr>
                 {% endfor %}
               </tbody>
             </table>
@@ -1382,7 +1381,7 @@
           <div class="section-intro">
             <div>
               <div class="card-title"><span class="icon">📋</span> آرشیو لاگ‌ها</div>
-              <p class="section-copy">برای بررسی منشأ خطاها، رویدادها و لینک‌های پردازش‌شده از این جدول استفاده کن.</p>
+              <p class="section-copy">برای بررسی منشأ خطاها، رویدادها و لینک‌های پردازش‌شده از این جدول استفاده کن. <strong>{{ log_total }}</strong> رویداد ثبت شده.</p>
             </div>
           </div>
           <div class="table-wrap">
@@ -1405,6 +1404,15 @@
               </tbody>
             </table>
           </div>
+          {% if log_total_pages > 1 %}
+          <div class="pagination">
+            <span class="pagination-info">صفحه {{ log_page }} از {{ log_total_pages }}</span>
+            <div class="pagination-btns">
+              {% if log_page > 1 %}<a href="{{ url_for('admin_index', log_page=log_page-1, tab='logs') }}" class="pagination-btn">قبلی</a>{% else %}<span class="pagination-btn disabled">قبلی</span>{% endif %}
+              {% if log_page < log_total_pages %}<a href="{{ url_for('admin_index', log_page=log_page+1, tab='logs') }}" class="pagination-btn">بعدی</a>{% else %}<span class="pagination-btn disabled">بعدی</span>{% endif %}
+            </div>
+          </div>
+          {% endif %}
         </div>
       </div>
     </main>
@@ -1439,7 +1447,12 @@
 
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
-    if (tabParam) showTab(tabParam);
+    if (tabParam) {
+      showTab(tabParam);
+    } else {
+      const activeTab = "{{ active_tab }}";
+      if (activeTab) showTab(activeTab);
+    }
 
     {% if saved %}
     setTimeout(() => {
