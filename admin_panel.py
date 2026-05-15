@@ -25,6 +25,7 @@ from runtime_store import (
     list_bot_users,
     count_bot_users,
     list_logs,
+    count_logs,
     get_dashboard_stats,
     load_settings,
     save_settings,
@@ -377,7 +378,6 @@ def landing_page():
 def admin_index():
     init_logs_db()
     settings = load_settings()
-    logs = list_logs(limit=200)
 
     # Pagination for users
     page = int(request.args.get("page", 1))
@@ -385,6 +385,14 @@ def admin_index():
     total_users = count_bot_users()
     total_pages = (total_users + per_page - 1) // per_page
     offset = (page - 1) * per_page
+
+    # Pagination for logs
+    log_page = int(request.args.get("log_page", 1))
+    log_per_page = 30
+    total_logs = count_logs()
+    log_total_pages = (total_logs + log_per_page - 1) // log_per_page
+    log_offset = (log_page - 1) * log_per_page
+    logs = list_logs(limit=log_per_page, offset=log_offset)
 
     users = list_bot_users(limit=per_page, offset=offset)
     for user in users:
@@ -397,10 +405,10 @@ def admin_index():
         analytics_days = 30
     analytics_stats = get_analytics_stats(days=analytics_days)
     saved = request.args.get("saved") == "1"
+    active_tab = request.args.get("tab", "")
     import os
     env_stripe_secret_set = bool(os.getenv("STRIPE_SECRET_KEY"))
     env_stripe_webhook_set = bool(os.getenv("STRIPE_WEBHOOK_SECRET"))
-    
     lang = session.get("admin_lang", "fa")
     from locales import get_text
     def _t(key):
@@ -418,6 +426,7 @@ def admin_index():
         users=users,
         plans=list_plans(),
         saved=saved,
+        active_tab=active_tab,
         all_platforms=ALLOWED_PLATFORMS,
         format_rule=format_rule,
         flag_map=flag_map,
@@ -429,6 +438,9 @@ def admin_index():
         page=page,
         total_pages=total_pages,
         total_users=total_users,
+        log_page=log_page,
+        log_total_pages=log_total_pages,
+        log_total=total_logs,
     )
 
 
