@@ -555,10 +555,6 @@ def users_api():
 def _send_broadcast_background(text: str, user_ids: list):
     from config import BOT_TOKEN
     import time
-    import markdown
-    
-    # Convert markdown from EasyMDE to HTML for safe telegram sending
-    html_text = markdown.markdown(text)
     
     async def _send_all():
         bot = Bot(token=BOT_TOKEN)
@@ -567,18 +563,23 @@ def _send_broadcast_background(text: str, user_ids: list):
         async with bot:
             for uid in user_ids:
                 try:
-                    await bot.send_message(chat_id=uid, text=html_text, parse_mode="HTML")
+                    await bot.send_message(chat_id=uid, text=text)
                     success_count += 1
                 except Exception as e:
                     error_count += 1
+                    # Log first few errors for debugging
+                    if error_count <= 5:
+                        add_log("ERROR", "broadcast_error", f"Failed to send to {uid}: {str(e)[:150]}", metadata={"source": "پنل ادمین"})
                 await asyncio.sleep(0.05)
             
         add_log("INFO", "broadcast_completed", f"ارسال سراسری پایان یافت. موفق: {success_count}، ناموفق: {error_count}", metadata={"source": "پنل ادمین"})
         
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    loop.run_until_complete(_send_all())
-    loop.close()
+    try:
+        loop.run_until_complete(_send_all())
+    finally:
+        loop.close()
 
 
 @app.get("/backup/download")
