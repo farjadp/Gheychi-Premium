@@ -24,7 +24,7 @@ TG_API_HASH = os.getenv("TG_API_HASH", "").strip().strip('"').strip("'")
 
 TG_SESSION_STRING = os.getenv("TG_SESSION_STRING", "").strip().strip('"').strip("'")
 DUMP_CHANNEL_ID_RAW = os.getenv("DUMP_CHANNEL_ID", "0").strip().strip('"').strip("'")
-DUMP_CHANNEL_ID = int(DUMP_CHANNEL_ID_RAW) if DUMP_CHANNEL_ID_RAW and DUMP_CHANNEL_ID_RAW.lstrip('-').isdigit() else 0
+DUMP_CHANNEL_ID = DUMP_CHANNEL_ID_RAW
 
 
 

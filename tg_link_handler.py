@@ -93,11 +93,10 @@ async def handle_tg_link(update: Update, context: ContextTypes.DEFAULT_TYPE, url
     await status_msg.edit_text(get_text("tg_sending", user_lang))
     # ── ارسال فایل(ها) به کاربر
     try:
-        if content.dump_message_ids:
-            from config import DUMP_CHANNEL_ID
+        if content.dump_message_ids and content.dump_chat_id:
             await status_msg.edit_text("✅ در حال ارسال فایل به شما...")
             for msg_id in content.dump_message_ids:
-                await context.bot.copy_message(chat_id=message.chat_id, from_chat_id=DUMP_CHANNEL_ID, message_id=msg_id)
+                await context.bot.copy_message(chat_id=message.chat_id, from_chat_id=content.dump_chat_id, message_id=msg_id)
         elif content.is_album and len(content.files) > 1:            await _send_album(update, context, content, user_lang)
         else:
             await _send_single(update, context, content.files[0], user_lang)

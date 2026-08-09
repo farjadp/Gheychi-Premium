@@ -57,12 +57,13 @@ class TGMediaFile:
 
 @dataclass
 class TGContent:
-    """نتیجه کامل دریافت یک پیام یا آلبوم تلگرام"""
     success: bool
-    files: list = field(default_factory=list)  # list[TGMediaFile]
+    error: str = ""
+    files: list = None
     caption: str = ""
     is_album: bool = False
-    error: Optional[str] = None  # "userbot_not_ready" | "invalid_link" | "no_media" | "access_denied" | "flood_wait:N" | "download_failed"
+    dump_message_ids: list = None
+    dump_chat_id: int = None
 
 
 # ────────────────────────────────────────────────────
@@ -236,7 +237,7 @@ class UserBotClient:
             if not dump_msg:
                 return TGContent(success=False, error="download_failed")
             
-            return TGContent(success=True, files=[], caption=msg.caption or "", is_album=False, dump_message_ids=[dump_msg.id])
+            return TGContent(success=True, files=[], caption=msg.caption or "", is_album=False, dump_message_ids=[dump_msg.id], dump_chat_id=dump_msg.chat.id)
 
         if progress_callback:
             await progress_callback("downloading")
@@ -301,7 +302,7 @@ class UserBotClient:
                         pass
             if not dump_ids:
                 return TGContent(success=False, error="download_failed")
-            return TGContent(success=True, files=[], caption=caption, is_album=True, dump_message_ids=dump_ids)
+            return TGContent(success=True, files=[], caption=caption, is_album=True, dump_message_ids=dump_ids, dump_chat_id=dump_ids_chat)
 
         if progress_callback:
             await progress_callback("downloading")
@@ -356,18 +357,26 @@ class UserBotClient:
     async def _upload_to_dump(self, file_path, media_type, caption, meta):
         from config import DUMP_CHANNEL_ID
         try:
-            if media_type == "video":
-                return await self._client.send_video(DUMP_CHANNEL_ID, video=file_path, caption=caption, duration=meta.get("duration", 0), width=meta.get("width", 0), height=meta.get("height", 0))
-            elif media_type == "audio":
-                return await self._client.send_audio(DUMP_CHANNEL_ID, audio=file_path, caption=caption, duration=meta.get("duration", 0))
-            elif media_type == "photo":
-                return await self._client.send_photo(DUMP_CHANNEL_ID, photo=file_path, caption=caption)
-            elif media_type == "animation":
-                return await self._client.send_animation(DUMP_CHANNEL_ID, animation=file_path, caption=caption)
-            elif media_type == "voice":
-                return await self._client.send_voice(DUMP_CHANNEL_ID, voice=file_path, caption=caption, duration=meta.get("duration", 0))
+            from config import DUMP_CHANNEL_ID_RAW
+            dump_target = DUMP_CHANNEL_ID_RAW
+            if dump_target.startswith("http") or dump_target.startswith("t.me"):
+                chat = await self._client.get_chat(dump_target)
+                dump_target = chat.id
             else:
-                return await self._client.send_document(DUMP_CHANNEL_ID, document=file_path, caption=caption)
+                dump_target = int(dump_target)
+            
+            if media_type == "video":
+                return await self._client.send_video(dump_target, video=file_path, caption=caption, duration=meta.get("duration", 0), width=meta.get("width", 0), height=meta.get("height", 0))
+            elif media_type == "audio":
+                return await self._client.send_audio(dump_target, audio=file_path, caption=caption, duration=meta.get("duration", 0))
+            elif media_type == "photo":
+                return await self._client.send_photo(dump_target, photo=file_path, caption=caption)
+            elif media_type == "animation":
+                return await self._client.send_animation(dump_target, animation=file_path, caption=caption)
+            elif media_type == "voice":
+                return await self._client.send_voice(dump_target, voice=file_path, caption=caption, duration=meta.get("duration", 0))
+            else:
+                return await self._client.send_document(dump_target, document=file_path, caption=caption)
         except Exception as e:
             logger.error("Error uploading to dump channel: %s", e)
             return None
