@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 
 # Lazy import — اگر pyrogram نصب نباشد، بقیه ماژول‌ها خراب نمی‌شوند
 try:
+    import pyrogram.utils
+    pyrogram.utils.MIN_CHANNEL_ID = -10099999999999
+    
     from pyrogram import Client
     from pyrogram.errors import (
         FloodWait,
@@ -70,7 +73,7 @@ _TG_LINK_RE = re.compile(
     r"https?://t\.me/"
     r"(?:"
     r"(?P<username>[a-zA-Z0-9_]{5,32})/(?P<msg_id>\d+)"
-    r"|c/(?P<chat_id>\d+)/(?P<msg_id2>\d+)"
+    r"|c/(?P<chat_id>\d+)/(?:(?P<topic_id>\d+)/)?(?P<msg_id2>\d+)"
     r")",
     re.IGNORECASE,
 )
