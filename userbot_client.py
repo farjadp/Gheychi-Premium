@@ -102,6 +102,16 @@ def is_tg_link(url: str) -> bool:
     return bool(_TG_LINK_RE.search(url))
 
 
+def _get_file_size(msg) -> int:
+    if msg.video: return getattr(msg.video, 'file_size', 0) or 0
+    if msg.audio: return getattr(msg.audio, 'file_size', 0) or 0
+    if msg.document: return getattr(msg.document, 'file_size', 0) or 0
+    if msg.animation: return getattr(msg.animation, 'file_size', 0) or 0
+    if msg.voice: return getattr(msg.voice, 'file_size', 0) or 0
+    if msg.photo: return getattr(msg.photo, 'file_size', 0) or 0
+    return 0
+
+
 # ────────────────────────────────────────────────────
 #  UserBot Client Manager
 # ────────────────────────────────────────────────────
