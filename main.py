@@ -56,24 +56,7 @@ def _decode_cookies() -> None:
 
 
 def run_bot():
-    import asyncio
     from bot import main as bot_main
-    from userbot_client import userbot
-    from config import TG_API_ID, TG_API_HASH, TG_SESSION_STRING
-
-    async def _start_userbot():
-        """UserBot را قبل از شروع polling آغاز می‌کند."""
-        if TG_API_ID and TG_API_HASH and TG_SESSION_STRING:
-            started = await userbot.start(TG_API_ID, TG_API_HASH, TG_SESSION_STRING)
-            if started:
-                logger.info("UserBot (Save Restricted Content) آماده است.")
-            else:
-                logger.warning("UserBot start ناموفق — فیچر Save Restricted Content غیرفعال است.")
-        else:
-            logger.info("UserBot پیکربندی نشده — فیچر Save Restricted Content غیرفعال است.")
-
-    # UserBot را قبل از شروع bot اجرا می‌کند
-    asyncio.run(_start_userbot())
     bot_main()
 
 

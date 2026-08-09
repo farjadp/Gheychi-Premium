@@ -951,6 +951,21 @@ async def post_init(application: Application) -> None:
     # and avoid Conflict errors during restarts on Railway
     await application.bot.delete_webhook(drop_pending_updates=True)
 
+    from config import TG_API_ID, TG_API_HASH, TG_SESSION_STRING
+    from userbot_client import userbot
+    if TG_API_ID and TG_API_HASH and TG_SESSION_STRING:
+        started = await userbot.start(TG_API_ID, TG_API_HASH, TG_SESSION_STRING)
+        if started:
+            logger.info("UserBot (Save Restricted Content) آماده است.")
+        else:
+            logger.warning("UserBot start ناموفق — فیچر Save Restricted Content غیرفعال است.")
+    else:
+        logger.info("UserBot پیکربندی نشده — فیچر Save Restricted Content غیرفعال است.")
+
+async def post_shutdown(application: Application) -> None:
+    from userbot_client import userbot
+    await userbot.stop()
+
 
 def main():
     if not BOT_TOKEN:
@@ -961,7 +976,7 @@ def main():
     }
     add_log("INFO", "bot_started", "بات اجرا شد.", metadata=save_note)
 
-    app = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
+    app = Application.builder().token(BOT_TOKEN).post_init(post_init).post_shutdown(post_shutdown).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
