@@ -17,10 +17,11 @@ FLASK_SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "fallback-secret-for-magic-link
 
 # ===== UserBot (Save Restricted Content) =====
 # Get from https://my.telegram.org
-TG_API_ID = int(os.getenv("TG_API_ID", "0"))
-TG_API_HASH = os.getenv("TG_API_HASH", "")
+_tg_api_id_raw = os.getenv("TG_API_ID", "0").strip().strip('"').strip("'")
+TG_API_ID = int(_tg_api_id_raw) if _tg_api_id_raw and _tg_api_id_raw.isdigit() else 0
+TG_API_HASH = os.getenv("TG_API_HASH", "").strip().strip('"').strip("'")
 # Session string — generated once via generate_session.py
-TG_SESSION_STRING = os.getenv("TG_SESSION_STRING", "")
+TG_SESSION_STRING = os.getenv("TG_SESSION_STRING", "").strip().strip('"').strip("'")
 
 
 # Cobalt / RapidAPI Settings
