@@ -246,6 +246,7 @@ class UserBotClient:
         if not file_path:
             return TGContent(success=False, error="download_failed")
 
+        caption = msg.caption or msg.text or ""
         tg_file = TGMediaFile(file_path=file_path, media_type=media_type, caption=caption, **meta)
         return TGContent(success=True, files=[tg_file], caption=caption, is_album=False)
 
