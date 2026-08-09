@@ -204,6 +204,10 @@ class UserBotClient:
         if not _has_media(msg):
             return TGContent(success=False, error="no_media")
 
+        file_size = _get_file_size(msg)
+        if file_size and file_size > 50 * 1024 * 1024:
+            return TGContent(success=False, error=f"file_too_large:{file_size // (1024 * 1024)}:50")
+
         caption = msg.caption or msg.text or ""
         file_path, media_type, meta = await self._download_message(msg, download_dir)
         if not file_path:
@@ -237,6 +241,10 @@ class UserBotClient:
 
         files = []
         for m in group_msgs:
+            f_size = _get_file_size(m)
+            if f_size and f_size > 50 * 1024 * 1024:
+                return TGContent(success=False, error=f"file_too_large:{f_size // (1024 * 1024)}:50")
+                
             file_path, media_type, meta = await self._download_message(m, download_dir)
             if file_path:
                 files.append(TGMediaFile(

@@ -264,6 +264,13 @@ def _map_error_to_text(error: str, user_lang: str) -> str:
     if not error:
         return get_text("tg_download_failed", user_lang)
 
+
+    if error.startswith("file_too_large:"):
+        parts = error.split(":")
+        size = parts[1] if len(parts) > 1 else "50+"
+        limit = parts[2] if len(parts) > 2 else "50"
+        return get_text("telegram_size_limit", user_lang, size_mb=size, max_size_mb=limit)
+
     if error.startswith("flood_wait:"):
         seconds = error.split(":")[1]
         return get_text("tg_flood_wait", user_lang, seconds=seconds)
