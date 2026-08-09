@@ -162,7 +162,7 @@ class UserBotClient:
     def is_ready(self) -> bool:
         return self._started and self._client is not None
 
-    async def fetch_content(self, url: str, download_dir: str = "downloads") -> TGContent:
+    async def fetch_content(self, url: str, download_dir: str = "downloads", progress_callback=None) -> TGContent:
         """
         محتوای یک پیام تلگرام را دریافت و دانلود می‌کند.
         اگر پیام بخشی از آلبوم باشد، تمام اعضای آلبوم دانلود می‌شوند.
@@ -180,12 +180,10 @@ class UserBotClient:
             msg = await self._client.get_messages(chat_id, message_id)
             if not msg or msg.empty:
                 return TGContent(success=False, error="message_not_found")
-
             if msg.media_group_id:
-                return await self._fetch_album(chat_id, msg, download_dir)
+                return await self._fetch_album(chat_id, msg, download_dir, progress_callback)
             else:
-                return await self._fetch_single(msg, download_dir)
-
+                return await self._fetch_single(msg, download_dir, progress_callback)
         except Exception as e:
             err_str = str(e)
             if "FLOOD_WAIT" in err_str.upper():
@@ -200,23 +198,45 @@ class UserBotClient:
             logger.error("fetch_content خطا: %s", e, exc_info=True)
             return TGContent(success=False, error="download_failed")
 
-    async def _fetch_single(self, msg, download_dir: str) -> TGContent:
+    async def _fetch_single(self, msg, download_dir: str, progress_callback=None) -> TGContent:
         if not _has_media(msg):
             return TGContent(success=False, error="no_media")
-
         file_size = _get_file_size(msg)
         if file_size and file_size > 50 * 1024 * 1024:
-            return TGContent(success=False, error=f"file_too_large:{file_size // (1024 * 1024)}:50")
+            from config import DUMP_CHANNEL_ID
+            if not DUMP_CHANNEL_ID:
+                return TGContent(success=False, error=f"file_too_large:{file_size // (1024 * 1024)}:50")
+            
+            if progress_callback:
+                await progress_callback("downloading")
+            
+            file_path, media_type, meta = await self._download_message(msg, download_dir)
+            if not file_path:
+                return TGContent(success=False, error="download_failed")
+                
+            if progress_callback:
+                await progress_callback("uploading_to_dump")
+                
+            dump_msg = await self._upload_to_dump(file_path, media_type, msg.caption or "", meta)
+            try:
+                os.remove(file_path)
+            except:
+                pass
+            
+            if not dump_msg:
+                return TGContent(success=False, error="download_failed")
+            
+            return TGContent(success=True, files=[], caption=msg.caption or "", is_album=False, dump_message_ids=[dump_msg.id])
 
-        caption = msg.caption or msg.text or ""
-        file_path, media_type, meta = await self._download_message(msg, download_dir)
+        if progress_callback:
+            await progress_callback("downloading")        file_path, media_type, meta = await self._download_message(msg, download_dir)
         if not file_path:
             return TGContent(success=False, error="download_failed")
 
         tg_file = TGMediaFile(file_path=file_path, media_type=media_type, caption=caption, **meta)
         return TGContent(success=True, files=[tg_file], caption=caption, is_album=False)
 
-    async def _fetch_album(self, chat_id, first_msg, download_dir: str) -> TGContent:
+    async def _fetch_album(self, chat_id, first_msg, download_dir: str, progress_callback=None) -> TGContent:
         """تمام پیام‌های یک media group را دانلود می‌کند."""
         group_id = first_msg.media_group_id
         start_id = max(1, first_msg.id - 10)
@@ -240,12 +260,39 @@ class UserBotClient:
         caption = next((m.caption for m in group_msgs if m.caption), "")
 
         files = []
+        has_large_file = False
+
         for m in group_msgs:
             f_size = _get_file_size(m)
             if f_size and f_size > 50 * 1024 * 1024:
-                return TGContent(success=False, error=f"file_too_large:{f_size // (1024 * 1024)}:50")
+                from config import DUMP_CHANNEL_ID
+                if not DUMP_CHANNEL_ID:
+                    return TGContent(success=False, error=f"file_too_large:{f_size // (1024 * 1024)}:50")
+                has_large_file = True
+
+        if has_large_file:
+            if progress_callback:
+                await progress_callback("downloading")
                 
-            file_path, media_type, meta = await self._download_message(m, download_dir)
+            dump_ids = []
+            for m in group_msgs:
+                fp, mt, meta = await self._download_message(m, download_dir)
+                if fp:
+                    if progress_callback:
+                        await progress_callback("uploading_to_dump")
+                    d_msg = await self._upload_to_dump(fp, mt, m.caption or "", meta)
+                    if d_msg:
+                        dump_ids.append(d_msg.id)
+                    try:
+                        os.remove(fp)
+                    except:
+                        pass
+            if not dump_ids:
+                return TGContent(success=False, error="download_failed")
+            return TGContent(success=True, files=[], caption=caption, is_album=True, dump_message_ids=dump_ids)
+
+        if progress_callback:
+            await progress_callback("downloading")
             if file_path:
                 files.append(TGMediaFile(
                     file_path=file_path,
@@ -341,3 +388,23 @@ def _guess_extension(media_type: str, mime_type=None, file_name=None) -> str:
 #  Global Singleton
 # ────────────────────────────────────────────────────
 userbot = UserBotClient()
+
+
+    async def _upload_to_dump(self, file_path, media_type, caption, meta):
+        from config import DUMP_CHANNEL_ID
+        try:
+            if media_type == "video":
+                return await self._client.send_video(DUMP_CHANNEL_ID, video=file_path, caption=caption, duration=meta.get("duration", 0), width=meta.get("width", 0), height=meta.get("height", 0))
+            elif media_type == "audio":
+                return await self._client.send_audio(DUMP_CHANNEL_ID, audio=file_path, caption=caption, duration=meta.get("duration", 0))
+            elif media_type == "photo":
+                return await self._client.send_photo(DUMP_CHANNEL_ID, photo=file_path, caption=caption)
+            elif media_type == "animation":
+                return await self._client.send_animation(DUMP_CHANNEL_ID, animation=file_path, caption=caption)
+            elif media_type == "voice":
+                return await self._client.send_voice(DUMP_CHANNEL_ID, voice=file_path, caption=caption, duration=meta.get("duration", 0))
+            else:
+                return await self._client.send_document(DUMP_CHANNEL_ID, document=file_path, caption=caption)
+        except Exception as e:
+            logger.error("Error uploading to dump channel: %s", e)
+            return None

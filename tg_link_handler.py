@@ -63,8 +63,21 @@ async def handle_tg_link(update: Update, context: ContextTypes.DEFAULT_TYPE, url
     await message.chat.send_action(ChatAction.TYPING)
     status_msg = await message.reply_text(get_text("tg_fetching", user_lang))
 
+    async def _progress_cb(status: str):
+        if status == "downloading":
+            try:
+                await status_msg.edit_text(get_text("tg_fetching", user_lang) + "
+⬇️ در حال دانلود از تلگرام...")
+            except:
+                pass
+        elif status == "uploading_to_dump":
+            try:
+                await status_msg.edit_text("🔄 فایل بزرگ است. در حال آپلود به سرور واسطه (برای دور زدن محدودیت ۵۰ مگابایت)...")
+            except:
+                pass
+
     # ── دریافت محتوا از UserBot
-    content = await userbot.fetch_content(url, download_dir=DOWNLOAD_DIR)
+    content = await userbot.fetch_content(url, download_dir=DOWNLOAD_DIR, progress_callback=_progress_cb)
 
     if not content.success:
         error_text = _map_error_to_text(content.error, user_lang)
@@ -79,11 +92,14 @@ async def handle_tg_link(update: Update, context: ContextTypes.DEFAULT_TYPE, url
         return
 
     await status_msg.edit_text(get_text("tg_sending", user_lang))
-
     # ── ارسال فایل(ها) به کاربر
     try:
-        if content.is_album and len(content.files) > 1:
-            await _send_album(update, context, content, user_lang)
+        if content.dump_message_ids:
+            from config import DUMP_CHANNEL_ID
+            await status_msg.edit_text("✅ در حال ارسال فایل به شما...")
+            for msg_id in content.dump_message_ids:
+                await context.bot.copy_message(chat_id=message.chat_id, from_chat_id=DUMP_CHANNEL_ID, message_id=msg_id)
+        elif content.is_album and len(content.files) > 1:            await _send_album(update, context, content, user_lang)
         else:
             await _send_single(update, context, content.files[0], user_lang)
 
