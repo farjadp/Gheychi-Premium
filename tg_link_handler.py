@@ -153,7 +153,7 @@ async def _send_single(
                 width=tg_file.width,
                 height=tg_file.height,
                 supports_streaming=True,
-                parse_mode=ParseMode.MARKDOWN,
+
                 connect_timeout=TELEGRAM_CONNECT_TIMEOUT,
                 pool_timeout=TELEGRAM_POOL_TIMEOUT,
                 write_timeout=TELEGRAM_UPLOAD_TIMEOUT,
@@ -164,7 +164,7 @@ async def _send_single(
                 audio=f,
                 caption=caption,
                 duration=tg_file.duration,
-                parse_mode=ParseMode.MARKDOWN,
+
                 connect_timeout=TELEGRAM_CONNECT_TIMEOUT,
                 pool_timeout=TELEGRAM_POOL_TIMEOUT,
                 write_timeout=TELEGRAM_UPLOAD_TIMEOUT,
@@ -175,7 +175,7 @@ async def _send_single(
                 voice=f,
                 caption=caption,
                 duration=tg_file.duration,
-                parse_mode=ParseMode.MARKDOWN,
+
                 connect_timeout=TELEGRAM_CONNECT_TIMEOUT,
                 pool_timeout=TELEGRAM_POOL_TIMEOUT,
                 write_timeout=TELEGRAM_UPLOAD_TIMEOUT,
@@ -185,7 +185,7 @@ async def _send_single(
             await update.message.reply_photo(
                 photo=f,
                 caption=caption,
-                parse_mode=ParseMode.MARKDOWN,
+
                 connect_timeout=TELEGRAM_CONNECT_TIMEOUT,
                 pool_timeout=TELEGRAM_POOL_TIMEOUT,
                 write_timeout=TELEGRAM_UPLOAD_TIMEOUT,
@@ -196,7 +196,7 @@ async def _send_single(
             await update.message.reply_document(
                 document=f,
                 caption=caption,
-                parse_mode=ParseMode.MARKDOWN,
+
                 connect_timeout=TELEGRAM_CONNECT_TIMEOUT,
                 pool_timeout=TELEGRAM_POOL_TIMEOUT,
                 write_timeout=TELEGRAM_UPLOAD_TIMEOUT,
