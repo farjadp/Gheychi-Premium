@@ -59,7 +59,7 @@ MESSAGES = {
         "direct_download_fallback": "به دلیل این محدودیت، فایل به صورت مستقیم در تلگرام ارسال نشد. اما می‌توانید ویدیو را مستقیماً از طریق دکمه زیر دانلود کنید:",
         "btn_direct_download": "📥 دانلود مستقیم (مرورگر)",
         "no_direct_link": "متاسفانه لینک دانلود مستقیمی برای این کیفیت در دسترس نیست.",
-        "telegram_50mb_limit": "حجم فایل ({size_mb} مگابایت) بیشتر از سقف ۵۰ مگابایت مجاز سرورهای عمومی تلگرام است.",
+        "telegram_size_limit": "حجم فایل ({size_mb} مگابایت) بیشتر از سقف مجاز تلگرام ({max_size_mb} مگابایت) است.",
         "document_caption": "📁 {title}\n\n🤖 @gheychipremium_bot",
         "file_fallback": "فایل",
         
@@ -96,7 +96,20 @@ MESSAGES = {
         # Payment success notification
         "payment_success_title": "🎉 پرداخت با موفقیت انجام شد!",
         "payment_success_body": "اشتراک *{plan_name}* شما فعال شد.\n\n📅 تاریخ انقضا: `{expiry}`\n💳 مبلغ پرداختی: `${price}`\n\n*قابلیت‌های پلن شما:*\n{rules}\n\n*دستورهای کاربردی:*\n• /menu — منوی سریع\n• /usage — مشاهده سهمیه باقی‌مانده\n• /myplan — جزئیات پلن شما\n• /dashboard — ورود به داشبورد وب\n\nکافیست لینک ویدئو را برای بات بفرستید تا دانلود شود. 🚀",
-        "payment_success_unlimited_expiry": "بدون محدودیت زمانی"
+        "payment_success_unlimited_expiry": "بدون محدودیت زمانی",
+
+        # ===== Save Restricted Content (UserBot) =====
+        "tg_fetching": "🔐 در حال دریافت محتوای پروتکت‌شده تلگرام...",
+        "tg_downloading": "⬇️ در حال دانلود... لطفاً صبر کن.",
+        "tg_sending": "📤 در حال ارسال فایل...",
+        "tg_no_media": "این پیام فایل رسانه‌ای ندارد که بتوان ارسال کرد.",
+        "tg_invalid_link": "لینک تلگرام نامعتبر است. لطفاً یک لینک معتبر از t.me بفرست.",
+        "tg_userbot_disabled": "⚠️ فیچر ذخیره محتوای پروتکت‌شده هنوز پیکربندی نشده.\n\nادمین باید TG_API_ID، TG_API_HASH و TG_SESSION_STRING را تنظیم کند.",
+        "tg_access_denied": "❌ دسترسی به این کانال یا گروه امکان‌پذیر نیست. اکانت UserBot باید عضو آن باشد.",
+        "tg_flood_wait": "⏳ به دلیل محدودیت تلگرام باید کمی صبر کنید. لطفاً {seconds} ثانیه دیگر دوباره تلاش کنید.",
+        "tg_download_failed": "❌ دانلود محتوا از تلگرام ناموفق بود. لطفاً دوباره تلاش کن.",
+        "tg_album_caption": "📁 {count} فایل از تلگرام",
+        "tg_caption": "📁 {title}\n\n🤖 @gheychipremium_bot"
     },
     "en": {
         "bot_start": "Hello! Welcome to the Downloader Bot.\n\nJust send me a video link and I'll download it for you.\n\nCurrent Plan: *{plan_name}*\n\n*Supported Platforms:*\n{platforms}\n\nMax File Size: *{max_mb} MB*\n\nCommands:\n/menu - Show quick menu\n/plans - View packages\n/myplan - View current plan\n/mylogs - View personal logs\n/usage - View usage quota\n/myid - Get Telegram User ID\n/lang - Change Language\n/support - Contact Support",
@@ -158,7 +171,7 @@ MESSAGES = {
         "direct_download_fallback": "Due to this limit, the file was not sent directly in Telegram. However, you can download the video directly using the button below:",
         "btn_direct_download": "📥 Direct Download (Browser)",
         "no_direct_link": "Unfortunately, no direct download link is available for this quality.",
-        "telegram_50mb_limit": "File size ({size_mb} MB) exceeds Telegram's 50 MB limit for public servers.",
+        "telegram_size_limit": "File size ({size_mb} MB) exceeds Telegram's allowed limit ({max_size_mb} MB).",
         "document_caption": "📁 {title}\n\n🤖 @gheychipremium_bot",
         "file_fallback": "File",
         
@@ -195,7 +208,20 @@ MESSAGES = {
         # Payment success notification
         "payment_success_title": "🎉 Payment received successfully!",
         "payment_success_body": "Your *{plan_name}* subscription is now active.\n\n📅 Expires on: `{expiry}`\n💳 Amount paid: `${price}`\n\n*Your plan benefits:*\n{rules}\n\n*Useful commands:*\n• /menu — Quick menu\n• /usage — View remaining quota\n• /myplan — View plan details\n• /dashboard — Open web dashboard\n\nJust send any video link to the bot to start downloading. 🚀",
-        "payment_success_unlimited_expiry": "No expiry"
+        "payment_success_unlimited_expiry": "No expiry",
+
+        # ===== Save Restricted Content (UserBot) =====
+        "tg_fetching": "🔐 Fetching restricted Telegram content...",
+        "tg_downloading": "⬇️ Downloading... Please wait.",
+        "tg_sending": "📤 Sending file...",
+        "tg_no_media": "This message has no media file to send.",
+        "tg_invalid_link": "Invalid Telegram link. Please send a valid t.me link.",
+        "tg_userbot_disabled": "⚠️ Save Restricted Content feature is not configured yet.\n\nAdmin needs to set TG_API_ID, TG_API_HASH, and TG_SESSION_STRING.",
+        "tg_access_denied": "❌ Cannot access this channel or group. The UserBot account must be a member.",
+        "tg_flood_wait": "⏳ Telegram rate limit hit. Please try again in {seconds} seconds.",
+        "tg_download_failed": "❌ Failed to download content from Telegram. Please try again.",
+        "tg_album_caption": "📁 {count} files from Telegram",
+        "tg_caption": "📁 {title}\n\n🤖 @gheychipremium_bot"
     }
 }
 

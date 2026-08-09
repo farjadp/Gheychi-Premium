@@ -15,6 +15,14 @@ if not BASE_URL.startswith("http://") and not BASE_URL.startswith("https://"):
     BASE_URL = "https://" + BASE_URL
 FLASK_SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "fallback-secret-for-magic-links")
 
+# ===== UserBot (Save Restricted Content) =====
+# Get from https://my.telegram.org
+TG_API_ID = int(os.getenv("TG_API_ID", "0"))
+TG_API_HASH = os.getenv("TG_API_HASH", "")
+# Session string — generated once via generate_session.py
+TG_SESSION_STRING = os.getenv("TG_SESSION_STRING", "")
+
+
 # Cobalt / RapidAPI Settings
 # Cobalt / RapidAPI Settings
 USE_COBALT_API = os.getenv("USE_COBALT_API", "True").lower() == "true"

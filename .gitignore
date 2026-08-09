@@ -6,3 +6,4 @@ downloads/
 data/
 *.db
 *.sqlite
+session_string.txt

@@ -56,6 +56,8 @@ from runtime_store import (
     record_transaction,
 )
 from locales import get_text, MESSAGES as locales
+from tg_link_handler import handle_tg_link
+from userbot_client import is_tg_link
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -473,6 +475,12 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     url = match.group(0)
+
+    # ── مسیریابی: لینک تلگرام → handler مجزا
+    if is_tg_link(url):
+        await handle_tg_link(update, context, url)
+        return
+
     await message.chat.send_action(ChatAction.TYPING)
 
     status_msg = await message.reply_text(get_text("fetching_info", user_lang))
@@ -725,12 +733,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_path = result.file_path
         caption = result.title or get_text("file_fallback", user_lang)
 
-        # Check against Telegram Bot API's hard limit of 50MB (52428800 bytes)
+        # Check against Telegram Bot API's file limit
         import os
+        from runtime_store import get_max_file_size_bytes
         if file_path and os.path.exists(file_path):
-            if os.path.getsize(file_path) > 50 * 1024 * 1024:
+            max_size_bytes = get_max_file_size_bytes()
+            if os.path.getsize(file_path) > max_size_bytes:
                 size_mb = os.path.getsize(file_path) // (1024*1024)
-                error_msg = get_text("telegram_50mb_limit", user_lang, size_mb=size_mb)
+                max_size_mb = max_size_bytes // (1024*1024)
+                error_msg = get_text("telegram_size_limit", user_lang, size_mb=size_mb, max_size_mb=max_size_mb)
                 if hasattr(result, 'direct_url') and result.direct_url:
                     error_msg += "\n\n" + get_text("direct_download_fallback", user_lang)
                     keyboard = [[InlineKeyboardButton(get_text("btn_direct_download", user_lang), url=result.direct_url)]]
@@ -740,7 +751,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     error_msg += "\n\n" + get_text("no_direct_link", user_lang)
                     await status_msg.edit_text(error_msg)
                     
-                add_log("ERROR", "send_failed", "Telegram 50MB limit exceeded", platform=platform_name, url=url, metadata={"source": "تلگرام ربات", "telegram_user_id": user_id})
+                add_log("ERROR", "send_failed", "Telegram size limit exceeded", platform=platform_name, url=url, metadata={"source": "تلگرام ربات", "telegram_user_id": user_id})
                 cleanup_file(result.file_path)
                 delete_pending_request(request_token)
                 return
