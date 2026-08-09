@@ -66,8 +66,7 @@ async def handle_tg_link(update: Update, context: ContextTypes.DEFAULT_TYPE, url
     async def _progress_cb(status: str):
         if status == "downloading":
             try:
-                await status_msg.edit_text(get_text("tg_fetching", user_lang) + "
-⬇️ در حال دانلود از تلگرام...")
+                await status_msg.edit_text(get_text("tg_fetching", user_lang) + "\\n⬇️ در حال دانلود از تلگرام...")
             except:
                 pass
         elif status == "uploading_to_dump":
