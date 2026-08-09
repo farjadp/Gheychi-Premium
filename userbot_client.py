@@ -229,7 +229,9 @@ class UserBotClient:
             return TGContent(success=True, files=[], caption=msg.caption or "", is_album=False, dump_message_ids=[dump_msg.id])
 
         if progress_callback:
-            await progress_callback("downloading")        file_path, media_type, meta = await self._download_message(msg, download_dir)
+            await progress_callback("downloading")
+            
+        file_path, media_type, meta = await self._download_message(msg, download_dir)
         if not file_path:
             return TGContent(success=False, error="download_failed")
 
@@ -384,12 +386,6 @@ def _guess_extension(media_type: str, mime_type=None, file_name=None) -> str:
     return TYPE_EXT.get(media_type, ".bin")
 
 
-# ────────────────────────────────────────────────────
-#  Global Singleton
-# ────────────────────────────────────────────────────
-userbot = UserBotClient()
-
-
     async def _upload_to_dump(self, file_path, media_type, caption, meta):
         from config import DUMP_CHANNEL_ID
         try:
@@ -408,3 +404,8 @@ userbot = UserBotClient()
         except Exception as e:
             logger.error("Error uploading to dump channel: %s", e)
             return None
+
+# ────────────────────────────────────────────────────
+#  Global Singleton
+# ────────────────────────────────────────────────────
+userbot = UserBotClient()
