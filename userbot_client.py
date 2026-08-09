@@ -353,6 +353,25 @@ class UserBotClient:
             logger.error("download_media خطا: %s", e)
             return None, media_type, meta
 
+    async def _upload_to_dump(self, file_path, media_type, caption, meta):
+        from config import DUMP_CHANNEL_ID
+        try:
+            if media_type == "video":
+                return await self._client.send_video(DUMP_CHANNEL_ID, video=file_path, caption=caption, duration=meta.get("duration", 0), width=meta.get("width", 0), height=meta.get("height", 0))
+            elif media_type == "audio":
+                return await self._client.send_audio(DUMP_CHANNEL_ID, audio=file_path, caption=caption, duration=meta.get("duration", 0))
+            elif media_type == "photo":
+                return await self._client.send_photo(DUMP_CHANNEL_ID, photo=file_path, caption=caption)
+            elif media_type == "animation":
+                return await self._client.send_animation(DUMP_CHANNEL_ID, animation=file_path, caption=caption)
+            elif media_type == "voice":
+                return await self._client.send_voice(DUMP_CHANNEL_ID, voice=file_path, caption=caption, duration=meta.get("duration", 0))
+            else:
+                return await self._client.send_document(DUMP_CHANNEL_ID, document=file_path, caption=caption)
+        except Exception as e:
+            logger.error("Error uploading to dump channel: %s", e)
+            return None
+
 
 # ────────────────────────────────────────────────────
 #  Helper Functions
@@ -396,24 +415,6 @@ def _guess_extension(media_type: str, mime_type=None, file_name=None) -> str:
     return TYPE_EXT.get(media_type, ".bin")
 
 
-    async def _upload_to_dump(self, file_path, media_type, caption, meta):
-        from config import DUMP_CHANNEL_ID
-        try:
-            if media_type == "video":
-                return await self._client.send_video(DUMP_CHANNEL_ID, video=file_path, caption=caption, duration=meta.get("duration", 0), width=meta.get("width", 0), height=meta.get("height", 0))
-            elif media_type == "audio":
-                return await self._client.send_audio(DUMP_CHANNEL_ID, audio=file_path, caption=caption, duration=meta.get("duration", 0))
-            elif media_type == "photo":
-                return await self._client.send_photo(DUMP_CHANNEL_ID, photo=file_path, caption=caption)
-            elif media_type == "animation":
-                return await self._client.send_animation(DUMP_CHANNEL_ID, animation=file_path, caption=caption)
-            elif media_type == "voice":
-                return await self._client.send_voice(DUMP_CHANNEL_ID, voice=file_path, caption=caption, duration=meta.get("duration", 0))
-            else:
-                return await self._client.send_document(DUMP_CHANNEL_ID, document=file_path, caption=caption)
-        except Exception as e:
-            logger.error("Error uploading to dump channel: %s", e)
-            return None
 
 # ────────────────────────────────────────────────────
 #  Global Singleton
