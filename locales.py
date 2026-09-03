@@ -109,7 +109,11 @@ MESSAGES = {
         "tg_flood_wait": "⏳ به دلیل محدودیت تلگرام باید کمی صبر کنید. لطفاً {seconds} ثانیه دیگر دوباره تلاش کنید.",
         "tg_download_failed": "❌ دانلود محتوا از تلگرام ناموفق بود. لطفاً دوباره تلاش کن.",
         "tg_album_caption": "📁 {count} فایل از تلگرام",
-        "tg_caption": "📁 {title}\n\n🤖 @gheychipremium_bot"
+        "tg_caption": "📁 {title}\n\n🤖 @gheychipremium_bot",
+
+        # ===== Concurrency =====
+        "user_busy": "⏳ یک دانلود دیگر از شما همین حالا در حال انجام است.\nلطفاً تا پایان آن صبر کن و بعد لینک بعدی را بفرست.",
+        "queue_wait": "⏳ سرور در حال حاضر شلوغ است. درخواست شما در صف قرار گرفت..."
     },
     "en": {
         "bot_start": "Hello! Welcome to the Downloader Bot.\n\nJust send me a video link and I'll download it for you.\n\nCurrent Plan: *{plan_name}*\n\n*Supported Platforms:*\n{platforms}\n\nMax File Size: *{max_mb} MB*\n\nCommands:\n/menu - Show quick menu\n/plans - View packages\n/myplan - View current plan\n/mylogs - View personal logs\n/usage - View usage quota\n/myid - Get Telegram User ID\n/lang - Change Language\n/support - Contact Support",
@@ -221,7 +225,11 @@ MESSAGES = {
         "tg_flood_wait": "⏳ Telegram rate limit hit. Please try again in {seconds} seconds.",
         "tg_download_failed": "❌ Failed to download content from Telegram. Please try again.",
         "tg_album_caption": "📁 {count} files from Telegram",
-        "tg_caption": "📁 {title}\n\n🤖 @gheychipremium_bot"
+        "tg_caption": "📁 {title}\n\n🤖 @gheychipremium_bot",
+
+        # ===== Concurrency =====
+        "user_busy": "⏳ You already have a download in progress.\nPlease wait for it to finish before sending another link.",
+        "queue_wait": "⏳ The server is busy right now. Your request has been queued..."
     }
 }
 

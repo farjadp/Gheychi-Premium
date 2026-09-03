@@ -56,6 +56,7 @@ from runtime_store import (
     record_transaction,
 )
 from locales import get_text, MESSAGES as locales
+from concurrency import UserBusy, download_slot, is_busy, user_slot
 from tg_link_handler import handle_tg_link
 from userbot_client import is_tg_link
 
@@ -683,18 +684,38 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await status_msg.chat.send_action(ChatAction.UPLOAD_VIDEO)
 
     last_pct = {"val": -1}
+    last_edit = {"at": 0.0}
+    # نگه‌داشتن reference به تسک‌های progress. بدون این، تسک ممکن است پیش از
+    # اجرا garbage collect شود و خطایش بی‌صدا گم شود.
+    progress_tasks: set = set()
 
     def on_progress(pct: int):
-        if pct - last_pct["val"] >= 20:
-            last_pct["val"] = pct
-            asyncio.create_task(
-                status_msg.edit_text(get_text("download_progress", user_lang, pct=pct))
-            )
+        now = time.monotonic()
+        # هم آستانه‌ی درصد، هم آستانه‌ی زمانی — وگرنه روی فایل کوچک
+        # چند edit پشت‌سرهم به rate limit تلگرام می‌خورد.
+        if pct - last_pct["val"] < 20 or now - last_edit["at"] < 5:
+            return
+        last_pct["val"] = pct
+        last_edit["at"] = now
+        task = asyncio.create_task(
+            status_msg.edit_text(get_text("download_progress", user_lang, pct=pct))
+        )
+        progress_tasks.add(task)
+        task.add_done_callback(progress_tasks.discard)
 
-    if quality == "audio":
-        result = await download_audio(url, progress_callback=on_progress)
-    else:
-        result = await download_video(url, quality=quality, progress_callback=on_progress)
+    try:
+        async with user_slot(user_id):
+            if is_busy():
+                await status_msg.edit_text(get_text("queue_wait", user_lang))
+            async with download_slot():
+                await status_msg.edit_text(get_text("downloading", user_lang))
+                if quality == "audio":
+                    result = await download_audio(url, progress_callback=on_progress)
+                else:
+                    result = await download_video(url, quality=quality, progress_callback=on_progress)
+    except UserBusy:
+        await query.message.reply_text(get_text("user_busy", user_lang))
+        return
 
     if not result.success:
         add_log(
@@ -971,6 +992,9 @@ def main():
     if not BOT_TOKEN:
         raise ValueError("BOT_TOKEN تنظیم نشده! فایل .env را بررسی کن.")
     init_logs_db()
+    from plans import ensure_plan_defaults
+    if ensure_plan_defaults():
+        logger.info("plans.json backfilled with newly added plan fields.")
     save_note = {
         "supported_platforms": ALLOWED_PLATFORMS,
     }

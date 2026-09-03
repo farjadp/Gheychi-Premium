@@ -12,16 +12,22 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode, ChatAction
 from telegram.ext import ContextTypes
 
+from concurrency import UserBusy, download_slot, is_busy, user_slot
 from config import DOWNLOAD_DIR
 from locales import get_text
 from runtime_store import (
     add_log,
+    evaluate_download_access,
     get_bot_user,
+    record_usage_event,
     upsert_bot_user,
 )
 from userbot_client import userbot, TGContent, TGMediaFile
 
 logger = logging.getLogger(__name__)
+
+# نامی که در plans.json و allowed_platforms برای این مسیر استفاده می‌شود.
+PLATFORM = "Telegram"
 
 TELEGRAM_CONNECT_TIMEOUT = 30
 TELEGRAM_POOL_TIMEOUT = 30
@@ -60,6 +66,34 @@ async def handle_tg_link(update: Update, context: ContextTypes.DEFAULT_TYPE, url
         )
         return
 
+    # ── اعمال سهمیه‌ی پلن. تا پیش از این، لینک t.me کل چک اشتراک را دور می‌زد.
+    access = evaluate_download_access(user.id, platform=PLATFORM)
+    if not access["allowed"]:
+        await message.reply_text(access["reason"])
+        add_log(
+            "INFO",
+            "subscription_blocked",
+            access["reason"],
+            platform=PLATFORM,
+            url=url,
+            metadata={"source": "تلگرام ربات", "telegram_user_id": user.id},
+        )
+        return
+
+    try:
+        async with user_slot(user.id):
+            if is_busy():
+                await message.reply_text(get_text("queue_wait", user_lang))
+            async with download_slot():
+                await _run(update, context, url, user, user_lang)
+    except UserBusy:
+        await message.reply_text(get_text("user_busy", user_lang))
+
+
+async def _run(update, context, url: str, user, user_lang: str) -> None:
+    """بدنه‌ی اصلی — فقط داخل قفل کاربر و slot سراسری اجرا می‌شود."""
+    message = update.message
+
     await message.chat.send_action(ChatAction.TYPING)
     status_msg = await message.reply_text(get_text("tg_fetching", user_lang))
 
@@ -97,11 +131,23 @@ async def handle_tg_link(update: Update, context: ContextTypes.DEFAULT_TYPE, url
             await status_msg.edit_text("✅ در حال ارسال فایل به شما...")
             for msg_id in content.dump_message_ids:
                 await context.bot.copy_message(chat_id=message.chat_id, from_chat_id=content.dump_chat_id, message_id=msg_id)
-        elif content.is_album and len(content.files) > 1:            await _send_album(update, context, content, user_lang)
-        else:
+        elif content.is_album and len(content.files) > 1:
+            await _send_album(update, context, content, user_lang)
+        elif content.files:
             await _send_single(update, context, content.files[0], user_lang)
+        else:
+            await status_msg.edit_text(get_text("tg_download_failed", user_lang))
+            return
 
         await status_msg.delete()
+        record_usage_event(
+            user.id,
+            platform=PLATFORM,
+            url=url,
+            media_kind="album" if content.is_album else "single",
+            quality="original",
+            metadata={"source": "تلگرام ربات", "file_count": len(content.files)},
+        )
         add_log(
             "INFO",
             "tg_content_sent",
@@ -121,7 +167,7 @@ async def handle_tg_link(update: Update, context: ContextTypes.DEFAULT_TYPE, url
         )
     finally:
         # پاکسازی فایل‌های موقت
-        for tg_file in content.files:
+        for tg_file in (content.files or []):
             try:
                 if tg_file.file_path and os.path.exists(tg_file.file_path):
                     os.remove(tg_file.file_path)

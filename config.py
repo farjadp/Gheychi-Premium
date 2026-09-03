@@ -41,10 +41,16 @@ RAPIDAPI_YT_HOST = os.getenv("RAPIDAPI_YT_HOST", "youtube-info-download-api.p.ra
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
+# Maximum downloads running at once, across all users. Each one holds a
+# yt-dlp process and a partial file on disk, so this is what keeps a busy
+# minute from filling the container.
+MAX_CONCURRENT_DOWNLOADS = int(os.getenv("MAX_CONCURRENT_DOWNLOADS", "3"))
+
 ALLOWED_PLATFORMS = [
     "YouTube", "TikTok", "Twitter/X", "Instagram",
     "Facebook", "Vimeo", "Dailymotion", "Reddit",
     "Twitch", "SoundCloud", "RadioJavan", "PornHub",
+    "Telegram",
     "و بیش از ۱۰۰۰ سایت دیگر",
 ]
 

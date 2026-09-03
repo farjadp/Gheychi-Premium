@@ -20,6 +20,7 @@ DEFAULT_SUBSCRIPTION_PLANS = {
         "rules": [
             {"platform": "Twitter/X", "limit": 5, "period": "month"},
             {"platform": "Instagram", "limit": 5, "period": "month"},
+            {"platform": "Telegram", "limit": 3, "period": "month"},
         ],
     },
     "starter": {
@@ -36,6 +37,7 @@ DEFAULT_SUBSCRIPTION_PLANS = {
             {"platform": "SoundCloud", "limit": 5, "period": "month"},
             {"platform": "YouTube", "limit": 5, "period": "week", "max_duration_seconds": 900},
             {"platform": "PornHub", "limit": 3, "period": "month", "max_duration_seconds": 1800},
+            {"platform": "Telegram", "limit": 20, "period": "month"},
         ],
     },
     "standard": {
@@ -53,6 +55,7 @@ DEFAULT_SUBSCRIPTION_PLANS = {
             {"platform": "SoundCloud", "limit": 13, "period": "month"},
             {"platform": "YouTube", "limit": 10, "period": "month", "max_duration_seconds": 1800},
             {"platform": "PornHub", "limit": 5, "period": "month", "max_duration_seconds": 1800},
+            {"platform": "Telegram", "limit": 50, "period": "month"},
         ],
     },
     "pro": {
@@ -71,6 +74,7 @@ DEFAULT_SUBSCRIPTION_PLANS = {
             {"platform": "SoundCloud", "limit": None, "period": None},
             {"platform": "YouTube", "limit": 10, "period": "month", "max_duration_seconds": 3600},
             {"platform": "PornHub", "limit": 13, "period": "month", "max_duration_seconds": 2700},
+            {"platform": "Telegram", "limit": None, "period": None},
         ],
     },
 }
@@ -85,6 +89,49 @@ def get_subscription_plans() -> dict:
         return DEFAULT_SUBSCRIPTION_PLANS
     with open(PLANS_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
+
+def ensure_plan_defaults() -> bool:
+    """
+    Backfill plan fields that were added after a deployment already wrote its
+    own plans.json.
+
+    `get_subscription_plans` reads the stored file verbatim and never merges
+    DEFAULT_SUBSCRIPTION_PLANS into it, so a rule added to this module alone
+    never reaches a running install. Without this, enforcing the Telegram quota
+    would refuse every restricted-content request in production, because no
+    stored plan has a Telegram rule yet.
+
+    Only ever adds what is missing. Operator edits to existing rules, prices and
+    names are left exactly as they are. Safe to call on every boot.
+    """
+    stored = get_subscription_plans()
+    changed = False
+
+    for code, default_plan in DEFAULT_SUBSCRIPTION_PLANS.items():
+        plan = stored.get(code)
+        if plan is None:
+            continue
+
+        for field in ("name_en", "description_en"):
+            if not plan.get(field) and default_plan.get(field):
+                plan[field] = default_plan[field]
+                changed = True
+
+        rules = plan.setdefault("rules", [])
+        have = {r.get("platform", "").lower() for r in rules}
+        for default_rule in default_plan.get("rules", []):
+            platform = default_rule.get("platform", "")
+            # Only backfill platforms the operator has never seen; anything they
+            # removed on purpose for an existing platform stays removed.
+            if platform.lower() not in have and platform == "Telegram":
+                rules.append(dict(default_rule))
+                have.add(platform.lower())
+                changed = True
+
+    if changed:
+        save_subscription_plans(stored)
+    return changed
+
 
 def save_subscription_plans(plans_dict: dict):
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -129,6 +176,8 @@ def normalize_platform(raw_platform: str | None, url: str = "") -> str:
     host = (parsed.netloc or "").lower()
     platform = (raw_platform or "").lower()
 
+    if host in ("t.me", "telegram.me") or "telegram" in platform:
+        return "Telegram"
     if "play.radiojavan.com" in host or "radiojavan" in platform:
         return "RadioJavan"
     if "youtube.com" in host or "youtu.be" in host or "youtube" in platform:

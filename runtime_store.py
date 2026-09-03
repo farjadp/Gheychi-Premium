@@ -17,6 +17,22 @@ SETTINGS_FILE = DATA_DIR / "settings.json"
 LOGS_DB = DATA_DIR / "activity.db"
 
 
+def _connect(db_path=None) -> sqlite3.Connection:
+    """
+    اتصال استاندارد به SQLite.
+
+    بات و پنل ادمین دو پروسه‌ی جدا هستند که هم‌زمان روی یک فایل می‌نویسند.
+    بدون WAL و بدون timeout، دومین نویسنده بلافاصله «database is locked»
+    می‌گیرد. WAL اجازه می‌دهد خواندن و نوشتن هم‌زمان باشند و timeout به
+    نویسنده مهلت می‌دهد به‌جای این‌که فوراً شکست بخورد.
+    """
+    conn = sqlite3.connect(db_path or LOGS_DB, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    return conn
+
+
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -115,7 +131,7 @@ def get_max_file_size_bytes() -> int:
 
 def init_logs_db() -> None:
     ensure_data_dir()
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS activity_logs (
@@ -215,7 +231,7 @@ def add_log(
 ) -> None:
     init_logs_db()
     serialized_metadata = json.dumps(metadata, ensure_ascii=False) if metadata else None
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         conn.execute(
             """
             INSERT INTO activity_logs (
@@ -231,7 +247,7 @@ def add_log(
 def get_dashboard_stats() -> dict[str, int]:
     init_logs_db()
     now = _utc_now()
-    with closing(sqlite3.connect(LOGS_DB)) as conn:
+    with closing(_connect()) as conn:
         users = conn.execute("SELECT COUNT(*) FROM bot_users").fetchone()[0]
         paid_users = conn.execute("SELECT COUNT(*) FROM bot_users WHERE plan_code != 'free' AND (plan_expires_at IS NULL OR plan_expires_at > ?)", (now,)).fetchone()[0]
         logs = conn.execute("SELECT COUNT(*) FROM activity_logs").fetchone()[0]
@@ -246,7 +262,7 @@ def get_dashboard_stats() -> dict[str, int]:
 
 def list_logs(limit: int = 200, offset: int = 0) -> list[dict[str, Any]]:
     init_logs_db()
-    with closing(sqlite3.connect(LOGS_DB)) as conn:
+    with closing(_connect()) as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
             """
@@ -268,7 +284,7 @@ def list_logs(limit: int = 200, offset: int = 0) -> list[dict[str, Any]]:
 
 def count_logs() -> int:
     init_logs_db()
-    with closing(sqlite3.connect(LOGS_DB)) as conn:
+    with closing(_connect()) as conn:
         row = conn.execute("SELECT COUNT(*) FROM activity_logs").fetchone()
         return row[0] if row else 0
 
@@ -295,7 +311,7 @@ def upsert_bot_user(
 ) -> None:
     init_logs_db()
     now = _utc_now()
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         conn.execute(
             """
             INSERT INTO bot_users (
@@ -326,7 +342,7 @@ def upsert_bot_user(
 def set_user_language(telegram_user_id: int, language_code: str) -> None:
     init_logs_db()
     now = _utc_now()
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         conn.execute(
             """
             UPDATE bot_users
@@ -352,7 +368,7 @@ def _row_to_user(row: sqlite3.Row | None) -> dict[str, Any] | None:
 
 def get_bot_user(telegram_user_id: int) -> dict[str, Any]:
     init_logs_db()
-    with closing(sqlite3.connect(LOGS_DB)) as conn:
+    with closing(_connect()) as conn:
         conn.row_factory = sqlite3.Row
         row = conn.execute(
             """
@@ -381,7 +397,7 @@ def assign_user_plan(
     normalized_plan_code = get_plan(plan_code)["code"]
     now = _utc_datetime()
     expires_at = None if normalized_plan_code == "free" else (now + timedelta(days=max(months, 1) * 30)).isoformat()
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         conn.execute(
             """
             UPDATE bot_users
@@ -404,7 +420,7 @@ def assign_user_plan(
 def get_user_last_usage(telegram_user_id: int) -> str | None:
     """Return ISO timestamp of the most recent usage event for a user, or None."""
     init_logs_db()
-    with closing(sqlite3.connect(LOGS_DB)) as conn:
+    with closing(_connect()) as conn:
         row = conn.execute(
             """
             SELECT created_at FROM usage_events
@@ -420,7 +436,7 @@ def get_user_last_usage(telegram_user_id: int) -> str | None:
 def list_bot_users(limit: int = 200, offset: int = 0) -> list[dict[str, Any]]:
     """List users with pagination support. Also includes last_usage for each user."""
     init_logs_db()
-    with closing(sqlite3.connect(LOGS_DB)) as conn:
+    with closing(_connect()) as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
             """
@@ -444,7 +460,7 @@ def list_bot_users(limit: int = 200, offset: int = 0) -> list[dict[str, Any]]:
 def count_bot_users() -> int:
     """Return total count of users for pagination."""
     init_logs_db()
-    with closing(sqlite3.connect(LOGS_DB)) as conn:
+    with closing(_connect()) as conn:
         row = conn.execute("SELECT COUNT(*) FROM bot_users").fetchone()
         return int(row[0])
 
@@ -462,7 +478,7 @@ def record_usage_event(
     init_logs_db()
     user = get_bot_user(telegram_user_id)
     serialized_metadata = json.dumps(metadata, ensure_ascii=False) if metadata else None
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         conn.execute(
             """
             INSERT INTO usage_events (
@@ -493,7 +509,7 @@ def count_usage_events(
 ) -> int:
     init_logs_db()
     period_from = _period_start(period).isoformat()
-    with closing(sqlite3.connect(LOGS_DB)) as conn:
+    with closing(_connect()) as conn:
         row = conn.execute(
             """
             SELECT COUNT(*) AS total
@@ -598,7 +614,7 @@ def save_pending_request(token: str, telegram_user_id: int, chat_id: int, messag
     # Expire in 30 minutes
     expires_at = datetime.fromtimestamp(now_ts + 1800, tz=timezone.utc).isoformat()
     
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         conn.execute(
             """
             INSERT OR REPLACE INTO pending_requests 
@@ -612,7 +628,7 @@ def get_pending_request(token: str) -> dict | None:
     ensure_data_dir()
     # Check if expired logically during selection
     current_utc = _utc_now()
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         conn.row_factory = sqlite3.Row
         cur = conn.execute("SELECT * FROM pending_requests WHERE token = ?", (token,))
         row = cur.fetchone()
@@ -632,13 +648,13 @@ def get_pending_request(token: str) -> dict | None:
 
 def delete_pending_request(token: str) -> None:
     ensure_data_dir()
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         conn.execute("DELETE FROM pending_requests WHERE token = ?", (token,))
 
 def cleanup_expired_requests() -> int:
     ensure_data_dir()
     current_utc = _utc_now()
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         cur = conn.execute("DELETE FROM pending_requests WHERE expires_at < ?", (current_utc,))
         return cur.rowcount
 
@@ -646,7 +662,7 @@ def cleanup_expired_requests() -> int:
 def record_transaction(tx_id: str, telegram_user_id: int, amount_usd: float, payment_method: str, status: str, plan_code: str) -> None:
     ensure_data_dir()
     created_at = _utc_now()
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         conn.execute(
             '''INSERT OR REPLACE INTO transactions
             (tx_id, telegram_user_id, amount_usd, payment_method, status, plan_code, created_at)
@@ -656,7 +672,7 @@ def record_transaction(tx_id: str, telegram_user_id: int, amount_usd: float, pay
 
 def get_transaction(tx_id: str) -> dict | None:
     ensure_data_dir()
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         conn.row_factory = sqlite3.Row
         cur = conn.execute("SELECT * FROM transactions WHERE tx_id = ?", (tx_id,))
         row = cur.fetchone()
@@ -664,13 +680,13 @@ def get_transaction(tx_id: str) -> dict | None:
 
 def update_transaction_status(tx_id: str, new_status: str) -> bool:
     ensure_data_dir()
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         cur = conn.execute("UPDATE transactions SET status = ? WHERE tx_id = ?", (new_status, tx_id))
         return cur.rowcount > 0
 
 def list_transactions(limit: int = 200) -> list[dict]:
     ensure_data_dir()
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         conn.row_factory = sqlite3.Row
         cur = conn.execute(
             "SELECT * FROM transactions ORDER BY datetime(created_at) DESC LIMIT ?", (limit,)
@@ -679,7 +695,7 @@ def list_transactions(limit: int = 200) -> list[dict]:
 
 def get_financial_stats() -> dict:
     ensure_data_dir()
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         cur = conn.execute("SELECT COALESCE(SUM(amount_usd), 0) FROM transactions WHERE status = 'Completed'")
         total_revenue = cur.fetchone()[0]
         
@@ -697,7 +713,7 @@ def get_financial_stats() -> dict:
 
 def get_user_download_history(telegram_user_id: int, limit: int = 15) -> list[dict]:
     ensure_data_dir()
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         conn.row_factory = sqlite3.Row
         cur = conn.execute(
             "SELECT * FROM usage_events WHERE telegram_user_id = ? ORDER BY datetime(created_at) DESC LIMIT ?", 
@@ -707,7 +723,7 @@ def get_user_download_history(telegram_user_id: int, limit: int = 15) -> list[di
 
 def get_user_transactions_by_user(telegram_user_id: int) -> list[dict]:
     ensure_data_dir()
-    with sqlite3.connect(LOGS_DB) as conn:
+    with _connect() as conn:
         conn.row_factory = sqlite3.Row
         cur = conn.execute(
             "SELECT * FROM transactions WHERE telegram_user_id = ? ORDER BY datetime(created_at) DESC", 
@@ -717,7 +733,7 @@ def get_user_transactions_by_user(telegram_user_id: int) -> list[dict]:
 
 def get_analytics_stats(days: int = 30) -> list[dict]:
     init_logs_db()
-    with closing(sqlite3.connect(LOGS_DB)) as conn:
+    with closing(_connect()) as conn:
         conn.row_factory = sqlite3.Row
         
         if days > 0:

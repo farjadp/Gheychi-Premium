@@ -65,26 +65,48 @@ def run_admin():
     run_admin_panel()
 
 
-def run_updater():
+def run_housekeeping():
+    """
+    پاکسازی دوره‌ای فایل‌های موقتِ جامانده.
+
+    اگر ارسال به کاربر با استثنا شکست بخورد، فایل دانلودشده روی دیسک
+    باقی می‌ماند. روی یک volume کوچک این نشتی به‌مرور دیسک را پر می‌کند.
+
+    این پروسه قبلاً هر ۱۲ ساعت `pip install -U yt-dlp` اجرا می‌کرد. آن کار
+    حذف شد: روی فایل‌سیستم ephemeral با هر restart تکرار می‌شد و یک نسخه‌ی
+    خرابِ yt-dlp می‌توانست بی‌هیچ هشداری پروداکشن را بخواباند. نسخه حالا در
+    requirements.txt پین شده و با rebuild به‌روز می‌شود.
+    """
     import time
-    import subprocess
+
+    download_dir = Path(os.getenv("DOWNLOAD_DIR", "downloads"))
+    max_age = 3600  # فایل قدیمی‌تر از یک ساعت قطعاً یتیم است
+
     while True:
         try:
-            logger.info("Running scheduled yt-dlp update...")
-            subprocess.check_call([
-                sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "-U",
-                "yt-dlp",
-                "bgutil-ytdlp-pot-provider",
-            ])
-            logger.info("yt-dlp update completed successfully.")
+            if download_dir.is_dir():
+                now = time.time()
+                removed = 0
+                freed = 0
+                for entry in download_dir.iterdir():
+                    try:
+                        if not entry.is_file():
+                            continue
+                        if now - entry.stat().st_mtime < max_age:
+                            continue
+                        freed += entry.stat().st_size
+                        entry.unlink()
+                        removed += 1
+                    except OSError:
+                        continue
+                if removed:
+                    logger.info(
+                        "Housekeeping: removed %d orphaned file(s), freed %.1f MB",
+                        removed, freed / (1024 * 1024),
+                    )
         except Exception as e:
-            logger.error("Failed to update yt-dlp: %s", e)
-        # Sleep for 12 hours (43200 seconds)
-        time.sleep(12 * 3600)
+            logger.error("Housekeeping failed: %s", e)
+        time.sleep(1800)  # هر نیم‌ساعت
 
 
 if __name__ == "__main__":
@@ -92,7 +114,7 @@ if __name__ == "__main__":
 
     bot_proc = multiprocessing.Process(target=run_bot, name="bot", daemon=False)
     admin_proc = multiprocessing.Process(target=run_admin, name="admin", daemon=False)
-    updater_proc = multiprocessing.Process(target=run_updater, name="updater", daemon=True)
+    housekeeping_proc = multiprocessing.Process(target=run_housekeeping, name="housekeeping", daemon=True)
 
     bot_proc.start()
     logger.info("Bot process started (pid=%s)", bot_proc.pid)
@@ -100,8 +122,8 @@ if __name__ == "__main__":
     admin_proc.start()
     logger.info("Admin panel process started (pid=%s)", admin_proc.pid)
 
-    updater_proc.start()
-    logger.info("Auto-updater process started (pid=%s)", updater_proc.pid)
+    housekeeping_proc.start()
+    logger.info("Housekeeping process started (pid=%s)", housekeeping_proc.pid)
 
     # If either process dies, shut down both
     try:
