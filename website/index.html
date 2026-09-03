@@ -1,130 +1,381 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gheychi Premium | Ultimate Media Downloader</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gheychi Premium — Media downloader for Telegram</title>
+<meta name="description" content="Send a link to a Telegram bot and get the file back in the chat. Reaches restricted Telegram channels the ordinary Bot API cannot touch. 1000+ sites, no account, no ads.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="background-mesh"></div>
+<!--
+THESIS: A tool catalogue for a tool, not another dark SaaS landing with a glowing
+gradient. It refuses the hero-plus-three-feature-cards arrangement; the page is a
+spec sheet whose measured figures do the persuading.
+OWN-WORLD: Paper ground #EFEFEA, ink #16160F, one saturated tool-signal orange
+#D63C0B owning whole bands, hazard yellow reserved for restricted content only.
+Archivo for voice, JetBrains Mono for every measured value. Hairline rules,
+dotted spec leaders, dimension lines, no cards, no glass, no emoji.
+STORY: The visitor learns this bot reaches inside private Telegram channels that
+block saving — the one thing no competitor does — then opens the bot.
+FIRST VIEWPORT: Left, a catalogue title at display scale over a one-line offer
+and the primary action. Right, a measured figure plate diagramming the restricted
+channel to file path, its dimension lines drawing once on entry, over a spec
+table of real figures.
+FORM: Precision instrument / engineering trade catalogue; candidate 5 of 7 on my
+grounded list; seed key dd384b0b.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+-->
 
-    <nav class="navbar">
-        <div class="container nav-wrapper">
-            <a href="index.html" class="brand">
-                <span class="brand-icon">✂️</span>
-                <span class="brand-text">Gheychi Premium</span>
-            </a>
-            <div class="nav-links">
-                <a href="features.html">Features</a>
-                <a href="pricing.html">Pricing</a>
-                <a href="about-product.html">Roadmap</a>
-                <a href="about-us.html">About</a>
-            </div>
-            <div class="nav-actions">
-                <a href="https://t.me/gheychipremium_bot" target="_blank" class="btn btn-primary btn-sm">Start Bot</a>
-            </div>
-        </div>
+<a class="sr-only" href="#main">Skip to content</a>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="i-scissors" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
+      <line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/>
+    </g>
+    <g id="i-send" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/>
+    </g>
+    <g id="i-lock" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+    </g>
+    <g id="i-globe" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18Z"/>
+    </g>
+    <g id="i-audio" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>
+    </g>
+    <g id="i-gauge" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 14 16 9"/><circle cx="12" cy="14" r="1"/><path d="M3.5 17a9 9 0 1 1 17 0"/>
+    </g>
+    <g id="i-langs" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 5h10"/><path d="M8 3v2c0 4.5-2 7-5 8"/><path d="M5 10c1.5 2.5 3.5 4 6 5"/><path d="M12 21l4.5-10 4.5 10"/><path d="M14 17h5"/>
+    </g>
+    <g id="i-shield" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>
+    </g>
+    <g id="i-check" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m4 12 5.5 5.5L20 7"/>
+    </g>
+    <g id="i-arrow" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>
+    </g>
+    <g id="i-mail" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>
+    </g>
+    <g id="i-menu" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/>
+    </g>
+  </defs>
+</svg>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="index.html">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-scissors"/></svg>
+      <span class="stack-s" style="gap:0">
+        <b>Gheychi Premium</b>
+        <span>Media tool · TG</span>
+      </span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="features.html">Capabilities</a>
+      <a href="pricing.html">Plans</a>
+      <a href="about-product.html">Roadmap</a>
+      <a href="about-us.html">About</a>
+      <a href="contact.html">Contact</a>
     </nav>
+    <a class="btn btn-signal btn-sm nav-cta" href="https://t.me/gheychipremium_bot" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-send"/></svg> Open bot
+    </a>
+    <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-label="Open menu" aria-controls="navdrawer">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#i-menu"/></svg>
+    </button>
+  </div>
+  <div class="nav-drawer" id="navdrawer" data-nav-drawer>
+    <div class="wrap">
+      <a href="features.html">Capabilities</a>
+      <a href="pricing.html">Plans</a>
+      <a href="about-product.html">Roadmap</a>
+      <a href="about-us.html">About</a>
+      <a href="contact.html">Contact</a>
+    </div>
+  </div>
+</header>
 
-    <main class="hero-section">
-        <div class="container hero-container">
-            <div class="hero-content">
-                <div class="badge-pill">🚀 The Ultimate Telegram Downloader</div>
-                <h1 class="hero-title">
-                    Download Any Video,<br>
-                    <span class="text-gradient">Lightning Fast.</span>
-                </h1>
-                <p class="hero-subtitle">
-                    Send any link to our Telegram bot, get your Magic Link, and access your downloads securely from your personal web dashboard. Fast, private, and hassle-free.
-                </p>
-                <div class="hero-cta-group">
-                    <a href="https://t.me/gheychipremium_bot" target="_blank" class="btn btn-primary btn-lg pulse-animation">
-                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>
-                        Open Telegram Bot
-                    </a>
-                    <a href="features.html" class="btn btn-secondary btn-lg">Explore Features</a>
-                </div>
-                
-                <div class="supported-platforms">
-                    <p>Supported Platforms</p>
-                    <div class="platform-icons">
-                        <span class="platform-tag">YouTube</span>
-                        <span class="platform-tag">Instagram</span>
-                        <span class="platform-tag">Twitter/X</span>
-                        <span class="platform-tag">TikTok</span>
-                        <span class="platform-tag">SoundCloud</span>
-                    </div>
-                </div>
-            </div>
-            <div class="hero-visual">
-                <div class="glass-card main-showcase">
-                    <div class="card-header">
-                        <div class="mac-dots"><span></span><span></span><span></span></div>
-                        <span class="header-title">How It Works</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="step-item">
-                            <div class="step-icon">1</div>
-                            <div class="step-text">
-                                <strong>Send Link</strong>
-                                <span>Paste a video link to @gheychipremium_bot</span>
-                            </div>
-                        </div>
-                        <div class="step-divider"></div>
-                        <div class="step-item">
-                            <div class="step-icon">2</div>
-                            <div class="step-text">
-                                <strong>Get Magic Link</strong>
-                                <span>Bot instantly processes your video</span>
-                            </div>
-                        </div>
-                        <div class="step-divider"></div>
-                        <div class="step-item">
-                            <div class="step-icon">3</div>
-                            <div class="step-text">
-                                <strong>Download</strong>
-                                <span>Access via your secure Web Dashboard</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
+<main id="main">
 
-    <footer class="footer">
-        <div class="container footer-grid">
-            <div class="footer-brand">
-                <a href="index.html" class="brand">
-                    <span class="brand-icon">✂️</span>
-                    <span class="brand-text">Gheychi Premium</span>
-                </a>
-                <p>Seamlessly bridging Telegram and Web for the ultimate downloading experience.</p>
-            </div>
-            <div class="footer-links-col">
-                <h3>Product</h3>
-                <a href="features.html">Features</a>
-                <a href="pricing.html">Pricing</a>
-                <a href="about-product.html">Roadmap</a>
-            </div>
-            <div class="footer-links-col">
-                <h3>Company</h3>
-                <a href="about-us.html">About Us</a>
-                <a href="contact.html">Contact</a>
-            </div>
-            <div class="footer-links-col">
-                <h3>Legal</h3>
-                <a href="privacy.html">Privacy Policy</a>
-                <a href="terms.html">Terms of Service</a>
-            </div>
+  <!-- ===== FIRST VIEWPORT ===== -->
+  <section class="wrap" style="padding-block: clamp(2.5rem,7vw,5rem)">
+    <div class="cols cols-hero">
+      <div class="stack-l">
+        <div>
+          <h1 class="t-display">Cut media<br>out of the web.</h1>
+          <p class="t-lead" style="margin-top:1.25rem">
+            Send a link to our Telegram bot. The file comes back in the same chat —
+            including from private channels that have saving switched off.
+          </p>
         </div>
-        <div class="container copyright">
-            <p>&copy; 2026 Gheychi Premium. All rights reserved.</p>
+
+        <div class="row">
+          <a class="btn btn-signal btn-lg" href="https://t.me/gheychipremium_bot" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-send"/></svg>
+            Open @gheychipremium_bot
+          </a>
+          <a class="btn btn-line btn-lg" href="features.html">
+            See what it handles
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg>
+          </a>
         </div>
-    </footer>
+
+        <p class="spec spec-plain">No account · no ads · free tier, no card.</p>
+
+        <div>
+          <div class="sec-rule" style="margin-bottom:.875rem">
+            <span class="spec spec-ink">Handles</span>
+            <span class="spec spec-plain">1000+ sites via yt-dlp</span>
+          </div>
+          <div class="chips">
+            <span class="chip">YouTube</span><span class="chip">Instagram</span>
+            <span class="chip">Twitter / X</span><span class="chip">TikTok</span>
+            <span class="chip">Reddit</span><span class="chip">Facebook</span>
+            <span class="chip">Vimeo</span><span class="chip">Twitch</span>
+            <span class="chip">SoundCloud</span><span class="chip">Dailymotion</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Figure plate: the mechanism, drawn and measured -->
+      <div class="stack">
+        <div class="plate">
+          <svg class="dim" viewBox="0 0 420 268" role="img" aria-labelledby="figtitle" style="width:100%;height:auto">
+            <title id="figtitle">Diagram: a locked Telegram channel routed through the bot's user session to your chat</title>
+
+            <!-- locked source -->
+            <rect x="14" y="34" width="128" height="74" rx="3" fill="none" stroke="var(--rule)" stroke-width="1" data-delay="0"/>
+            <g stroke="var(--hazard)" stroke-width="1.4" fill="none" stroke-linecap="round" data-delay="1">
+              <rect x="66" y="60" width="24" height="17" rx="2.5"/><path d="M72 60v-5a6 6 0 0 1 12 0v5"/>
+            </g>
+            <text class="fig-label" x="78" y="95" text-anchor="middle">Saving disabled</text>
+            <text class="fig-value" x="78" y="26" text-anchor="middle">Private channel</text>
+
+            <!-- routing -->
+            <path d="M142 71 H196" stroke="var(--signal)" stroke-width="1.4" fill="none" data-delay="2"/>
+            <path d="M190 66 l6 5 -6 5" stroke="var(--signal)" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round" data-delay="2"/>
+
+            <rect x="196" y="34" width="94" height="74" rx="3" fill="none" stroke="var(--ink)" stroke-width="1.2" data-delay="2"/>
+            <text class="fig-value" x="243" y="26" text-anchor="middle">Gheychi</text>
+            <text class="fig-label" x="243" y="66" text-anchor="middle">MTProto</text>
+            <text class="fig-label" x="243" y="80" text-anchor="middle">user session</text>
+
+            <path d="M290 71 H344" stroke="var(--signal)" stroke-width="1.4" fill="none" data-delay="3"/>
+            <path d="M338 66 l6 5 -6 5" stroke="var(--signal)" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round" data-delay="3"/>
+
+            <rect x="344" y="34" width="62" height="74" rx="3" fill="var(--signal)" stroke="var(--signal)" stroke-width="1" data-delay="3"/>
+            <text class="fig-value" x="375" y="26" text-anchor="middle">Your chat</text>
+            <text class="fig-label" x="375" y="75" text-anchor="middle" fill="#fff">File</text>
+
+            <!-- dimension line -->
+            <path d="M14 140 H406" stroke="var(--ink-3)" stroke-width="1" fill="none" data-delay="4"/>
+            <path d="M14 134 v12 M406 134 v12" stroke="var(--ink-3)" stroke-width="1" fill="none" data-delay="4"/>
+            <text class="fig-label" x="210" y="160" text-anchor="middle">One message, one reply</text>
+
+            <!-- the ordinary path, for contrast -->
+            <rect x="14" y="188" width="392" height="58" rx="3" fill="none" stroke="var(--rule-soft)" stroke-width="1" stroke-dasharray="3 3" data-delay="4"/>
+            <text class="fig-label" x="30" y="210">Ordinary Bot API</text>
+            <text class="fig-label" x="30" y="228" fill="var(--ink-3)">cannot read this channel at all</text>
+          </svg>
+
+          <div class="plate-caption">
+            <span class="spec spec-ink">Fig. 1 — Restricted path</span>
+            <span class="spec">Rev. 3.0</span>
+          </div>
+        </div>
+
+        <dl class="specs" style="margin:0">
+          <div class="spec-row"><dt>Maximum file size</dt><span class="leader"></span><dd>50 MB</dd></div>
+          <div class="spec-row"><dt>Supported sites</dt><span class="leader"></span><dd>1000+</dd></div>
+          <div class="spec-row"><dt>Bot languages</dt><span class="leader"></span><dd>EN / FA</dd></div>
+          <div class="spec-row"><dt>Files retained</dt><span class="leader"></span><dd>&lt; 1 hr</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== THE DIFFERENTIATOR ===== -->
+  <section class="band band-plate">
+    <div class="wrap">
+      <div class="cols cols-2">
+        <div class="stack">
+          <div class="sec-rule">
+            <span class="spec" style="color:var(--hazard)">Restricted access</span>
+            <span class="spec">The part nobody else does</span>
+          </div>
+          <h2 class="t-h2">Channels that block saving<br>are still just files.</h2>
+          <p class="t-body">
+            Telegram lets a channel owner switch off forwarding and saving. Every ordinary
+            downloader stops there, because the Bot API genuinely cannot read those messages.
+          </p>
+          <p class="t-body">
+            Gheychi does not use the Bot API for this. It runs a real Telegram user session over
+            MTProto, so a protected post is an ordinary message to it — video, album, document or
+            voice note. You paste the <span class="num">t.me</span> link; it replies with the file.
+          </p>
+        </div>
+
+        <div class="stack">
+          <div class="restricted">
+            <p class="spec" style="margin-bottom:.625rem">What you can paste</p>
+            <dl class="specs" style="border-top-color:var(--hazard)">
+              <div class="spec-row" style="border-bottom-color:#E4D3A4"><dt style="color:#4A3A12">Public post</dt><span class="leader" style="border-bottom-color:#D9C48F"></span><dd style="color:#3A2E0E">t.me/name/123</dd></div>
+              <div class="spec-row" style="border-bottom-color:#E4D3A4"><dt style="color:#4A3A12">Private channel</dt><span class="leader" style="border-bottom-color:#D9C48F"></span><dd style="color:#3A2E0E">t.me/c/…/123</dd></div>
+              <div class="spec-row" style="border-bottom:0"><dt style="color:#4A3A12">Forum topic</dt><span class="leader" style="border-bottom-color:#D9C48F"></span><dd style="color:#3A2E0E">t.me/c/…/7/123</dd></div>
+            </dl>
+            <p style="font-size:.8125rem;margin-top:.875rem">
+              Albums arrive whole. Invite links (<span class="num">t.me/+…</span>) are not supported yet.
+            </p>
+          </div>
+          <p class="spec spec-plain">Requires the bot's account to be a member of the channel.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SEQUENCE ===== -->
+  <section class="band">
+    <div class="wrap">
+      <div class="cols cols-doc">
+        <div class="sec-head" style="margin:0">
+          <div class="sec-rule"><span class="spec spec-ink">Sequence</span></div>
+          <h2 class="t-h3">Operating sequence</h2>
+          <p class="t-body" style="font-size:.875rem;margin-top:.75rem">
+            Three steps, all inside Telegram. Nothing to install, nothing to sign up for.
+          </p>
+        </div>
+
+        <div class="steps" data-stagger>
+          <div class="step rise">
+            <h3>Send the link</h3>
+            <p>Paste any media URL, or a <span class="num">t.me</span> post link, into the chat. The bot reads it and reports what it found.</p>
+          </div>
+          <div class="step rise">
+            <h3>Pick the quality</h3>
+            <p>Choose a resolution, or take audio only as MP3. Your plan decides which options are open and how many are left this period.</p>
+          </div>
+          <div class="step rise">
+            <h3>Take the file</h3>
+            <p>It arrives as a normal Telegram file you can forward or save. The server's temporary copy is deleted within the hour.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CAPABILITIES ===== -->
+  <section class="band">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="sec-rule">
+          <span class="spec spec-ink">Capabilities</span>
+          <a class="spec spec-signal" href="features.html" style="text-decoration:none">Full list →</a>
+        </div>
+        <h2 class="t-h2">What it actually does</h2>
+      </div>
+
+      <div class="caps" data-stagger>
+        <div class="cap rise">
+          <span class="cap-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-lock"/></svg></span>
+          <h3>Restricted Telegram content</h3>
+          <p>Private channels, groups and forum topics with saving disabled. Whole albums in one go.</p>
+        </div>
+        <div class="cap rise">
+          <span class="cap-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-globe"/></svg></span>
+          <h3>1000+ sites</h3>
+          <p>YouTube, Instagram, X, TikTok, Reddit, Facebook, Vimeo, Twitch, SoundCloud, and everything else yt-dlp reaches.</p>
+        </div>
+        <div class="cap rise">
+          <span class="cap-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-gauge"/></svg></span>
+          <h3>Quality you choose</h3>
+          <p>Resolutions are listed per link, not guessed. Files are capped at 50 MB by Telegram's own upload limit.</p>
+        </div>
+        <div class="cap rise">
+          <span class="cap-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-audio"/></svg></span>
+          <h3>Audio only</h3>
+          <p>Pull an MP3 out of any video, or grab a track directly from SoundCloud.</p>
+        </div>
+        <div class="cap rise">
+          <span class="cap-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-langs"/></svg></span>
+          <h3>English and Persian</h3>
+          <p>Every message, button and error in both languages. Switch any time with <span class="num">/lang</span>.</p>
+        </div>
+        <div class="cap rise">
+          <span class="cap-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-shield"/></svg></span>
+          <h3>Nothing kept</h3>
+          <p>No library, no cloud storage, no resale of your links. The working copy is deleted within the hour.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CLOSE ===== -->
+  <section class="band band-signal">
+    <div class="wrap">
+      <div class="cols cols-2" style="align-items:end">
+        <div class="stack">
+          <h2 class="t-h2">Start on the free tier.<br>No card, no account.</h2>
+          <p class="t-lead">Open the bot, send a link, see whether it does what you need. Plans start at $5 when you outgrow it.</p>
+        </div>
+        <div class="row" style="justify-content:flex-start">
+          <a class="btn btn-onsignal btn-lg" href="https://t.me/gheychipremium_bot" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-send"/></svg> Open the bot
+          </a>
+          <a class="btn btn-lg" style="border-color:#F5936F;color:#fff" href="pricing.html">Compare plans</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <a class="brand" href="index.html">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-scissors"/></svg>
+          <span class="stack-s" style="gap:0"><b>Gheychi Premium</b><span>Media tool · TG</span></span>
+        </a>
+        <p class="foot-note">A media downloader that lives in Telegram, including the channels other tools cannot reach.</p>
+      </div>
+      <div class="foot-col">
+        <p class="foot-title">Product</p>
+        <a href="features.html">Capabilities</a>
+        <a href="pricing.html">Plans</a>
+        <a href="about-product.html">Roadmap</a>
+      </div>
+      <div class="foot-col">
+        <p class="foot-title">Company</p>
+        <a href="about-us.html">About</a>
+        <a href="contact.html">Contact</a>
+      </div>
+      <div class="foot-col">
+        <p class="foot-title">Legal</p>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span class="spec spec-plain">© 2026 Gheychi Premium</span>
+      <span class="spec spec-plain">gheychee.xyz · @gheychipremium_bot</span>
+    </div>
+  </div>
+</footer>
+
+<script src="script.js"></script>
 </body>
 </html>

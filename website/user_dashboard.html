@@ -1,321 +1,206 @@
-<!doctype html>
-<html lang="fa" dir="rtl">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>داشبورد کاربری — Gheychi Premium</title>
-  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg: #080A11;
-      --bg-glow: #15092A;
-      --surface: rgba(20, 22, 35, 0.65);
-      --card: rgba(30, 33, 50, 0.45);
-      --border: rgba(108, 138, 255, 0.15);
-      --text: #F8FAFC;
-      --muted: #94A3B8;
-      --primary: #818CF8;
-      --secondary: #E879F9;
-      --success: #34D399;
-      --warning: #FBBF24;
-      --danger: #F87171;
-    }
-    
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    
-    body {
-      font-family: 'Vazirmatn', sans-serif;
-      background-color: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      overflow-x: hidden;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your account — Gheychi Premium</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  /* Operate surface: the catalogue world, tuned for scanning rather than persuading. */
+  .acct-head { border-bottom: 1px solid var(--rule); background: var(--paper-2); }
+  .acct-in { display: flex; align-items: center; gap: 1rem; height: 60px; }
 
-    .bg-effects {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      z-index: -1;
-      overflow: hidden;
-      pointer-events: none;
-    }
-    
-    .bg-effects::before, .bg-effects::after {
-      content: '';
-      position: absolute;
-      width: 600px;
-      height: 600px;
-      border-radius: 50%;
-      filter: blur(120px);
-      opacity: 0.3;
-    }
-    
-    .bg-effects::before {
-      background: var(--primary);
-      top: -200px; right: -100px;
-    }
-    
-    .bg-effects::after {
-      background: var(--secondary);
-      bottom: -200px; left: -100px;
-    }
+  .ledger { width: 100%; border-collapse: collapse; }
+  .ledger th {
+    text-align: left; padding: .625rem .75rem; border-bottom: 1px solid var(--rule);
+    font-family: var(--mono); font-size: .6875rem; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap;
+  }
+  .ledger td {
+    padding: .8125rem .75rem; border-bottom: 1px solid var(--rule-soft);
+    font-size: .875rem; vertical-align: baseline;
+  }
+  .ledger tr:hover td { background: var(--paper-2); }
+  .ledger td:first-child, .ledger th:first-child { padding-left: 0; }
+  .ledger td:last-child,  .ledger th:last-child  { padding-right: 0; }
+  .ledger .when { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; font-size: .8125rem; }
+  .ledger .src { max-width: 34ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ledger .src a { font-family: var(--mono); font-size: .8125rem; color: var(--ink-2); }
+  .ledger .src a:hover { color: var(--signal-deep); }
+  .table-scroll { overflow-x: auto; }
 
-    .container {
-      max-width: 1000px;
-      margin: 0 auto;
-      padding: 40px 20px;
-      width: 100%;
-    }
+  .empty { border: 1px dashed var(--rule); border-radius: var(--radius); padding: clamp(2rem,5vw,3rem); text-align: center; }
+  .empty svg { width: 26px; height: 26px; color: var(--ink-3); margin: 0 auto .875rem; }
 
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 40px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .logo {
-      font-size: 24px;
-      font-weight: 800;
-      background: linear-gradient(to right, var(--primary), var(--secondary));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .logout-btn {
-      color: var(--muted);
-      text-decoration: none;
-      font-size: 14px;
-      padding: 8px 16px;
-      border-radius: 8px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      transition: all 0.2s;
-    }
-    
-    .logout-btn:hover {
-      background: rgba(255,255,255,0.1);
-      color: var(--text);
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 2fr;
-      gap: 24px;
-      margin-bottom: 24px;
-    }
-
-    @media (max-width: 768px) {
-      .grid { grid-template-columns: 1fr; }
-    }
-
-    .card {
-      background: var(--surface);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 24px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-    }
-
-    .card h2 {
-      font-size: 18px;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--primary);
-    }
-
-    .info-group {
-      margin-bottom: 16px;
-    }
-    
-    .info-group label {
-      display: block;
-      font-size: 13px;
-      color: var(--muted);
-      margin-bottom: 4px;
-    }
-    
-    .info-group .value {
-      font-size: 16px;
-      font-weight: 500;
-    }
-
-    .progress-container {
-      margin-top: 20px;
-      background: rgba(0,0,0,0.3);
-      border-radius: 8px;
-      height: 8px;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .progress-bar {
-      height: 100%;
-      background: linear-gradient(to right, var(--primary), var(--secondary));
-      border-radius: 8px;
-    }
-
-    .table-container {
-      overflow-x: auto;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-    }
-
-    th {
-      text-align: right;
-      padding: 12px;
-      color: var(--muted);
-      border-bottom: 1px solid var(--border);
-      font-weight: 500;
-    }
-
-    td {
-      padding: 12px;
-      border-bottom: 1px solid rgba(108, 138, 255, 0.05);
-    }
-
-    tr:last-child td { border-bottom: none; }
-
-    .badge {
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 500;
-      background: rgba(129, 140, 248, 0.15);
-      color: var(--primary);
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 40px;
-      color: var(--muted);
-    }
-
-    .btn-upgrade {
-      display: inline-block;
-      width: 100%;
-      text-align: center;
-      padding: 12px;
-      background: linear-gradient(to right, var(--primary), var(--secondary));
-      color: #fff;
-      text-decoration: none;
-      border-radius: 8px;
-      font-weight: 600;
-      margin-top: 20px;
-      transition: opacity 0.2s;
-      border: none;
-      cursor: pointer;
-    }
-
-    .btn-upgrade:hover { opacity: 0.9; }
-
-  </style>
+  .status { display: inline-flex; align-items: center; gap: .4375rem; }
+  .status::before { content: ''; width: 7px; height: 7px; border-radius: 99px; background: currentColor; }
+</style>
 </head>
 <body>
-  <div class="bg-effects"></div>
-  
-  <div class="container">
-    <header>
-      <div class="logo">Gheychi Premium</div>
-      <a href="/auth/logout" class="logout-btn">خروج</a>
-    </header>
+<!--
+THESIS: The account page is the same trade catalogue, read as a service record —
+a ledger with ruled columns, not a dashboard of stat tiles and progress rings.
+OWN-WORLD: Paper #EFEFEA, ink #16160F, signal orange #D63C0B, JetBrains Mono for
+every value and timestamp. Hairline rules, dotted leaders, no cards.
+STORY: The visitor confirms which plan is active, what it allows, and what they
+have taken recently — then returns to the chat, where the work happens.
+FIRST VIEWPORT: Identity line and plan state across the top, allowance spec table
+at left, download ledger at right, primary action back to the bot.
+FORM: Precision instrument / engineering trade catalogue; candidate 5 of 7; seed dd384b0b.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+-->
 
-    <div class="grid">
-      <!-- User Info Card -->
-      <div class="card">
-        <h2>👤 اطلاعات حساب</h2>
-        
-        <div class="info-group">
-          <label>نام شما</label>
-          <div class="value">{{ user.first_name }} {{ user.last_name or '' }}</div>
-        </div>
-        
-        <div class="info-group">
-          <label>شناسه تلگرام</label>
-          <div class="value" style="font-family: monospace;">{{ user.telegram_user_id }}</div>
-        </div>
+<a class="sr-only" href="#main">Skip to content</a>
 
-        <div class="info-group">
-          <label>طرح فعال</label>
-          <div class="value">
-            <span class="badge">{{ user.effective_plan.name }}</span>
-          </div>
-        </div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="i-scissors" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
+      <line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/>
+    </g>
+    <g id="i-send" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/>
+    </g>
+    <g id="i-inbox" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 12h5l2 3h4l2-3h5"/><path d="M5.5 5h13l2.5 7v7H3v-7Z"/>
+    </g>
+    <g id="i-out" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17 5 12l5-5"/><path d="M5 12h11"/>
+    </g>
+  </defs>
+</svg>
 
-        {% if user.plan_expires_at %}
-        <div class="info-group" style="margin-top: 24px;">
-          <label>تاریخ انقضا</label>
-          <div class="value" style="font-size: 14px;">{{ user.plan_expires_at }}</div>
-          <div class="progress-container">
-            <div class="progress-bar" style="width: 100%"></div>
-          </div>
-        </div>
+<header class="acct-head">
+  <div class="wrap acct-in">
+    <a class="brand" href="/index.html">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-scissors"/></svg>
+      <span class="stack-s" style="gap:0"><b>Gheychi Premium</b><span>Account record</span></span>
+    </a>
+    <a class="btn btn-line btn-sm" style="margin-left:auto" href="/auth/logout">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-out"/></svg> Sign out
+    </a>
+  </div>
+</header>
+
+<main id="main" class="wrap" style="padding-block: clamp(2rem,5vw,3rem)">
+
+  <!-- Identity -->
+  <div class="sec-rule">
+    <span class="spec spec-ink">Account</span>
+    <span class="spec">ID {{ user.telegram_user_id }}</span>
+  </div>
+
+  <div class="cols cols-2" style="align-items:start;margin-bottom:clamp(2rem,5vw,3rem)">
+    <div class="stack">
+      <h1 class="t-h2">{{ user.first_name }} {{ user.last_name or '' }}</h1>
+      <p class="t-lead" style="font-size:1rem">
+        {% if user.is_subscription_active %}
+          <span class="status" style="color:var(--ok)">{{ user.effective_plan.name_en or user.effective_plan.name }} — active</span>
         {% else %}
-        <div class="info-group" style="margin-top: 24px;">
-          <label>وضعیت انقضا</label>
-          <div class="value" style="color: var(--success);">بدون محدودیت زمانی (دائمی)</div>
-        </div>
+          <span class="status" style="color:var(--warn)">Expired — running on the free tier</span>
         {% endif %}
+      </p>
+      <div class="row" style="margin-top:.25rem">
+        <a class="btn btn-signal" href="https://t.me/gheychipremium_bot" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-send"/></svg> Back to the bot
+        </a>
+        <a class="btn btn-line" href="/pricing.html">Compare plans</a>
+      </div>
+    </div>
 
-        <form action="/dashboard/upgrade" method="get">
-          <button type="submit" class="btn-upgrade">✨ ارتقا / تمدید اشتراک</button>
-        </form>
+    <dl class="specs" style="margin:0">
+      <div class="spec-row"><dt>Plan</dt><span class="leader"></span>
+        <dd>{{ user.effective_plan.name_en or user.effective_plan.name }}</dd></div>
+      <div class="spec-row"><dt>Price</dt><span class="leader"></span>
+        <dd>${{ user.effective_plan.price_usd }}{% if user.effective_plan.price_usd %} / mo{% endif %}</dd></div>
+      <div class="spec-row"><dt>Status</dt><span class="leader"></span>
+        <dd>{% if user.is_subscription_active %}Active{% else %}Expired{% endif %}</dd></div>
+      <div class="spec-row"><dt>Renews / expires</dt><span class="leader"></span>
+        <dd>{% if user.plan_expires_at %}{{ user.plan_expires_at[:10] }}{% else %}—{% endif %}</dd></div>
+      <div class="spec-row"><dt>Max file size</dt><span class="leader"></span><dd>50 MB</dd></div>
+      <div class="spec-row"><dt>Interface language</dt><span class="leader"></span>
+        <dd>{{ (user.language_code or 'fa')|upper }}</dd></div>
+    </dl>
+  </div>
+
+  <div class="cols cols-doc" style="align-items:start">
+
+    <!-- Allowances -->
+    <div class="stack">
+      <div class="sec-rule"><span class="spec spec-ink">Allowances</span></div>
+      {% if user.effective_plan.rules %}
+        <dl class="specs" style="margin:0">
+          {% for rule in user.effective_plan.rules %}
+            <div class="spec-row">
+              <dt>{{ rule.platform }}</dt>
+              <span class="leader"></span>
+              <dd>{% if rule.limit %}{{ rule.limit }}/{{ rule.period }}{% else %}unlimited{% endif %}</dd>
+            </div>
+          {% endfor %}
+        </dl>
+        <p class="spec spec-plain">Send <span class="num">/usage</span> in the bot for live counters.</p>
+      {% else %}
+        <p class="t-body" style="font-size:.875rem">This plan defines no platform allowances.</p>
+      {% endif %}
+    </div>
+
+    <!-- Ledger -->
+    <div class="stack">
+      <div class="sec-rule">
+        <span class="spec spec-ink">Recent downloads</span>
+        <span class="spec spec-plain">Last {{ history|length }}</span>
       </div>
 
-      <!-- History Card -->
-      <div class="card">
-        <h2>📥 آخرین دانلودهای شما</h2>
-        
-        {% if history %}
-        <div class="table-container">
-          <table>
+      {% if history %}
+        <div class="table-scroll">
+          <table class="ledger">
             <thead>
-              <tr>
-                <th>تاریخ و زمان</th>
-                <th>پلتفرم</th>
-                <th>کیفیت</th>
-                <th>لینک</th>
-              </tr>
+              <tr><th scope="col">When</th><th scope="col">Platform</th><th scope="col">Quality</th><th scope="col">Source</th></tr>
             </thead>
             <tbody>
               {% for item in history %}
-              <tr>
-                <td style="direction: ltr; text-align: right; color: var(--muted);">{{ item.created_at[:16] }}</td>
-                <td><span class="badge">{{ item.platform }}</span></td>
-                <td>{{ item.quality or 'بدون مشخصات' }}</td>
-                <td>
-                  {% if item.url %}
-                  <a href="{{ item.url }}" target="_blank" style="color: var(--primary); text-decoration: none;">مشاهده 🔗</a>
-                  {% else %}
-                  -
-                  {% endif %}
-                </td>
-              </tr>
+                <tr>
+                  <td class="when">{{ item.created_at[:16]|replace('T', ' ') }}</td>
+                  <td>{{ item.platform }}</td>
+                  <td class="num" style="font-size:.8125rem;color:var(--ink-2)">{{ item.quality or '—' }}</td>
+                  <td class="src">
+                    {% if item.url %}
+                      <a href="{{ item.url }}" target="_blank" rel="noopener nofollow">{{ item.url }}</a>
+                    {% else %}—{% endif %}
+                  </td>
+                </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
-        {% else %}
-        <div class="empty-state">
-          شما هنوز فایلی دانلود نکرده‌اید.
-          <br>
-          <span style="font-size: 24px; display: block; margin-top: 10px;">👻</span>
+        <p class="spec spec-plain">Files are deleted from the server within an hour. This is a record of requests, not a library.</p>
+      {% else %}
+        <div class="empty">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-inbox"/></svg>
+          <h2 class="t-h3">Nothing downloaded yet</h2>
+          <p class="t-body" style="margin:.5rem auto 1.25rem;font-size:.9375rem">
+            Send any media link to the bot and it will appear here.
+          </p>
+          <a class="btn btn-signal" href="https://t.me/gheychipremium_bot" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-send"/></svg> Send your first link
+          </a>
         </div>
-        {% endif %}
-      </div>
+      {% endif %}
     </div>
   </div>
+</main>
+
+<footer class="foot" style="margin-top:clamp(3rem,7vw,5rem)">
+  <div class="wrap foot-base" style="margin-top:0;padding-top:0;border-top:0">
+    <span class="spec spec-plain">© 2026 Gheychi Premium</span>
+    <span class="spec"><a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · <a href="/contact.html">Contact</a></span>
+  </div>
+</footer>
+
+<script src="/script.js"></script>
 </body>
 </html>

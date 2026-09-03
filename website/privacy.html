@@ -1,124 +1,197 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Privacy Policy | Gheychi Premium</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-    <style>
-        .legal-content {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 24px;
-            padding: 40px;
-            backdrop-filter: blur(var(--glass-blur));
-        }
-        .legal-content h2 {
-            margin-top: 30px;
-            margin-bottom: 15px;
-            color: var(--primary);
-        }
-        .legal-content p, .legal-content ul {
-            color: var(--text-muted);
-            line-height: 1.8;
-            margin-bottom: 15px;
-        }
-        .legal-content ul {
-            padding-left: 20px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy — Gheychi Premium</title>
+<meta name="description" content="What Gheychi Premium stores: Telegram account identifiers, download history and quota counters. Media files are deleted within the hour.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="bg-effects">
-        <div class="glow-orb purple-orb"></div>
-        <div class="glow-orb pink-orb"></div>
-    </div>
+<!--
+THESIS: A tool catalogue for a tool, not another dark SaaS landing with a glowing
+gradient. It refuses the hero-plus-three-feature-cards arrangement; the page is a
+spec sheet whose measured figures do the persuading.
+OWN-WORLD: Paper ground #EFEFEA, ink #16160F, one saturated tool-signal orange
+#D63C0B owning whole bands, hazard yellow reserved for restricted content only.
+Archivo for voice, JetBrains Mono for every measured value. Hairline rules,
+dotted spec leaders, dimension lines, no cards, no glass, no emoji.
+STORY: The visitor learns this bot reaches inside private Telegram channels that
+block saving - the one thing no competitor does - then opens the bot.
+FIRST VIEWPORT: A masthead over a two-column document: sticky section rail at left, prose at right.
+FORM: Precision instrument / engineering trade catalogue; candidate 5 of 7 on my
+grounded list; seed key dd384b0b.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+-->
 
-    <nav class="navbar" id="navbar">
-        <div class="container nav-content">
-            <a href="index.html" class="logo">
-                <span class="logo-icon">✂️</span>
-                Gheychi Premium
-            </a>
-            <div class="nav-links">
-                <a href="features.html">Features</a>
-                <a href="pricing.html">Pricing</a>
-                <a href="about-product.html">Product</a>
-                <a href="about-us.html">About Us</a>
-                <a href="https://t.me/gheychipremium_bot" target="_blank" class="btn btn-primary btn-small">Start Bot</a>
-            </div>
-        </div>
+<a class="sr-only" href="#main">Skip to content</a>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="i-scissors" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
+      <line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/>
+    </g>
+    <g id="i-send" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/>
+    </g>
+    <g id="i-lock" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+    </g>
+    <g id="i-globe" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18Z"/>
+    </g>
+    <g id="i-audio" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>
+    </g>
+    <g id="i-gauge" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 14 16 9"/><circle cx="12" cy="14" r="1"/><path d="M3.5 17a9 9 0 1 1 17 0"/>
+    </g>
+    <g id="i-langs" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 5h10"/><path d="M8 3v2c0 4.5-2 7-5 8"/><path d="M5 10c1.5 2.5 3.5 4 6 5"/><path d="M12 21l4.5-10 4.5 10"/><path d="M14 17h5"/>
+    </g>
+    <g id="i-shield" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>
+    </g>
+    <g id="i-check" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m4 12 5.5 5.5L20 7"/>
+    </g>
+    <g id="i-arrow" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>
+    </g>
+    <g id="i-mail" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>
+    </g>
+    <g id="i-menu" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/>
+    </g>
+  </defs>
+</svg>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="index.html">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-scissors"/></svg>
+      <span class="stack-s" style="gap:0">
+        <b>Gheychi Premium</b>
+        <span>Media tool · TG</span>
+      </span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="features.html">Capabilities</a>
+      <a href="pricing.html">Plans</a>
+      <a href="about-product.html">Roadmap</a>
+      <a href="about-us.html">About</a>
+      <a href="contact.html">Contact</a>
     </nav>
-
-    <div class="page-header container animate-up">
-        <h1 class="page-title">Privacy <span class="gradient-text">Policy</span></h1>
-        <p class="page-subtitle">Last updated: May 2026</p>
+    <a class="btn btn-signal btn-sm nav-cta" href="https://t.me/gheychipremium_bot" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-send"/></svg> Open bot
+    </a>
+    <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-label="Open menu" aria-controls="navdrawer">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#i-menu"/></svg>
+    </button>
+  </div>
+  <div class="nav-drawer" id="navdrawer" data-nav-drawer>
+    <div class="wrap">
+      <a href="features.html">Capabilities</a>
+      <a href="pricing.html">Plans</a>
+      <a href="about-product.html">Roadmap</a>
+      <a href="about-us.html">About</a>
+      <a href="contact.html">Contact</a>
     </div>
+  </div>
+</header>
 
-    <section class="section pt-0">
-        <div class="container">
-            <div class="legal-content fade-in">
-                <h2>1. Introduction</h2>
-                <p>At Gheychi Premium, we respect your privacy and are committed to protecting it. This Privacy Policy explains how we handle your data when you use our Telegram bot and Web application.</p>
-                
-                <h2>2. Data We Collect</h2>
-                <p>We collect minimal data required to provide our service:</p>
-                <ul>
-                    <li>Telegram User ID (to identify your account and subscription status)</li>
-                    <li>Links submitted for processing (these are processed temporarily and not stored permanently)</li>
-                    <li>Basic usage analytics (number of downloads, bot interactions)</li>
-                </ul>
+<main id="main">
+  <section class="wrap" style="padding-block: clamp(2.25rem,5.5vw,3.75rem)">
+    <div class="sec-rule"><span class="spec spec-ink">Privacy</span><span class="spec">Gheychi Premium</span></div>
+    <h1 class="t-display" style="font-size:clamp(2.25rem,6vw,4rem)">What we hold,<br>and for how long.</h1>
+    <p class="t-lead" style="margin-top:1.125rem">Written to be read. This describes the data the bot and the website actually store, not the maximum a lawyer would allow.</p>
+    <p class="spec" style="margin-top:1rem">Last updated 3 September 2026</p>
+  </section>
 
-                <h2>3. How We Use Your Data</h2>
-                <p>We use your information solely to deliver the media downloading service, process payments (via our third-party provider), and improve the reliability of our systems.</p>
-
-                <h2>4. Data Sharing</h2>
-                <p>We do not sell, rent, or trade your personal information. We only share necessary data with third-party service providers (like payment processors) strictly for fulfilling their services.</p>
-
-                <h2>5. Contact Us</h2>
-                <p>If you have any questions about this Privacy Policy, please contact us at support@gheychipremium.com.</p>
-            </div>
+  <section class="band">
+    <div class="wrap">
+      <div class="cols cols-doc">
+        <nav class="toc" aria-label="On this page">
+          <p class="spec" style="margin-bottom:.5rem">On this page</p>
+          <a href="#collect">What is collected</a>
+          <a href="#files">The files themselves</a>
+          <a href="#restricted">Restricted Telegram content</a>
+          <a href="#third">Third parties</a>
+          <a href="#retention">Retention</a>
+          <a href="#rights">Your data</a>
+          <a href="#cookies">Cookies</a>
+        </nav>
+        <div class="prose">
+          <h2 id="collect">What is collected</h2>
+          <p>When you use the bot, Telegram gives it your numeric user ID, and your username, display name and language setting if you have them set. This is what identifies your account and applies your plan.</p>
+          <p>Each download records the link you sent, the platform, the quality chosen, and a timestamp. This is what powers your quota counter and the history in <span class="num">/mylogs</span>.</p>
+          <ul>
+            <li>Telegram user ID, username, display name, language</li>
+            <li>Links you submit, with platform, quality and timestamp</li>
+            <li>Plan, expiry, and quota counters</li>
+            <li>Transaction records, where you have bought a plan</li>
+          </ul>
+          <h2 id="files">The files themselves</h2>
+          <p>Downloaded files are written to temporary storage so they can be sent to you, then deleted. A cleanup process removes anything older than an hour, including files left behind by a failed send.</p>
+          <p>There is no media library on the server. Nothing you download is kept, indexed, or viewable by anyone, including the operator.</p>
+          <h2 id="restricted">Restricted Telegram content</h2>
+          <p>Retrieving a protected post requires the bot's own Telegram account to be a member of that channel. It sees exactly what that membership permits and nothing more.</p>
+          <p>Where a file is too large to send directly, it may be routed through an intermediate channel that only the operator controls, then copied to you. Those copies are subject to the same deletion policy.</p>
+          <h2 id="third">Third parties</h2>
+          <p>The bot fetches media through yt-dlp and, for some platforms, an external extraction API. The link you submit is necessarily visible to whichever service is asked to resolve it.</p>
+          <p>Payments, once card checkout is live, will be handled by Stripe. Card details are never seen or stored by this service.</p>
+          <h2 id="retention">Retention</h2>
+          <p>Account records and usage history persist while your account exists, because they are what your quota is counted from. Media files are deleted within the hour, always.</p>
+          <h2 id="rights">Your data</h2>
+          <p>Ask and your account and its history will be deleted. Ask and you will be told exactly what is held about you. There is no form for this — message support with your Telegram ID.</p>
+          <h2 id="cookies">Cookies</h2>
+          <p>This site sets no analytics or advertising cookies and embeds no third-party trackers. Signing in to the dashboard through a magic link sets one session cookie, which is what keeps you signed in.</p>
         </div>
-    </section>
+      </div>
+    </div>
+  </section>
 
-    <footer class="footer">
-        <div class="container footer-content">
-            <div class="footer-col" style="flex: 2; min-width: 250px;">
-                <a href="index.html" class="logo" style="font-size: 1.2rem;">
-                    <span class="logo-icon">✂️</span> Gheychi Premium
-                </a>
-                <p style="color: var(--text-muted); margin-top: 10px; font-size: 0.95rem;">
-                    The ultimate cross-platform media downloader. Seamlessly bridging Telegram and Web.
-                </p>
-            </div>
-            <div class="footer-col">
-                <h4>Product</h4>
-                <div class="footer-links" style="flex-direction: column; gap: 8px;">
-                    <a href="features.html">Features</a>
-                    <a href="pricing.html">Pricing</a>
-                    <a href="about-product.html">Roadmap</a>
-                </div>
-            </div>
-            <div class="footer-col">
-                <h4>Company</h4>
-                <div class="footer-links" style="flex-direction: column; gap: 8px;">
-                    <a href="about-us.html">About Us</a>
-                    <a href="contact.html">Contact</a>
-                </div>
-            </div>
-            <div class="footer-col">
-                <h4>Legal</h4>
-                <div class="footer-links" style="flex-direction: column; gap: 8px;">
-                    <a href="privacy.html">Privacy Policy</a>
-                    <a href="terms.html">Terms of Service</a>
-                </div>
-            </div>
-        </div>
-        <div class="container footer-bottom">
-            <p>&copy; 2026 Gheychi Premium. All rights reserved.</p>
-        </div>
-    </footer>
-    <script src="script.js"></script>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <a class="brand" href="index.html">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-scissors"/></svg>
+          <span class="stack-s" style="gap:0"><b>Gheychi Premium</b><span>Media tool · TG</span></span>
+        </a>
+        <p class="foot-note">A media downloader that lives in Telegram, including the channels other tools cannot reach.</p>
+      </div>
+      <div class="foot-col">
+        <p class="foot-title">Product</p>
+        <a href="features.html">Capabilities</a>
+        <a href="pricing.html">Plans</a>
+        <a href="about-product.html">Roadmap</a>
+      </div>
+      <div class="foot-col">
+        <p class="foot-title">Company</p>
+        <a href="about-us.html">About</a>
+        <a href="contact.html">Contact</a>
+      </div>
+      <div class="foot-col">
+        <p class="foot-title">Legal</p>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span class="spec spec-plain">© 2026 Gheychi Premium</span>
+      <span class="spec spec-plain">gheychee.xyz · @gheychipremium_bot</span>
+    </div>
+  </div>
+</footer>
+
+<script src="script.js"></script>
 </body>
 </html>

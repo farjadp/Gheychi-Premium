@@ -409,10 +409,15 @@ def admin_index():
     import os
     env_stripe_secret_set = bool(os.getenv("STRIPE_SECRET_KEY"))
     env_stripe_webhook_set = bool(os.getenv("STRIPE_WEBHOOK_SECRET"))
-    lang = session.get("admin_lang", "fa")
+    # The control room template is English; its rule strings follow it rather
+    # than the operator's bot language.
+    lang = "en"
     from locales import get_text
     def _t(key):
         return get_text(key, lang)
+
+    def format_rule_en(rule):
+        return format_rule(rule, "en")
 
     return render_template_string(
         PAGE_TEMPLATE,
@@ -428,7 +433,7 @@ def admin_index():
         saved=saved,
         active_tab=active_tab,
         all_platforms=ALLOWED_PLATFORMS,
-        format_rule=format_rule,
+        format_rule=format_rule_en,
         flag_map=flag_map,
         plans_json_str=__import__('json').dumps(__import__('plans').get_subscription_plans(), ensure_ascii=False, indent=2),
         env_stripe_secret_set=env_stripe_secret_set,
@@ -938,6 +943,8 @@ def run_admin_panel() -> None:
 
     import os
     init_logs_db()
+    from plans import ensure_plan_defaults
+    ensure_plan_defaults()
     port = os.getenv("PORT", "8080")
     
     try:
