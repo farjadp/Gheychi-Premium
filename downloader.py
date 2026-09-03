@@ -17,7 +17,7 @@ for ext_path in ["/opt/homebrew/bin", "/usr/local/bin", os.path.expanduser("~/.v
 
 import yt_dlp
 
-from config import DOWNLOAD_DIR
+from config import DOWNLOAD_DIR, DATA_DIR
 from runtime_store import get_max_file_size_bytes
 from api_client import get_direct_media_url, is_cobalt_supported_url
 import logging
@@ -214,8 +214,10 @@ def _get_cookies_file(platform: str | None) -> str | None:
     global_path = os.environ.get("COOKIES_FILE")
     if global_path and os.path.exists(global_path):
         return global_path
-    # Fall back to local cookie/cookies.txt file (committed to repo)
-    local_cookie = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookie", "cookies.txt")
+    # Last resort: a cookie file placed on the volume by the operator.
+    # Never commit one — a cookie jar exported from a browser carries the whole
+    # Google session, not just YouTube, and this repo is public.
+    local_cookie = os.path.join(str(DATA_DIR), "cookies.txt")
     if os.path.exists(local_cookie):
         return local_cookie
     return None
