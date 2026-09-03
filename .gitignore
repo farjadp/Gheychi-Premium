@@ -7,3 +7,6 @@ data/
 *.db
 *.sqlite
 session_string.txt
+
+# Impeccable working state (review screenshots, local config)
+.impeccable/

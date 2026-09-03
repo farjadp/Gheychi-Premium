@@ -260,7 +260,7 @@ class UserBotClient:
             messages = await self._client.get_messages(chat_id, list(range(start_id, end_id + 1)))
         except Exception as e:
             logger.warning("album fetch fallback to single: %s", e)
-            return await self._fetch_single(first_msg, download_dir)
+            return await self._fetch_single(first_msg, download_dir, progress_callback)
 
         group_msgs = [
             m for m in messages
@@ -269,7 +269,7 @@ class UserBotClient:
         group_msgs.sort(key=lambda m: m.id)
 
         if not group_msgs:
-            return await self._fetch_single(first_msg, download_dir)
+            return await self._fetch_single(first_msg, download_dir, progress_callback)
 
         caption = next((m.caption for m in group_msgs if m.caption), "")
 
@@ -289,6 +289,7 @@ class UserBotClient:
                 await progress_callback("downloading")
                 
             dump_ids = []
+            dump_chat_id = None
             for m in group_msgs:
                 fp, mt, meta = await self._download_message(m, download_dir)
                 if fp:
@@ -297,16 +298,20 @@ class UserBotClient:
                     d_msg = await self._upload_to_dump(fp, mt, m.caption or "", meta)
                     if d_msg:
                         dump_ids.append(d_msg.id)
+                        dump_chat_id = d_msg.chat.id
                     try:
                         os.remove(fp)
                     except:
                         pass
-            if not dump_ids:
+            if not dump_ids or dump_chat_id is None:
                 return TGContent(success=False, error="download_failed")
-            return TGContent(success=True, files=[], caption=caption, is_album=True, dump_message_ids=dump_ids, dump_chat_id=dump_ids_chat)
+            return TGContent(success=True, files=[], caption=caption, is_album=True, dump_message_ids=dump_ids, dump_chat_id=dump_chat_id)
 
         if progress_callback:
             await progress_callback("downloading")
+
+        for m in group_msgs:
+            file_path, media_type, meta = await self._download_message(m, download_dir)
             if file_path:
                 files.append(TGMediaFile(
                     file_path=file_path,
