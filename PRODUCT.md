@@ -54,7 +54,10 @@ Everything else the product does — 1000+ sites via yt-dlp, quality selection, 
 ## Brand Commitments
 
 - Name: **Gheychi Premium**. "Gheychi" (قیچی) is Persian for *scissors* — the product cuts media out of the web. The scissors idea is the one piece of brand equity worth keeping; the previous site expressed it only as a ✂️ emoji.
-- Bot handle: `@gheychipremium_bot`. Public domain: `gheychee.xyz`.
+- Bot handle: `@GheycheeDump1_bot`. Public domain: `gheychee.xyz`.
+  The handle is set once in `config.py` as `BOT_USERNAME` / `BOT_LINK` and read from
+  there everywhere in Python. The static site cannot read config, so the handle is
+  written into `website/*.html` directly — change both when the bot changes.
 - Site language: English.
 
 ## Evidence on Hand

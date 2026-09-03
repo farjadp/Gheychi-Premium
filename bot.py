@@ -29,7 +29,7 @@ from telegram.constants import ParseMode, ChatAction
 from telegram.error import BadRequest
 
 import stripe
-from config import STRIPE_SECRET_KEY, ALLOWED_PLATFORMS, BOT_TOKEN, SUPPORT_CONTACT, FLASK_SECRET_KEY, BASE_URL
+from config import STRIPE_SECRET_KEY, ALLOWED_PLATFORMS, BOT_TOKEN, BOT_USERNAME, BOT_LINK, SUPPORT_CONTACT, FLASK_SECRET_KEY, BASE_URL
 from downloader import (
     get_video_info,
     download_video,
@@ -598,8 +598,8 @@ async def handle_buy_plan(query, context, plan_code):
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=f"https://t.me/gheychipremium_bot?start=success",
-            cancel_url=f"https://t.me/gheychipremium_bot?start=cancel",
+            success_url=f"{BOT_LINK}?start=success",
+            cancel_url=f"{BOT_LINK}?start=cancel",
             client_reference_id=f"{user.id}_{plan_code}",
             metadata={"source": "تلگرام ربات", 
                 "telegram_user_id": user.id,
@@ -792,7 +792,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 pass
 
             uploader = request_data.get("uploader", "Voice")
-            bot_id = "@gheychipremium_bot"
+            bot_id = f"@{BOT_USERNAME}"
             with open(file_path, "rb") as f:
                 await query.message.reply_audio(
                     audio=f,
@@ -807,7 +807,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
         else:
             await status_msg.chat.send_action(ChatAction.UPLOAD_VIDEO)
-            bot_id = "@gheychipremium_bot"
+            bot_id = f"@{BOT_USERNAME}"
             with open(file_path, "rb") as f:
                 await query.message.reply_video(
                     video=f,
@@ -846,7 +846,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         add_log("ERROR", "send_failed", str(e)[:200], platform=platform_name, url=url, metadata={"source": "تلگرام ربات", "telegram_user_id": user_id})
         # Try sending as document if video send fails
         try:
-            bot_id = "@gheychipremium_bot"
+            bot_id = f"@{BOT_USERNAME}"
             with open(file_path, "rb") as f:
                 await query.message.reply_document(
                     document=f,

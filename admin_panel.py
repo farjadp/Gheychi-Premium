@@ -11,7 +11,7 @@ import asyncio
 import threading
 from telegram import Bot
 import stripe
-from config import STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, BOT_TOKEN
+from config import STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, BOT_TOKEN, BOT_USERNAME, BOT_LINK
 
 from flask import Flask, Response, jsonify, send_file, redirect, render_template_string, request, url_for, session, abort
 
@@ -914,7 +914,7 @@ def user_dashboard():
 @app.route("/dashboard/upgrade")
 def user_dashboard_upgrade():
     # Placeholder for upgrade logic
-    return redirect("https://t.me/gheychipremium_bot") # Redirect back to bot for now or to plans logic
+    return redirect(BOT_LINK)  # Plans are arranged in the bot until checkout is live
 
 @app.route("/auth/logout")
 def user_logout():

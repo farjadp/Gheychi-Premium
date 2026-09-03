@@ -1,3 +1,5 @@
+from config import BOT_USERNAME
+
 MESSAGES = {
     "fa": {
         "bot_start": "سلام! به بات دانلودر خوش اومدی.\n\nکافیه لینک ویدئو رو بفرستی تا برات دانلود کنم.\n\nپلن فعلی شما: *{plan_name}*\n\n*پلتفرم‌های پشتیبانی‌شده:*\n{platforms}\n\nحداکثر حجم فایل: *{max_mb} مگابایت*\n\nدستورها:\n/menu - نمایش منوی سریع\n/plans - مشاهده پکیج‌ها\n/myplan - مشاهده پلن فعلی\n/mylogs - مشاهده لاگ‌های شخصی\n/usage - مشاهده سهمیه مصرف\n/myid - مشاهده آیدی عددی تلگرام\n/lang - تغییر زبان (Change Language)\n/support - تماس با پشتیبانی",
@@ -60,7 +62,7 @@ MESSAGES = {
         "btn_direct_download": "📥 دانلود مستقیم (مرورگر)",
         "no_direct_link": "متاسفانه لینک دانلود مستقیمی برای این کیفیت در دسترس نیست.",
         "telegram_size_limit": "حجم فایل ({size_mb} مگابایت) بیشتر از سقف مجاز تلگرام ({max_size_mb} مگابایت) است.",
-        "document_caption": "📁 {title}\n\n🤖 @gheychipremium_bot",
+        "document_caption": "📁 {title}\n\n🤖 @{bot}",
         "file_fallback": "فایل",
         
         # Commands descriptions
@@ -109,7 +111,7 @@ MESSAGES = {
         "tg_flood_wait": "⏳ به دلیل محدودیت تلگرام باید کمی صبر کنید. لطفاً {seconds} ثانیه دیگر دوباره تلاش کنید.",
         "tg_download_failed": "❌ دانلود محتوا از تلگرام ناموفق بود. لطفاً دوباره تلاش کن.",
         "tg_album_caption": "📁 {count} فایل از تلگرام",
-        "tg_caption": "📁 {title}\n\n🤖 @gheychipremium_bot",
+        "tg_caption": "📁 {title}\n\n🤖 @{bot}",
 
         # ===== Concurrency =====
         "user_busy": "⏳ یک دانلود دیگر از شما همین حالا در حال انجام است.\nلطفاً تا پایان آن صبر کن و بعد لینک بعدی را بفرست.",
@@ -176,7 +178,7 @@ MESSAGES = {
         "btn_direct_download": "📥 Direct Download (Browser)",
         "no_direct_link": "Unfortunately, no direct download link is available for this quality.",
         "telegram_size_limit": "File size ({size_mb} MB) exceeds Telegram's allowed limit ({max_size_mb} MB).",
-        "document_caption": "📁 {title}\n\n🤖 @gheychipremium_bot",
+        "document_caption": "📁 {title}\n\n🤖 @{bot}",
         "file_fallback": "File",
         
         # Commands descriptions
@@ -225,7 +227,7 @@ MESSAGES = {
         "tg_flood_wait": "⏳ Telegram rate limit hit. Please try again in {seconds} seconds.",
         "tg_download_failed": "❌ Failed to download content from Telegram. Please try again.",
         "tg_album_caption": "📁 {count} files from Telegram",
-        "tg_caption": "📁 {title}\n\n🤖 @gheychipremium_bot",
+        "tg_caption": "📁 {title}\n\n🤖 @{bot}",
 
         # ===== Concurrency =====
         "user_busy": "⏳ You already have a download in progress.\nPlease wait for it to finish before sending another link.",
@@ -238,6 +240,13 @@ def get_text(key: str, lang: str = "fa", **kwargs) -> str:
     if lang not in MESSAGES:
         lang = "fa"
     text = MESSAGES[lang].get(key, MESSAGES["fa"].get(key, key))
+
+    # The bot handle is supplied here rather than at every call site: format()
+    # failures are swallowed below, so a caller that forgot it would silently
+    # ship "{bot}" to the user.
+    if "{bot}" in text:
+        kwargs.setdefault("bot", BOT_USERNAME)
+
     if kwargs:
         try:
             return text.format(**kwargs)
