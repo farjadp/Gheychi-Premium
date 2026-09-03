@@ -23,7 +23,29 @@ TG_API_HASH = os.getenv("TG_API_HASH", "").strip().strip('"').strip("'")
 # Session string — generated once via generate_session.py
 
 TG_SESSION_STRING = os.getenv("TG_SESSION_STRING", "").strip().strip('"').strip("'")
-DUMP_CHANNEL_ID_RAW = os.getenv("DUMP_CHANNEL_ID", "0").strip().strip('"').strip("'")
+def _normalise_dump_channel(value: str) -> str:
+    """
+    Normalise DUMP_CHANNEL_ID to something the callers can trust.
+
+    Unset used to default to the string "0", which is truthy in Python, so the
+    `if not DUMP_CHANNEL_ID` guard never fired: a large file was downloaded in
+    full and then uploaded to chat 0. Unset now means an empty string.
+
+    Telegram shows a channel's peer id as a bare positive number while the API
+    wants it prefixed with -100, so a bare number is prefixed here rather than
+    left to fail at send time.
+    """
+    value = value.strip().strip('"').strip("'")
+    if not value or value == "0":
+        return ""
+    if value.startswith("http") or value.startswith("t.me") or value.startswith("@"):
+        return value
+    if value.lstrip("-").isdigit() and not value.startswith("-"):
+        return f"-100{value}"
+    return value
+
+
+DUMP_CHANNEL_ID_RAW = _normalise_dump_channel(os.getenv("DUMP_CHANNEL_ID", ""))
 DUMP_CHANNEL_ID = DUMP_CHANNEL_ID_RAW
 
 
