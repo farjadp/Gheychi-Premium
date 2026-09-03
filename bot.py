@@ -571,7 +571,10 @@ async def handle_buy_plan(query, context, plan_code):
     subscription = get_bot_user(user.id)
     user_lang = subscription.get("language_code", "fa") if subscription else "fa"
     settings = load_settings()
-    stripe_key = settings.get("stripe_secret_key")
+    # The webhook already falls back to the environment; the purchase flow did
+    # not, so with the key set as an env var the admin panel hid its input field
+    # and every buyer was told Stripe was not configured.
+    stripe_key = settings.get("stripe_secret_key") or STRIPE_SECRET_KEY
     if not stripe_key:
         await query.message.reply_text(get_text("stripe_not_set", user_lang))
         return
