@@ -271,6 +271,11 @@ def _youtube_ydl_profiles(url: str) -> list[dict]:
     return profiles
 
 
+# How long metadata extraction may take before the API placeholder is used
+# instead. Only applies to platforms the API layer can download without it.
+METADATA_TIMEOUT = int(os.getenv("METADATA_TIMEOUT_SECONDS", "20"))
+
+
 def _network_opts(platform: str | None, youtube_clients: list[str] | None = None) -> dict:
     """
     Egress and YouTube-attestation options, shared by the metadata and download
@@ -379,8 +384,27 @@ async def get_video_info(url: str) -> VideoInfo:
         with yt_dlp.YoutubeDL(opts) as ydl:
             return ydl.extract_info(url, download=False)
 
+    # Metadata is a convenience, not the job. On a datacenter IP an extraction
+    # can stall behind bot checks, and for the platforms the API layer can
+    # download anyway there is no reason to make the user wait for it: fall back
+    # to the placeholder and let the download proceed.
     try:
-        info = await loop.run_in_executor(None, _fetch)
+        if is_cobalt_supported_url(url):
+            info = await asyncio.wait_for(
+                loop.run_in_executor(None, _fetch), timeout=METADATA_TIMEOUT
+            )
+        else:
+            info = await loop.run_in_executor(None, _fetch)
+    except asyncio.TimeoutError:
+        logger.warning("metadata timed out after %ss for %s, falling back to API", METADATA_TIMEOUT, url)
+        return VideoInfo(
+            title=normalize_platform(None, url),
+            duration=None,
+            uploader="",
+            platform=normalize_platform(None, url),
+            thumbnail=None,
+            formats=[],
+        )
     except yt_dlp.utils.DownloadError as e:
         msg = str(e)
         m = re.search(r"Unsupported URL: (https?://(?:play\.)?radiojavan\.com[^\s]+)", msg)
