@@ -18,6 +18,7 @@ for ext_path in ["/opt/homebrew/bin", "/usr/local/bin", os.path.expanduser("~/.v
 import yt_dlp
 
 from config import DOWNLOAD_DIR, DATA_DIR
+from plans import normalize_platform
 from runtime_store import get_max_file_size_bytes
 from api_client import get_direct_media_url, is_cobalt_supported_url
 import logging
@@ -270,6 +271,51 @@ def _youtube_ydl_profiles(url: str) -> list[dict]:
     return profiles
 
 
+def _network_opts(platform: str | None, youtube_clients: list[str] | None = None) -> dict:
+    """
+    Egress and YouTube-attestation options, shared by the metadata and download
+    paths so a proxy configured for one is not missing from the other.
+
+    YouTube signs its media URLs against the requesting IP — "ip" appears in the
+    sparams list — so metadata and media must leave from the same address. There
+    is no cheap "proxy only the small request" split.
+    """
+    opts: dict = {}
+
+    proxy = os.getenv("YTDLP_PROXY", "").strip()
+    if proxy:
+        opts["proxy"] = proxy
+
+    if not _is_youtube_url(platform):
+        return opts
+
+    extractor_args: dict[str, dict[str, list[str]]] = {}
+    youtube_args: dict[str, list[str]] = {}
+    if youtube_clients:
+        youtube_args["player_client"] = youtube_clients
+
+    # PO tokens expire within hours, so they are minted per request by the
+    # bgutil provider plugin rather than pasted into an env var. This points the
+    # plugin at the provider server; unset, it uses its own 127.0.0.1:4416.
+    pot_base_url = os.getenv("BGUTIL_POT_BASE_URL", "").strip()
+    if pot_base_url:
+        extractor_args["youtubepot-bgutilhttp"] = {"base_url": [pot_base_url]}
+
+    # Manual override for debugging one token by hand. Not a mechanism.
+    youtube_po_token = os.getenv("YOUTUBE_PO_TOKEN", "").strip()
+    if youtube_po_token:
+        youtube_args["po_token"] = [youtube_po_token]
+    youtube_visitor_data = os.getenv("YOUTUBE_VISITOR_DATA", "").strip()
+    if youtube_visitor_data:
+        youtube_args["visitor_data"] = [youtube_visitor_data]
+
+    if youtube_args:
+        extractor_args["youtube"] = youtube_args
+    if extractor_args:
+        opts["extractor_args"] = extractor_args
+    return opts
+
+
 def _base_ydl_opts(
     output_template: str,
     platform: str | None = None,
@@ -289,18 +335,8 @@ def _base_ydl_opts(
         "max_filesize": max_file_size_bytes,
         "js_runtimes": {"node": {"path": _NODE_BIN}},
     }
-    if _is_youtube_url(platform):
-        youtube_args: dict[str, list[str]] = {}
-        if youtube_clients:
-            youtube_args["player_client"] = youtube_clients
-        youtube_po_token = os.getenv("YOUTUBE_PO_TOKEN", "").strip()
-        if youtube_po_token:
-            youtube_args["po_token"] = [youtube_po_token]
-        youtube_visitor_data = os.getenv("YOUTUBE_VISITOR_DATA", "").strip()
-        if youtube_visitor_data:
-            youtube_args["visitor_data"] = [youtube_visitor_data]
-        if youtube_args:
-            opts["extractor_args"] = {"youtube": youtube_args}
+    opts.update(_network_opts(platform, youtube_clients))
+
     if cookies_file:
         opts["cookiefile"] = cookies_file
     return opts
@@ -324,16 +360,6 @@ async def get_video_info(url: str) -> VideoInfo:
             formats=[],
         )
 
-    if is_cobalt_supported_url(url):
-        return VideoInfo(
-            title="ویدئو از طریق API",
-            duration=None,
-            uploader="کاربر",
-            platform="API (Cobalt/Rapid)",
-            thumbnail=None,
-            formats=[],
-        )
-
     opts = {
         "ignoreconfig": True,
         "quiet": True,
@@ -342,6 +368,7 @@ async def get_video_info(url: str) -> VideoInfo:
         "noplaylist": True,
         "js_runtimes": {"node": {"path": _NODE_BIN}},
     }
+    opts.update(_network_opts(url))
     cookies_file = _get_cookies_file(url)
     if cookies_file:
         opts["cookiefile"] = cookies_file
@@ -359,6 +386,21 @@ async def get_video_info(url: str) -> VideoInfo:
         m = re.search(r"Unsupported URL: (https?://(?:play\.)?radiojavan\.com[^\s]+)", msg)
         if m:
             return await get_video_info(m.group(1))
+        # Metadata used to be skipped entirely for these platforms, which meant
+        # duration was always None — and a null duration silently disables every
+        # plan's max_duration_seconds cap. Read it properly, and fall back to a
+        # placeholder only when extraction genuinely fails, since the download
+        # itself can still succeed through the API layer.
+        if is_cobalt_supported_url(url):
+            logger.warning("metadata extraction failed for %s, falling back to API: %s", url, str(e)[:200])
+            return VideoInfo(
+                title=normalize_platform(None, url),
+                duration=None,
+                uploader="",
+                platform=normalize_platform(None, url),
+                thumbnail=None,
+                formats=[],
+            )
         raise e
 
     formats = []
@@ -542,8 +584,12 @@ async def download_video(
 
         title = info.get("title", "ویدئو") if info else "ویدئو"
 
+        # A googlevideo URL is signed against the IP that requested it — "ip" is
+        # inside the sparams list — so handing one to the user guarantees a 403
+        # from their device. Offer the direct link only where it can actually
+        # be fetched from somewhere else.
         direct_url = None
-        if info:
+        if info and not _is_youtube_url(source_url):
             url_cand = info.get("url")
             if url_cand and ".m3u8" not in url_cand and "manifest" not in url_cand:
                 direct_url = url_cand
