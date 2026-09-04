@@ -8,6 +8,10 @@ from config import USE_COBALT_API, COBALT_API_URL, USE_RAPIDAPI, RAPIDAPI_KEY, R
 
 logger = logging.getLogger(__name__)
 
+# How long to wait for the YouTube provider to prepare a file before giving
+# up. Measured at 14-21 seconds; the ceiling is for a bad day, not the norm.
+YOUTUBE_API_TIMEOUT = 60
+
 def is_cobalt_supported_url(url: str) -> bool:
     """Check if the URL should be processed by API layers."""
     keywords = ["twitter.com", "x.com", "instagram.com", "tiktok.com", "reddit.com", "pinterest.com", "youtube.com", "youtu.be"]
@@ -209,62 +213,76 @@ def fetch_media_from_rapidapi(url: str) -> dict:
         return {"success": False, "error": f"خطا در ارتباط با RapidAPI: {str(e)[:100]}"}
 
 def fetch_media_from_youtube_fast_api(url: str, quality: str) -> dict:
-    import re
-    vid_match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11}).*", url)
-    if not vid_match:
-        return {"success": False, "error": "لینک یوتیوب نامعتبر است."}
-        
-    video_id = vid_match.group(1)
-    api_endpoint = f"https://youtube-video-fast-downloader-24-7.p.rapidapi.com/get-video-info/{video_id}?return_available_quality=false&response_mode=default"
-    
+    """
+    Last resort for YouTube, reached only after every yt-dlp profile has failed.
+
+    The provider does the YouTube fetch on its own infrastructure and hands back
+    a file on its CDN, so the URL carries no `ip` parameter and is not bound to
+    whoever requested it — which is why this works from a datacenter address
+    where a googlevideo URL would not.
+
+    It is a two-step API: the first call queues a job, then its progress
+    endpoint is polled until the download URL appears. Measured at 14-21s.
+    """
+    import time
+    import urllib.parse
+
     settings = load_settings()
     rapid_key = settings.get("rapidapi_key") or RAPIDAPI_KEY
     if not rapid_key:
         return {"success": False, "error": "کلید RapidAPI تنظیم نشده است."}
 
-    req = Request(
-        api_endpoint,
-        headers={
-            "x-rapidapi-key": rapid_key,
-            "x-rapidapi-host": "youtube-video-fast-downloader-24-7.p.rapidapi.com"
-        },
-        method="GET"
-    )
+    host = (RAPIDAPI_YT_HOST or "").strip()
+    if not host:
+        return {"success": False, "error": "RAPIDAPI_YT_HOST تنظیم نشده است."}
+
+    # The provider names formats by height, plus mp3 for audio.
+    if quality == "audio":
+        fmt = "mp3"
+    elif str(quality).isdigit():
+        fmt = str(quality)
+    else:
+        fmt = "720"
+
+    quoted = urllib.parse.quote(url, safe="")
+    job_url = f"https://{host}/ajax/download.php?format={fmt}&url={quoted}"
 
     try:
+        req = Request(job_url, headers={
+            "x-rapidapi-key": rapid_key,
+            "x-rapidapi-host": host,
+        })
         with urlopen(req, timeout=30) as response:
-            data = json.loads(response.read().decode('utf-8'))
-            
-            direct_url = None
-            if quality == "audio":
-                if "audio_url" in data: direct_url = data["audio_url"]
-                elif "audioUrl" in data: direct_url = data["audioUrl"]
-                elif "audios" in data and isinstance(data["audios"], list) and len(data["audios"]) > 0: direct_url = data["audios"][0].get("url")
-            
-            if not direct_url:
-                if "video_url" in data: direct_url = data["video_url"]
-                elif "videoUrl" in data: direct_url = data["videoUrl"]
-                elif "url" in data and isinstance(data["url"], str) and data["url"].startswith("http"): direct_url = data["url"]
-                elif "videos" in data and isinstance(data["videos"], list) and len(data["videos"]) > 0:
-                    videos = data["videos"]
-                    good_videos = [v for v in videos if v.get("hasAudio") is not False]
-                    if good_videos: direct_url = good_videos[0].get("url")
-                    else: direct_url = videos[0].get("url")
-                elif "data" in data and isinstance(data["data"], dict):
-                    inner = data["data"]
-                    if quality == "audio" and "audioUrl" in inner: direct_url = inner["audioUrl"]
-                    elif "videoUrl" in inner: direct_url = inner["videoUrl"]
-                    elif "url" in inner: direct_url = inner["url"]
+            remaining = response.headers.get("X-RateLimit-Units-Remaining")
+            job = json.loads(response.read().decode("utf-8"))
 
+        if remaining is not None:
+            # Roughly four units a request against a daily allowance, so this is
+            # the number to watch before YouTube starts failing on quota alone.
+            logger.info("YouTube API units remaining: %s", remaining)
+
+        progress_url = job.get("progress_url")
+        if not progress_url:
+            return {"success": False, "error": f"پاسخ API فاقد progress_url بود: {str(job)[:120]}"}
+
+        deadline = time.monotonic() + YOUTUBE_API_TIMEOUT
+        while time.monotonic() < deadline:
+            time.sleep(2)
+            with urlopen(Request(progress_url, headers={"User-Agent": "Mozilla/5.0"}), timeout=30) as pr:
+                progress = json.loads(pr.read().decode("utf-8"))
+            direct_url = progress.get("download_url")
             if direct_url:
-                return {"success": True, "url": direct_url, "source": "RapidAPI (YouTube Fast)"}
-            
-            return {"success": False, "error": "فرمت مناسبی برای دانلود یافت نشد."}
+                return {"success": True, "url": direct_url, "source": "RapidAPI (YouTube)"}
+            if progress.get("success") == 0 and str(progress.get("text", "")).lower().startswith("error"):
+                return {"success": False, "error": f"API یوتیوب خطا داد: {str(progress.get('text'))[:100]}"}
+
+        return {"success": False, "error": f"آماده‌سازی لینک یوتیوب بیش از {YOUTUBE_API_TIMEOUT} ثانیه طول کشید."}
 
     except HTTPError as e:
         return {"success": False, "error": f"خطای ارتباط با سرور یوتیوب ({e.code})"}
     except Exception as e:
-        return {"success": False, "error": f"خطا در ارتباط با API جدید: {str(e)[:100]}"}
+        return {"success": False, "error": f"خطا در ارتباط با API یوتیوب: {str(e)[:100]}"}
+
 
 def get_direct_media_url(url: str, quality: str = "max") -> dict:
     """Route the request to Cobalt or RapidAPI based on config.
