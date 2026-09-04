@@ -7,7 +7,7 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 # The public handle, without the @. It lived in forty places across the code and
 # the site before, so changing bots meant a find-and-replace across twelve files.
-BOT_USERNAME = os.getenv("BOT_USERNAME", "GheycheeDump1_bot").lstrip("@")
+BOT_USERNAME = os.getenv("BOT_USERNAME", "gheychipremium_bot").lstrip("@")
 BOT_LINK = f"https://t.me/{BOT_USERNAME}"
 DOWNLOAD_DIR = os.getenv("DOWNLOAD_DIR", "downloads")
 DEFAULT_MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "50"))
