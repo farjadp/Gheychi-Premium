@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from config import ALLOWED_PLATFORMS, DATA_DIR, DEFAULT_MAX_FILE_SIZE_MB
+from config import ALLOWED_PLATFORMS, DATA_DIR, DEFAULT_MAX_FILE_SIZE_MB, DUMP_CHANNEL_ID
 from plans import PERIOD_LABELS, get_plan, get_plan_rule
 
 SETTINGS_FILE = DATA_DIR / "settings.json"
@@ -125,15 +125,23 @@ def save_settings(settings: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
-# Telegram refuses a bot upload above 50 MB. A larger configured value does not
-# buy anything: the file downloads in full and then the send fails with 413,
-# which is what production was doing with the setting left at 500.
+# Telegram caps a bot upload at 50 MB, which is why an oversized file used to
+# download in full and then fail to send with 413. A user session may upload
+# 2 GB, so with a dump channel configured the file can go up through the userbot
+# and be copied to the recipient instead — copy_message carries no size limit of
+# its own. Without that channel the bot's own ceiling is the real one.
 TELEGRAM_BOT_UPLOAD_LIMIT_MB = 50
+TELEGRAM_USER_UPLOAD_LIMIT_MB = 2000
+
+
+def large_file_route_available() -> bool:
+    return bool(DUMP_CHANNEL_ID)
 
 
 def get_max_file_size_bytes() -> int:
     configured = int(load_settings()["max_file_size_mb"])
-    return min(configured, TELEGRAM_BOT_UPLOAD_LIMIT_MB) * 1024 * 1024
+    ceiling = TELEGRAM_USER_UPLOAD_LIMIT_MB if large_file_route_available() else TELEGRAM_BOT_UPLOAD_LIMIT_MB
+    return min(configured, ceiling) * 1024 * 1024
 
 
 def init_logs_db() -> None:

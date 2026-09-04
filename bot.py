@@ -3,6 +3,7 @@
 تمامی تعاملات با کلاینت‌های تلگرام، دکمه‌های شیشه‌ای، و درخواست‌های دانلود در این فایل پردازش می‌شوند.
 """
 import logging
+import os
 import re
 import asyncio
 import uuid
@@ -39,6 +40,7 @@ from downloader import (
 )
 from plans import build_plan_catalog_text, normalize_platform
 from runtime_store import (
+    TELEGRAM_BOT_UPLOAD_LIMIT_MB,
     add_log,
     evaluate_download_access,
     get_bot_user,
@@ -793,6 +795,44 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 cleanup_file(result.file_path)
                 delete_pending_request(request_token)
                 return
+
+        # Anything past the Bot API's 50 MB upload cap goes up through the user
+        # session into the dump channel and is copied from there, which is the
+        # same route restricted Telegram content already takes. Without it the
+        # send would fail with 413 after the whole file had been fetched.
+        file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
+        if file_size > TELEGRAM_BOT_UPLOAD_LIMIT_MB * 1024 * 1024:
+            from userbot_client import userbot
+            await _status("large_file_relay")
+            media_type = "audio" if quality == "audio" else "video"
+            meta = {"duration": result.duration or duration_seconds,
+                    "width": result.width, "height": result.height}
+            delivered = await userbot.deliver_large_file(
+                file_path, media_type,
+                get_text("document_caption", user_lang, title=caption), meta)
+            if delivered:
+                dump_chat_id, dump_message_id = delivered
+                await context.bot.copy_message(
+                    chat_id=query.message.chat_id,
+                    from_chat_id=dump_chat_id,
+                    message_id=dump_message_id,
+                )
+                try:
+                    await status_msg.delete()
+                except Exception as exc:
+                    logger.debug("status delete skipped: %s", exc)
+                add_log("INFO", "download_sent_large",
+                        f"فایل {file_size // (1024*1024)} مگابایتی از طریق کانال واسطه ارسال شد.",
+                        platform=platform_name, url=url,
+                        metadata={"source": "تلگرام ربات", "telegram_user_id": user_id})
+                record_usage_event(user_id, platform=platform_name, url=url,
+                                   media_kind="audio" if quality == "audio" else "video",
+                                   quality=quality, duration_seconds=duration_seconds,
+                                   metadata={"source": "تلگرام ربات", "title": caption})
+                cleanup_file(file_path)
+                delete_pending_request(request_token)
+                return
+            logger.warning("large-file relay unavailable, falling back to a direct send")
 
         if quality == "audio":
             await status_msg.chat.send_action(ChatAction.UPLOAD_VOICE)

@@ -360,6 +360,30 @@ class UserBotClient:
             logger.error("download_media خطا: %s", e)
             return None, media_type, meta
 
+    async def deliver_large_file(self, file_path: str, media_type: str, caption: str = "", meta: dict | None = None):
+        """
+        Put a file the Bot API is too small to send into the dump channel.
+
+        Telegram caps a bot upload at 50 MB but a user session at 2 GB, and
+        copy_message has no size limit of its own — so anything the userbot can
+        put in the channel, the bot can hand to the user. Already used for
+        restricted Telegram content; this is the same route for an ordinary
+        download that came out too large.
+
+        Returns (chat_id, message_id), or None when the route is unavailable.
+        """
+        if not self.is_ready:
+            logger.warning("large-file delivery skipped: userbot not ready")
+            return None
+        try:
+            msg = await self._upload_to_dump(file_path, media_type, caption, meta or {})
+        except Exception as e:
+            logger.error("large-file upload to dump failed: %s", e)
+            return None
+        if not msg:
+            return None
+        return msg.chat.id, msg.id
+
     async def _upload_to_dump(self, file_path, media_type, caption, meta):
         from config import DUMP_CHANNEL_ID
         try:
@@ -371,16 +395,23 @@ class UserBotClient:
             else:
                 dump_target = int(dump_target)
             
+            # dict.get's default only applies to a missing key, so a key that is
+            # present and None comes straight through — and Pyrogram then calls
+            # to_bytes on it. Callers that pass unknown metadata as None used to
+            # fail here with "'NoneType' object has no attribute 'to_bytes'".
+            def _num(key):
+                return int(meta.get(key) or 0)
+
             if media_type == "video":
-                return await self._client.send_video(dump_target, video=file_path, caption=caption, duration=meta.get("duration", 0), width=meta.get("width", 0), height=meta.get("height", 0))
+                return await self._client.send_video(dump_target, video=file_path, caption=caption, duration=_num("duration"), width=_num("width"), height=_num("height"))
             elif media_type == "audio":
-                return await self._client.send_audio(dump_target, audio=file_path, caption=caption, duration=meta.get("duration", 0))
+                return await self._client.send_audio(dump_target, audio=file_path, caption=caption, duration=_num("duration"))
             elif media_type == "photo":
                 return await self._client.send_photo(dump_target, photo=file_path, caption=caption)
             elif media_type == "animation":
                 return await self._client.send_animation(dump_target, animation=file_path, caption=caption)
             elif media_type == "voice":
-                return await self._client.send_voice(dump_target, voice=file_path, caption=caption, duration=meta.get("duration", 0))
+                return await self._client.send_voice(dump_target, voice=file_path, caption=caption, duration=_num("duration"))
             else:
                 return await self._client.send_document(dump_target, document=file_path, caption=caption)
         except Exception as e:

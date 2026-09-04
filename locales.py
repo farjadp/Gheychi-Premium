@@ -114,6 +114,7 @@ MESSAGES = {
         "tg_caption": "📁 {title}\n\n🤖 @{bot}",
 
         # ===== Concurrency =====
+        "large_file_relay": "📦 فایل بزرگ‌تر از حد معمول است. در حال ارسال از مسیر جایگزین — کمی بیشتر طول می‌کشد.",
         "user_busy": "⏳ یک دانلود دیگر از شما همین حالا در حال انجام است.\nلطفاً تا پایان آن صبر کن و بعد لینک بعدی را بفرست.",
         "queue_wait": "⏳ سرور در حال حاضر شلوغ است. درخواست شما در صف قرار گرفت..."
     },
@@ -230,6 +231,7 @@ MESSAGES = {
         "tg_caption": "📁 {title}\n\n🤖 @{bot}",
 
         # ===== Concurrency =====
+        "large_file_relay": "📦 This file is larger than usual. Sending it another way — it will take a little longer.",
         "user_busy": "⏳ You already have a download in progress.\nPlease wait for it to finish before sending another link.",
         "queue_wait": "⏳ The server is busy right now. Your request has been queued..."
     }
