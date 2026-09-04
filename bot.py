@@ -683,7 +683,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     status_msg: Message = query.message
-    await status_msg.edit_text(get_text("downloading", user_lang))
     await status_msg.chat.send_action(ChatAction.UPLOAD_VIDEO)
 
     last_pct = {"val": -1}
@@ -700,18 +699,33 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         last_pct["val"] = pct
         last_edit["at"] = now
-        task = asyncio.create_task(
-            status_msg.edit_text(get_text("download_progress", user_lang, pct=pct))
-        )
+        async def _edit():
+            try:
+                await status_msg.edit_text(get_text("download_progress", user_lang, pct=pct))
+            except Exception as exc:
+                logger.debug("progress edit skipped: %s", exc)
+
+        task = asyncio.create_task(_edit())
         progress_tasks.add(task)
         task.add_done_callback(progress_tasks.discard)
+
+    async def _status(key: str):
+        """
+        Telegram rejects an edit whose content matches the message already
+        shown, and that BadRequest used to escape and abort the download before
+        it began. A status line is cosmetic; it may never break the job.
+        """
+        try:
+            await status_msg.edit_text(get_text(key, user_lang))
+        except Exception as exc:
+            logger.debug("status edit skipped (%s): %s", key, exc)
 
     try:
         async with user_slot(user_id):
             if is_busy():
-                await status_msg.edit_text(get_text("queue_wait", user_lang))
+                await _status("queue_wait")
             async with download_slot():
-                await status_msg.edit_text(get_text("downloading", user_lang))
+                await _status("downloading")
                 if quality == "audio":
                     result = await download_audio(url, progress_callback=on_progress)
                 else:
