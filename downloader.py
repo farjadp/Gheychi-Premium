@@ -94,6 +94,11 @@ def _parse_radiojavan_url(url: str) -> Optional[dict]:
         if m:
             return {"type": m.group(1), "id": m.group(2)}
     else:
+        # The site serves songs at /song/<slug> and the API answers for them on
+        # the mp3 endpoint, so the two names have to be mapped.
+        m = re.match(r"/song/([^/?]+)", parsed.path)
+        if m:
+            return {"type": "mp3", "id": m.group(1)}
         m = re.search(r"/(mp3|podcast|video)[^/]*/(?:mp3|podcast|video)?/?([^/?]+)", parsed.path)
         if m:
             if m.group(1) != m.group(2):
@@ -381,8 +386,21 @@ async def get_video_info(url: str) -> VideoInfo:
     loop = asyncio.get_running_loop()
 
     def _fetch():
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            return ydl.extract_info(url, download=False)
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                return ydl.extract_info(url, download=False)
+        except yt_dlp.utils.DownloadError:
+            # A stale cookie file is worse than none: an expired YouTube session
+            # answers the API with 400 rather than falling back to anonymous
+            # access. The download path already tries both, so metadata does too
+            # instead of failing on a cookie nobody has refreshed.
+            if not opts.get("cookiefile"):
+                raise
+            retry = dict(opts)
+            retry.pop("cookiefile", None)
+            logger.warning("retrying metadata for %s without cookies", url)
+            with yt_dlp.YoutubeDL(retry) as ydl:
+                return ydl.extract_info(url, download=False)
 
     # Metadata is a convenience, not the job. On a datacenter IP an extraction
     # can stall behind bot checks, and for the platforms the API layer can
