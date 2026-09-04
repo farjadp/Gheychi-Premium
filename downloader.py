@@ -244,7 +244,13 @@ _NODE_BIN = next((p for p in _NODE_PATHS if p == "node" or (os.path.isfile(p) an
 
 def _youtube_ydl_profiles(url: str) -> list[dict]:
     if not _is_youtube_url(url):
-        return [{"name": "default", "use_cookies": True, "clients": None}]
+        profiles = [{"name": "default", "use_cookies": True, "clients": None}]
+        # A cookie file that has expired makes the request worse than an
+        # anonymous one, so a failed cookied attempt is retried without them.
+        # Purely additive: a first attempt that succeeds never reaches this.
+        if _get_cookies_file(url):
+            profiles.append({"name": "default-no-cookies", "use_cookies": False, "clients": None})
+        return profiles
 
     has_cookies = bool(_get_cookies_file(url))
     profiles: list[dict] = []

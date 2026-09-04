@@ -125,8 +125,15 @@ def save_settings(settings: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+# Telegram refuses a bot upload above 50 MB. A larger configured value does not
+# buy anything: the file downloads in full and then the send fails with 413,
+# which is what production was doing with the setting left at 500.
+TELEGRAM_BOT_UPLOAD_LIMIT_MB = 50
+
+
 def get_max_file_size_bytes() -> int:
-    return int(load_settings()["max_file_size_mb"]) * 1024 * 1024
+    configured = int(load_settings()["max_file_size_mb"])
+    return min(configured, TELEGRAM_BOT_UPLOAD_LIMIT_MB) * 1024 * 1024
 
 
 def init_logs_db() -> None:
