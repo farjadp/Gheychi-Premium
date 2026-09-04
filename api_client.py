@@ -1,4 +1,5 @@
 import json
+import os
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 import logging
@@ -8,9 +9,11 @@ from config import USE_COBALT_API, COBALT_API_URL, USE_RAPIDAPI, RAPIDAPI_KEY, R
 
 logger = logging.getLogger(__name__)
 
-# How long to wait for the YouTube provider to prepare a file before giving
-# up. Measured at 14-21 seconds; the ceiling is for a bad day, not the norm.
-YOUTUBE_API_TIMEOUT = 60
+# How long to wait for the YouTube provider to prepare a file. A warm job comes
+# back in 14-21 seconds, but a cold one has been seen to pass 60 and then finish
+# at 15 on the retry, so the ceiling has room for a slow start rather than
+# failing a request that was about to succeed. Overridable without a deploy.
+YOUTUBE_API_TIMEOUT = int(os.getenv("YOUTUBE_API_TIMEOUT_SECONDS", "150"))
 
 def is_cobalt_supported_url(url: str) -> bool:
     """Check if the URL should be processed by API layers."""
