@@ -236,13 +236,16 @@ def fetch_media_from_youtube_fast_api(url: str, quality: str) -> dict:
     if not host:
         return {"success": False, "error": "RAPIDAPI_YT_HOST تنظیم نشده است."}
 
-    # The provider names formats by height, plus mp3 for audio.
+    # The provider names formats by height, plus mp3 for audio. When no height
+    # was asked for, 360 is the default rather than 720: everything here has to
+    # fit inside Telegram's 50 MB bot upload limit, and 720 puts most videos
+    # over it. A ten-minute clip is about 27 MB at 360.
     if quality == "audio":
         fmt = "mp3"
     elif str(quality).isdigit():
         fmt = str(quality)
     else:
-        fmt = "720"
+        fmt = "360"
 
     quoted = urllib.parse.quote(url, safe="")
     job_url = f"https://{host}/ajax/download.php?format={fmt}&url={quoted}"
@@ -304,8 +307,26 @@ def get_direct_media_url(url: str, quality: str = "max") -> dict:
             logger.warning("Cobalt failed: %s", res.get("error"))
             errors.append(res.get("error", "Cobalt Error"))
 
-    # Layer 1: RapidAPI (primary for YouTube - most reliable)
     rapid_key = settings.get("rapidapi_key") or RAPIDAPI_KEY
+
+    # Layer 1: the YouTube provider, and only for YouTube.
+    #
+    # It goes ahead of the generic handler because that one answers a YouTube
+    # link with a raw googlevideo URL, which is signed against the requesting
+    # IP. It reports success, so it used to end the chain here, and the download
+    # that followed died with 403 from a datacenter address. This provider
+    # fetches on its own infrastructure and returns a file on its CDN, with no
+    # such binding.
+    if is_youtube and rapid_key:
+        logger.info("Using YouTube provider for URL: %s", url)
+        res = fetch_media_from_youtube_fast_api(url, quality)
+        if res.get("success"):
+            return res
+        else:
+            logger.warning("YouTube provider failed: %s", res.get("error"))
+            errors.append(res.get("error", "YouTube API Error"))
+
+    # Layer 2: the generic handler, unchanged for every other platform.
     if rapid_key:
         logger.info("Using RapidAPI for URL: %s", url)
         res = fetch_media_from_rapidapi(url)
@@ -314,15 +335,5 @@ def get_direct_media_url(url: str, quality: str = "max") -> dict:
         else:
             logger.warning("RapidAPI failed: %s", res.get("error"))
             errors.append(res.get("error", "RapidAPI Error"))
-
-    # Layer 2: YouTube FAST Downloader (fallback for youtube)
-    if is_youtube:
-        logger.info("Using YouTube FAST API for URL: %s", url)
-        res = fetch_media_from_youtube_fast_api(url, quality)
-        if res.get("success"):
-            return res
-        else:
-            logger.warning("YouTube FAST API failed: %s", res.get("error"))
-            errors.append(res.get("error", "YouTube FAST API Error"))
             
     return {"success": False, "error": " | ".join(errors) if errors else "هیچ واسط دانلودر مستقیمی (API) فعال نیست."}
