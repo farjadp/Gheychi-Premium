@@ -301,7 +301,10 @@ def get_direct_media_url(url: str, quality: str = "max") -> dict:
     is_youtube = "youtube.com" in url_lower or "youtu.be" in url_lower
     
     # Layer 0: Dedicated Cobalt
-    if settings.get("use_cobalt_api", USE_COBALT_API) and is_cobalt_supported_url(url):
+    # The environment variable is a hard off switch: the admin panel stores its own
+    # copy of this flag, so flipping the variable alone would be overridden by a
+    # stale "true" in the database. Both have to agree before Cobalt is tried.
+    if USE_COBALT_API and settings.get("use_cobalt_api", USE_COBALT_API) and is_cobalt_supported_url(url):
         logger.info("Using Cobalt API for URL: %s", url)
         res = fetch_media_from_cobalt(url, quality)
         if res.get("success"):

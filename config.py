@@ -56,7 +56,11 @@ DUMP_CHANNEL_ID = DUMP_CHANNEL_ID_RAW
 
 # Cobalt / RapidAPI Settings
 # Cobalt / RapidAPI Settings
-USE_COBALT_API = os.getenv("USE_COBALT_API", "True").lower() == "true"
+# Off by default. The self-hosted instance answered 500/503 on every request,
+# and because Cobalt sat first in the chain each Instagram or Twitter download
+# paid for that failure before reaching an API that works. Set the variable to
+# "true" to bring the layer back once an instance is actually serving.
+USE_COBALT_API = os.getenv("USE_COBALT_API", "False").lower() == "true"
 COBALT_API_URL = os.getenv("COBALT_API_URL", "https://cobalt-api-v10-452069892013.europe-west1.run.app/")
 COBALT_API_JWT = os.getenv("COBALT_API_JWT", "")
 USE_RAPIDAPI = os.getenv("USE_RAPIDAPI", "False").lower() == "true"

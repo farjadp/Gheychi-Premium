@@ -524,9 +524,17 @@ async def download_video(
             error="لینک RadioJavan ترجیحاً به‌صورت فایل صوتی قابل دانلود است، در صورت امکان دکمه دانلود صوت را انتخاب کنید.",
         )
 
-    # For YouTube, signed direct URLs returned by third-party APIs often 403 on Railway.
-    # Let yt-dlp generate URLs from the current server first, then use APIs only as a final fallback.
-    if is_cobalt_supported_url(source_url) and not _is_youtube_url(source_url):
+    # YouTube used to be held back from this layer because the generic handler
+    # answered a YouTube link with a googlevideo URL signed against the requesting
+    # IP, which 403s from a datacenter. That is no longer how the request is
+    # served: a dedicated provider now runs ahead of the generic one and returns a
+    # file on its own CDN with no such binding. Meanwhile yt-dlp cannot reach
+    # YouTube from this host at all — every profile answers "Sign in to confirm
+    # you're not a bot" — so going there first only spent about ten seconds per
+    # request on a certain failure.
+    api_tried = False
+    if is_cobalt_supported_url(source_url):
+        api_tried = True
         loop = asyncio.get_running_loop()
         api_result = await loop.run_in_executor(None, lambda: get_direct_media_url(source_url, quality))
         if api_result["success"]:
@@ -696,7 +704,10 @@ async def download_video(
             return DownloadResult(success=False, error="فایل دانلود نشد.", direct_url=direct_url)
         logger.warning("yt-dlp attempt produced no file (%s)", profile["name"])
 
-    if _is_youtube_url(source_url):
+    # Only reachable when the block above was skipped, so the provider is never
+    # billed twice for one request — each call costs four units of a 500-a-day
+    # allowance.
+    if _is_youtube_url(source_url) and not api_tried:
         api_result = await loop.run_in_executor(None, lambda: get_direct_media_url(source_url, quality))
         if api_result.get("success"):
             destination = download_dir / f"{request_id}.mp4"
