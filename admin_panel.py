@@ -867,6 +867,97 @@ def stripe_webhook():
 # USER WEB DASHBOARD ROUTES
 # =====================================================================
 
+def _current_account_id() -> str | None:
+    """The signed-in account, or None. Role is checked so an admin session is not one."""
+    if session.get("role") != ROLE_USER:
+        return None
+    return session.get("account_id")
+
+
+def _start_user_session(account_id: str, telegram_user_id: int | None = None) -> None:
+    # Cleared first so a stale admin role can never survive into a user session.
+    session.clear()
+    session.permanent = True
+    session["role"] = ROLE_USER
+    session["account_id"] = account_id
+    session["csrf_token"] = secrets.token_hex(16)
+    if telegram_user_id is not None:
+        session["user_id"] = telegram_user_id
+
+
+def _client_ip() -> str:
+    return request.remote_addr or "unknown"
+
+
+# =====================================================================
+# EMAIL SIGN-IN
+# =====================================================================
+
+@app.post("/auth/email/request")
+def email_request_code():
+    """
+    Issue a sign-in code.
+
+    The answer is identical whether or not the address has an account. Any
+    difference — wording, status, timing — turns this endpoint into a way to
+    ask "does this person use Gheychi", which is not ours to disclose.
+    """
+    from accounts import get_account_by_email, normalise_email
+    from auth_codes import PURPOSE_EMAIL_LOGIN, issue_code
+    from mailer import send_login_code
+
+    email = normalise_email(request.form.get("email", ""))
+    if not email or "@" not in email or len(email) > 254:
+        return jsonify(success=False, error="invalid_email"), 400
+
+    ip = _client_ip()
+    # Two independent ceilings: one stops a single address being spammed, the
+    # other stops one host walking a list of addresses.
+    for bucket, key, limit, window in (
+        ("email_code_ip", ip, 10, 900),
+        ("email_code_addr", email, 5, 900),
+    ):
+        retry_after = rate_limit_hit(bucket, key, limit, window)
+        if retry_after:
+            return jsonify(success=False, error="rate_limited", retry_after=retry_after), 429
+
+    existing = get_account_by_email(email)
+    lang = "en"
+    code = issue_code(PURPOSE_EMAIL_LOGIN, email)
+    send_login_code(email, code, lang)
+    add_log("INFO", "email_code_issued", f"کد ورود برای {email} صادر شد (اکانت موجود: {bool(existing)})", metadata={"source": "پنل کاربری"})
+    return jsonify(success=True)
+
+
+@app.post("/auth/email/verify")
+def email_verify_code():
+    """Check the code and sign the account in, creating it on first success."""
+    from accounts import create_account, get_account_by_email, normalise_email
+    from auth_codes import PURPOSE_EMAIL_LOGIN, CodeError, verify_code
+
+    email = normalise_email(request.form.get("email", ""))
+    code = (request.form.get("code") or "").strip()
+    if not email or not code:
+        return jsonify(success=False, error="missing_fields"), 400
+
+    retry_after = rate_limit_hit("email_verify_ip", _client_ip(), 20, 900)
+    if retry_after:
+        return jsonify(success=False, error="rate_limited", retry_after=retry_after), 429
+
+    try:
+        verify_code(PURPOSE_EMAIL_LOGIN, email, code)
+    except CodeError as exc:
+        return jsonify(success=False, error=exc.code), 401
+
+    # Created only now, on a proven address — a failed attempt must not leave
+    # an account behind, or the table fills with addresses nobody controls.
+    account = get_account_by_email(email) or create_account(email)
+    _start_user_session(account["account_id"])
+    rate_limit_clear("email_code_addr", email)
+    add_log("INFO", "email_login", f"ورود با ایمیل: {email}", metadata={"source": "پنل کاربری"})
+    return jsonify(success=True, redirect=url_for("account_page"))
+
+
 # A magic link lives in a Telegram chat forever and travels in a query string,
 # so it leaks through Referer headers, browser history and link-preview
 # prefetch. Expiry alone does not cover that: anyone who reads the chat inside
@@ -907,11 +998,22 @@ def magic_login():
         add_log("WARNING", "magic_link_replay", f"تلاش برای استفاده‌ی دوباره از لینک ورود کاربر {user_id} از {ip}", metadata={"source": "پنل ادمین"})
         return "این لینک قبلاً استفاده شده است. لطفاً از ربات لینک تازه بگیرید.", 401
 
-    # Clear first: without it a stale admin role could survive into a user session.
-    session.clear()
-    session.permanent = True
-    session["user_id"] = user_id
-    session["role"] = ROLE_USER
+    # The two entry routes have to converge on one account. A user who arrived
+    # through the bot first gets an account created here with no email, so that
+    # when they later sign up by email and link this same Telegram account they
+    # join the account they already have instead of stranding it.
+    from accounts import create_account, get_account_by_telegram, link_telegram, LinkError
+
+    account = get_account_by_telegram(user_id)
+    if account is None:
+        account = create_account()
+        try:
+            link_telegram(account["account_id"], user_id)
+        except LinkError as exc:
+            add_log("ERROR", "magic_link_autolink_failed", f"اتصال خودکار کاربر {user_id} ناموفق بود: {exc}", metadata={"source": "پنل کاربری"})
+            return "اتصال حساب ممکن نشد. لطفاً با پشتیبانی تماس بگیرید.", 500
+
+    _start_user_session(account["account_id"], telegram_user_id=user_id)
 
     response = redirect(url_for("user_dashboard"))
     response.headers["Referrer-Policy"] = "no-referrer"
@@ -919,9 +1021,20 @@ def magic_login():
 
 @app.route("/dashboard")
 def user_dashboard():
+    from accounts import list_links
+
+    account_id = _current_account_id()
+    if not account_id:
+        return redirect(url_for("account_page"))
+
+    # An account can hold several Telegram accounts; the dashboard shows the
+    # one the session arrived on, else the first linked.
     user_id = session.get("user_id")
-    if not user_id or session.get("role") != ROLE_USER:
-        return "شما وارد نشده‌اید. لطفاً ابتدا از طریق ربات تلگرام روی دکمه ورود کلیک کنید.", 401
+    if not user_id:
+        links = list_links(account_id)
+        if not links:
+            return redirect(url_for("account_page"))
+        user_id = links[0]["telegram_user_id"]
         
     from runtime_store import get_bot_user, get_user_download_history
     import os
@@ -945,6 +1058,98 @@ def user_dashboard():
 def user_dashboard_upgrade():
     # Placeholder for upgrade logic
     return redirect(BOT_LINK)  # Plans are arranged in the bot until checkout is live
+
+# =====================================================================
+# ACCOUNT PROFILE AND TELEGRAM LINKING
+# =====================================================================
+
+@app.get("/account")
+def account_page():
+    """Sign-in screen when signed out, profile when signed in."""
+    from accounts import get_account, link_capacity, list_links
+
+    account_id = _current_account_id()
+    account = get_account(account_id) if account_id else None
+
+    if account and not session.get("csrf_token"):
+        session["csrf_token"] = secrets.token_hex(16)
+    elif not account:
+        # The sign-in form posts too, so it needs a token before there is a login.
+        session.setdefault("csrf_token", secrets.token_hex(16))
+
+    template_path = os.path.join(os.path.dirname(__file__), "website", "account.html")
+    with open(template_path, "r", encoding="utf-8") as f:
+        template_str = f.read()
+    return render_template_string(
+        template_str,
+        account=account,
+        links=list_links(account_id) if account else [],
+        capacity=link_capacity(account_id) if account else None,
+        bot_username=BOT_USERNAME,
+        csrf_token=session.get("csrf_token"),
+    )
+
+
+@app.post("/account/link/start")
+def account_link_start():
+    """
+    Hand back a deep link and a six-digit code for attaching a Telegram account.
+
+    Both point at the same pending link. The deep link is one tap on a phone;
+    the code covers the case where the site is on a desktop and Telegram is
+    only on the phone, so nothing can be tapped across the gap.
+    """
+    from auth_codes import PURPOSE_LINK_CODE, PURPOSE_LINK_DEEP, generate_token, issue_code
+
+    account_id = _current_account_id()
+    if not account_id:
+        return jsonify(success=False, error="not_signed_in"), 401
+
+    retry_after = rate_limit_hit("link_start", account_id, 10, 900)
+    if retry_after:
+        return jsonify(success=False, error="rate_limited", retry_after=retry_after), 429
+
+    token = generate_token()
+    issue_code(PURPOSE_LINK_DEEP, account_id, code=token)
+    code = issue_code(PURPOSE_LINK_CODE, account_id)
+    return jsonify(
+        success=True,
+        deep_link=f"https://t.me/{BOT_USERNAME}?start=link_{token}",
+        code=code,
+        expires_in=300,
+    )
+
+
+@app.get("/account/links")
+def account_links():
+    """Polled by the profile so a link confirmed in Telegram appears without a reload."""
+    from accounts import link_capacity, list_links
+
+    account_id = _current_account_id()
+    if not account_id:
+        return jsonify(success=False, error="not_signed_in"), 401
+    return jsonify(success=True, links=list_links(account_id), capacity=link_capacity(account_id))
+
+
+@app.post("/account/unlink")
+def account_unlink():
+    from accounts import unlink_telegram, UNLINK_COOLDOWN_DAYS
+
+    account_id = _current_account_id()
+    if not account_id:
+        return jsonify(success=False, error="not_signed_in"), 401
+
+    try:
+        telegram_user_id = int(request.form.get("telegram_user_id", ""))
+    except (TypeError, ValueError):
+        return jsonify(success=False, error="invalid_id"), 400
+
+    if not unlink_telegram(account_id, telegram_user_id):
+        return jsonify(success=False, error="not_linked"), 404
+
+    add_log("INFO", "telegram_unlinked", f"اکانت تلگرام {telegram_user_id} از حساب جدا شد.", metadata={"source": "پنل کاربری"})
+    return jsonify(success=True, cooldown_days=UNLINK_COOLDOWN_DAYS)
+
 
 @app.route("/auth/logout")
 def user_logout():

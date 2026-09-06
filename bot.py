@@ -267,6 +267,13 @@ def build_support_contact(lang: str = "fa") -> tuple[str, InlineKeyboardMarkup |
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+    # A deep link arrives as /start link_<token>. It is handled before the
+    # welcome text so tapping "add this Telegram account" on the site lands on
+    # a confirmation instead of the generic menu.
+    payload = context.args[0] if getattr(context, "args", None) else ""
+    if user and payload.startswith("link_"):
+        await _offer_link(update, user, payload[len("link_"):], via_deep_link=True)
+        return
     if user:
         upsert_bot_user(
             user.id,
@@ -667,6 +674,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data.startswith("lang|"):
         await handle_lang_callback(query, context)
         return
+    if data.startswith("link|"):
+        await handle_link_callback(query, context)
+        return
     if not data.startswith("dl|"):
         return
 
@@ -982,6 +992,111 @@ async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def _offer_link(update: Update, user, secret: str, *, via_deep_link: bool):
+    """
+    Resolve a pending link and ask the user to confirm it.
+
+    Confirmation is not ceremony. The token could have been forwarded to them
+    by someone else, so before this Telegram account is bound to an account the
+    user has to see *which* account, by email, and agree.
+    """
+    from auth_codes import PURPOSE_LINK_CODE, PURPOSE_LINK_DEEP, resolve_token, verify_code, CodeError
+    from accounts import get_account, mask_email
+
+    upsert_bot_user(
+        user.id,
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        language_code=user.language_code,
+    )
+    subscription = get_bot_user(user.id)
+    lang = subscription.get("language_code", "fa") if subscription else "fa"
+
+    if via_deep_link:
+        account_id = resolve_token(PURPOSE_LINK_DEEP, secret)
+    else:
+        account_id = _account_for_link_code(secret)
+
+    if not account_id or not get_account(account_id):
+        await update.message.reply_text(get_text("link_invalid", lang))
+        return
+
+    account = get_account(account_id)
+    keyboard = InlineKeyboardMarkup(
+        [[
+            InlineKeyboardButton(get_text("btn_link_confirm", lang), callback_data=f"link|yes|{account_id}"),
+            InlineKeyboardButton(get_text("btn_link_cancel", lang), callback_data="link|no|-"),
+        ]]
+    )
+    await update.message.reply_text(
+        get_text("link_confirm", lang, email=mask_email(account.get("email"))),
+        reply_markup=keyboard,
+    )
+
+
+def _account_for_link_code(code: str) -> str | None:
+    """
+    Find which account a six-digit code belongs to, then burn it.
+
+    Unlike a deep-link token the code is not unique on its own, so the lookup
+    goes through the hash the same way and the subject comes back with it.
+    """
+    from auth_codes import PURPOSE_LINK_CODE, resolve_token
+
+    return resolve_token(PURPOSE_LINK_CODE, code)
+
+
+async def link_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/link <code> — the desktop fallback when the deep link cannot be tapped."""
+    user = update.effective_user
+    if not user:
+        return
+    subscription = get_bot_user(user.id)
+    lang = subscription.get("language_code", "fa") if subscription else "fa"
+
+    code = (context.args[0].strip() if getattr(context, "args", None) else "")
+    if not code.isdigit() or len(code) != 6:
+        await update.message.reply_text(get_text("link_usage", lang))
+        return
+    await _offer_link(update, user, code, via_deep_link=False)
+
+
+async def handle_link_callback(query, context: ContextTypes.DEFAULT_TYPE):
+    from accounts import (
+        AlreadyLinkedHere,
+        CooldownActive,
+        LinkError,
+        OwnedByAnotherAccount,
+        SlotCapReached,
+        link_telegram,
+    )
+
+    _, decision, account_id = query.data.split("|", 2)
+    user = query.from_user
+    subscription = get_bot_user(user.id) if user else None
+    lang = subscription.get("language_code", "fa") if subscription else "fa"
+
+    if decision != "yes":
+        await query.edit_message_text(get_text("link_cancelled", lang))
+        return
+
+    try:
+        link_telegram(account_id, user.id)
+    except AlreadyLinkedHere:
+        await query.edit_message_text(get_text("link_already_here", lang))
+    except OwnedByAnotherAccount as exc:
+        await query.edit_message_text(get_text("link_owned_elsewhere", lang, email=exc.masked_email))
+    except SlotCapReached as exc:
+        await query.edit_message_text(get_text("link_cap_reached", lang, cap=exc.cap))
+    except CooldownActive as exc:
+        await query.edit_message_text(get_text("link_cooldown", lang, date=exc.reusable_at[:10]))
+    except LinkError:
+        await query.edit_message_text(get_text("link_invalid", lang))
+    else:
+        await query.edit_message_text(get_text("link_success", lang))
+
+
 async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if not user:
@@ -1084,6 +1199,7 @@ def main():
     app.add_handler(CommandHandler("support", support_command))
     app.add_handler(CommandHandler("lang", lang_command))
     app.add_handler(CommandHandler("dashboard", dashboard_command))
+    app.add_handler(CommandHandler("link", link_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_url))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_error_handler(error_handler)

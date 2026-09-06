@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% if account %}Your account{% else %}Sign in{% endif %} — Gheychi Premium</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .acct-head { border-bottom: 1px solid var(--rule); background: var(--paper-2); }
+  .acct-in { display: flex; align-items: center; gap: 1rem; height: 60px; }
+
+  .gate { max-width: 30rem; margin-inline: auto; }
+  .field { display: block; margin-bottom: .875rem; }
+  .field span {
+    display: block; margin-bottom: .375rem;
+    font-family: var(--mono); font-size: .6875rem; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .field input {
+    width: 100%; padding: .6875rem .8125rem;
+    border: 1px solid var(--rule); border-radius: var(--radius);
+    background: var(--paper); color: var(--ink);
+    font-family: var(--sans); font-size: 1rem;
+  }
+  .field input:focus-visible { outline: 2px solid var(--signal); outline-offset: 1px; border-color: var(--signal); }
+  .field input.code {
+    font-family: var(--mono); font-size: 1.5rem; letter-spacing: .35em;
+    text-align: center; font-variant-numeric: tabular-nums;
+  }
+
+  .note { padding: .75rem .875rem; border-radius: var(--radius); font-size: .875rem; line-height: 1.55; }
+  .note-bad  { background: var(--signal-wash); color: var(--signal-deep); border: 1px solid var(--signal); }
+  .note-ok   { background: var(--paper-2); color: var(--ink-2); border: 1px solid var(--rule); }
+  .note-warn { background: var(--hazard-wash); color: var(--warn); border: 1px solid var(--hazard); }
+
+  .slots { display: flex; align-items: baseline; gap: .5rem; }
+  .slots b { font-family: var(--mono); font-size: 1.75rem; font-variant-numeric: tabular-nums; }
+
+  .ledger { width: 100%; border-collapse: collapse; }
+  .ledger th {
+    text-align: left; padding: .625rem .75rem; border-bottom: 1px solid var(--rule);
+    font-family: var(--mono); font-size: .6875rem; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap;
+  }
+  .ledger td { padding: .8125rem .75rem; border-bottom: 1px solid var(--rule-soft); font-size: .875rem; vertical-align: baseline; }
+  .ledger td:first-child, .ledger th:first-child { padding-left: 0; }
+  .ledger td:last-child,  .ledger th:last-child  { padding-right: 0; text-align: right; }
+  .ledger .num { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .table-scroll { overflow-x: auto; }
+
+  .qr { display: block; width: 168px; height: 168px; background: #fff; padding: 8px; border: 1px solid var(--rule); border-radius: var(--radius); }
+  .pair-code {
+    font-family: var(--mono); font-size: 1.75rem; font-weight: 600;
+    letter-spacing: .3em; font-variant-numeric: tabular-nums; color: var(--ink);
+  }
+  .countdown { font-family: var(--mono); font-size: .8125rem; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  [hidden] { display: none !important; }
+
+  /* On a phone the table pushes Unlink off the edge. Horizontal scroll keeps
+     it reachable, but the primary action on the most likely device should not
+     need discovering, so the rows become stacked records instead. */
+  @media (max-width: 40rem) {
+    .ledger thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .ledger, .ledger tbody, .ledger tr, .ledger td { display: block; width: 100%; }
+    .ledger tr { border-bottom: 1px solid var(--rule-soft); padding: .875rem 0; }
+    .ledger td { border: 0; padding: .125rem 0; }
+    .ledger td[data-label]::before {
+      content: attr(data-label) " ";
+      font-family: var(--mono); font-size: .6875rem; font-weight: 600;
+      letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3);
+      margin-right: .5rem;
+    }
+    .ledger td:last-child { text-align: left; padding-top: .625rem; }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="i-scissors" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
+      <line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/>
+    </g>
+    <g id="i-send" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/>
+    </g>
+    <g id="i-out" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17 5 12l5-5"/><path d="M5 12h11"/>
+    </g>
+  </defs>
+</svg>
+
+<header class="acct-head">
+  <div class="wrap acct-in">
+    <a class="brand" href="/index.html">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-scissors"/></svg>
+      <span class="stack-s" style="gap:0"><b>Gheychi Premium</b><span>{% if account %}Account{% else %}Sign in{% endif %}</span></span>
+    </a>
+    {% if account %}
+    <a class="btn btn-line btn-sm" style="margin-left:auto" href="/auth/logout">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-out"/></svg> Sign out
+    </a>
+    {% endif %}
+  </div>
+</header>
+
+<main id="main" class="wrap" style="padding-block: clamp(2rem,5vw,3rem)">
+
+{% if not account %}
+  <!-- ============ SIGN IN ============ -->
+  <div class="gate stack">
+    <div class="sec-rule"><span class="spec spec-ink">Sign in</span></div>
+    <h1 class="t-h2">Your account</h1>
+    <p class="t-lead" style="font-size:1rem">
+      No password. We email you a six-digit code. If you already use the bot,
+      you can also open your account straight from Telegram with
+      <span class="num">/dashboard</span>.
+    </p>
+
+    <form id="form-email" class="stack-s" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="field">
+        <span>Email address</span>
+        <input type="email" name="email" id="email" autocomplete="email" required placeholder="you@example.com">
+      </label>
+      <button class="btn btn-signal" type="submit" id="btn-send">Email me a code</button>
+    </form>
+
+    <form id="form-code" class="stack-s" hidden novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="field">
+        <span>Six-digit code</span>
+        <input class="code" type="text" name="code" id="code" inputmode="numeric" autocomplete="one-time-code"
+               pattern="[0-9]{6}" maxlength="6" required placeholder="000000">
+      </label>
+      <button class="btn btn-signal" type="submit" id="btn-verify">Sign in</button>
+      <button class="btn btn-line btn-sm" type="button" id="btn-back">Use a different address</button>
+    </form>
+
+    <div id="gate-msg" class="note note-ok" hidden></div>
+  </div>
+
+{% else %}
+  <!-- ============ PROFILE ============ -->
+  <div class="sec-rule">
+    <span class="spec spec-ink">Account</span>
+    <span class="spec">{{ account.email or 'No email yet' }}</span>
+  </div>
+
+  <div class="cols cols-2" style="align-items:start;margin-bottom:clamp(2rem,5vw,3rem)">
+    <div class="stack">
+      <h1 class="t-h2">Telegram accounts</h1>
+      <p class="t-lead" style="font-size:1rem">
+        Link the Telegram accounts you want to use the bot from. Your plan and
+        your quota belong to this account — linked accounts
+        <strong>share one pool</strong>, they do not each get their own.
+      </p>
+      <div class="row" style="margin-top:.25rem">
+        <button class="btn btn-signal" id="btn-add">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-send"/></svg> Add a Telegram account
+        </button>
+        <a class="btn btn-line" href="/dashboard">Usage &amp; history</a>
+      </div>
+    </div>
+
+    <dl class="specs" style="margin:0">
+      <div class="spec-row"><dt>Plan</dt><span class="leader"></span>
+        <dd id="cap-plan">{{ capacity.plan_code|capitalize }}</dd></div>
+      <div class="spec-row"><dt>Linked accounts</dt><span class="leader"></span>
+        <dd><span id="cap-used">{{ capacity.used }}</span> of <span id="cap-cap">{{ capacity.cap }}</span></dd></div>
+      <div class="spec-row"><dt>Max file size</dt><span class="leader"></span><dd>50 MB</dd></div>
+    </dl>
+  </div>
+
+  <!-- Add flow -->
+  <div id="add-panel" class="stack" hidden style="margin-bottom:clamp(2rem,5vw,3rem)">
+    <div class="sec-rule">
+      <span class="spec spec-ink">Add a Telegram account</span>
+      <span class="countdown" id="countdown"></span>
+    </div>
+    <div class="cols cols-2" style="align-items:start">
+      <div class="stack-s">
+        <p class="t-body" style="font-size:.9375rem">
+          <strong>On this phone:</strong> tap the button. Telegram opens and asks you to confirm.
+        </p>
+        <a class="btn btn-signal" id="deep-link" href="#" target="_blank" rel="noopener">Open Telegram</a>
+        <p class="t-body" style="font-size:.9375rem;margin-top:.75rem">
+          <strong>On another device:</strong> scan this, or send the code to the bot as
+          <span class="num">/link 000000</span>.
+        </p>
+        <img class="qr" id="qr" alt="QR code that opens the bot" width="168" height="168">
+      </div>
+      <div class="stack-s">
+        <span class="spec spec-plain">Code</span>
+        <div class="pair-code" id="pair-code">——————</div>
+        <div class="note note-ok">
+          The bot will ask you to confirm before anything is linked. This page
+          updates on its own once you do.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Linked list -->
+  <div class="stack">
+    <div class="sec-rule"><span class="spec spec-ink">Linked</span></div>
+    <div class="table-scroll">
+      <table class="ledger">
+        <thead>
+          <tr><th scope="col">Telegram</th><th scope="col">ID</th><th scope="col">Linked</th><th scope="col">Action</th></tr>
+        </thead>
+        <tbody id="links-body">
+          {% for link in links %}
+            <tr data-tg="{{ link.telegram_user_id }}">
+              <td>{{ link.first_name or '' }} {{ link.last_name or '' }}{% if link.username %} <span class="num">@{{ link.username }}</span>{% endif %}</td>
+              <td class="num" data-label="ID">{{ link.telegram_user_id }}</td>
+              <td class="num" data-label="Linked">{{ link.linked_at[:10] }}</td>
+              <td><button class="btn btn-line btn-sm btn-unlink" data-tg="{{ link.telegram_user_id }}">Unlink</button></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p id="links-empty" class="t-body" style="font-size:.875rem" {% if links %}hidden{% endif %}>
+      Nothing linked yet. Add a Telegram account to start using the bot.
+    </p>
+    <p class="spec spec-plain">
+      Unlinking frees a slot, but a <em>different</em> Telegram account cannot take it for 7 days.
+      Re-linking the same one is immediate.
+    </p>
+  </div>
+
+  <div id="profile-msg" class="note note-bad" hidden style="margin-top:1rem"></div>
+{% endif %}
+
+</main>
+
+<script>
+(function () {
+  var CSRF = {{ (csrf_token or '')|tojson }};
+
+  function post(url, data) {
+    var body = new URLSearchParams(data || {});
+    body.set('csrf_token', CSRF);
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+      body: body
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); });
+  }
+
+  /* ---------- sign in ---------- */
+  var formEmail = document.getElementById('form-email');
+  if (formEmail) {
+    var formCode = document.getElementById('form-code');
+    var msg = document.getElementById('gate-msg');
+    var current = '';
+
+    function say(text, kind) {
+      msg.textContent = text;
+      msg.className = 'note note-' + (kind || 'ok');
+      msg.hidden = false;
+    }
+
+    formEmail.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var email = document.getElementById('email').value.trim();
+      if (!email) { return; }
+      var btn = document.getElementById('btn-send');
+      btn.disabled = true;
+      post('/auth/email/request', { email: email }).then(function (res) {
+        btn.disabled = false;
+        if (res.body.error === 'rate_limited') {
+          say('Too many requests. Try again in a few minutes.', 'warn');
+          return;
+        }
+        if (!res.ok) { say('That address does not look right.', 'bad'); return; }
+        current = email;
+        formEmail.hidden = true;
+        formCode.hidden = false;
+        document.getElementById('code').focus();
+        say('If that address has an inbox we can reach, a six-digit code is on its way. It expires in 5 minutes.', 'ok');
+      });
+    });
+
+    formCode.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var code = document.getElementById('code').value.trim();
+      var btn = document.getElementById('btn-verify');
+      btn.disabled = true;
+      post('/auth/email/verify', { email: current, code: code }).then(function (res) {
+        btn.disabled = false;
+        if (res.body.success) { window.location = res.body.redirect || '/account'; return; }
+        var reasons = {
+          expired: 'That code has expired. Ask for a new one.',
+          exhausted: 'Too many wrong tries. Ask for a new code.',
+          invalid: 'That code is not right.',
+          rate_limited: 'Too many attempts. Wait a few minutes.'
+        };
+        say(reasons[res.body.error] || 'Could not sign you in.', 'bad');
+      });
+    });
+
+    document.getElementById('btn-back').addEventListener('click', function () {
+      formCode.hidden = true;
+      formEmail.hidden = false;
+      msg.hidden = true;
+    });
+  }
+
+  /* ---------- profile ---------- */
+  var btnAdd = document.getElementById('btn-add');
+  if (btnAdd) {
+    var panel = document.getElementById('add-panel');
+    var pMsg = document.getElementById('profile-msg');
+    var poll = null, ticker = null;
+
+    function fail(text) { pMsg.textContent = text; pMsg.hidden = false; }
+
+    function stop() {
+      if (poll) { clearInterval(poll); poll = null; }
+      if (ticker) { clearInterval(ticker); ticker = null; }
+    }
+
+    function render(data) {
+      var body = document.getElementById('links-body');
+      body.innerHTML = '';
+      data.links.forEach(function (l) {
+        var tr = document.createElement('tr');
+        var name = [l.first_name || '', l.last_name || ''].join(' ').trim();
+        tr.innerHTML =
+          '<td></td><td class="num" data-label="ID">' + l.telegram_user_id + '</td>' +
+          '<td class="num" data-label="Linked">' + (l.linked_at || '').slice(0, 10) + '</td>' +
+          '<td><button class="btn btn-line btn-sm btn-unlink" data-tg="' + l.telegram_user_id + '">Unlink</button></td>';
+        // Written as text, never as markup: a Telegram display name is
+        // attacker-controlled and must not be able to inject into this page.
+        tr.children[0].textContent = name + (l.username ? ' @' + l.username : '');
+        body.appendChild(tr);
+      });
+      document.getElementById('links-empty').hidden = data.links.length > 0;
+      document.getElementById('cap-used').textContent = data.capacity.used;
+      document.getElementById('cap-cap').textContent = data.capacity.cap;
+    }
+
+    function refresh() {
+      return fetch('/account/links', { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (j) { if (j.success) { render(j); } return j; });
+    }
+
+    btnAdd.addEventListener('click', function () {
+      pMsg.hidden = true;
+      btnAdd.disabled = true;
+      post('/account/link/start', {}).then(function (res) {
+        btnAdd.disabled = false;
+        if (!res.body.success) {
+          fail(res.body.error === 'rate_limited'
+            ? 'Too many attempts. Wait a few minutes.'
+            : 'Could not start linking. Reload and try again.');
+          return;
+        }
+        var link = res.body.deep_link;
+        panel.hidden = false;
+        document.getElementById('deep-link').href = link;
+        document.getElementById('pair-code').textContent = res.body.code;
+        document.getElementById('qr').src =
+          'https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=0&data=' + encodeURIComponent(link);
+
+        var before = null;
+        refresh().then(function (j) { before = j.links.length; });
+
+        stop();
+        var left = res.body.expires_in;
+        var cd = document.getElementById('countdown');
+        ticker = setInterval(function () {
+          left -= 1;
+          if (left <= 0) { stop(); cd.textContent = 'expired'; panel.hidden = true; return; }
+          cd.textContent = 'expires in ' + Math.floor(left / 60) + ':' + ('0' + (left % 60)).slice(-2);
+        }, 1000);
+
+        poll = setInterval(function () {
+          refresh().then(function (j) {
+            if (j.success && before !== null && j.links.length > before) { stop(); panel.hidden = true; }
+          });
+        }, 3000);
+      });
+    });
+
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('.btn-unlink');
+      if (!btn) { return; }
+      if (!window.confirm('Unlink this Telegram account? A different account cannot take the slot for 7 days.')) { return; }
+      post('/account/unlink', { telegram_user_id: btn.dataset.tg }).then(function (res) {
+        if (res.body.success) { refresh(); } else { fail('Could not unlink that account.'); }
+      });
+    });
+  }
+})();
+</script>
+</body>
+</html>
