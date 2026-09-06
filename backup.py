@@ -19,11 +19,14 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from config import BOT_TOKEN, DATA_DIR
+from config import BOT_TOKEN, DATA_DIR, normalise_channel_id
 
 logger = logging.getLogger(__name__)
 
-BACKUP_CHANNEL_ID = os.getenv("BACKUP_CHANNEL_ID", "").strip()
+# Telegram's UI shows a channel's peer id as a bare positive number, but the Bot
+# API wants it prefixed with -100. Normalising here means either form works in
+# the env var, instead of failing at send time a day later.
+BACKUP_CHANNEL_ID = normalise_channel_id(os.getenv("BACKUP_CHANNEL_ID", ""))
 BACKUP_INTERVAL_SECONDS = int(os.getenv("BACKUP_INTERVAL_SECONDS", str(24 * 3600)))
 TELEGRAM_UPLOAD_LIMIT_BYTES = 50 * 1024 * 1024
 

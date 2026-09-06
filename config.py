@@ -89,6 +89,10 @@ def _normalise_dump_channel(value: str) -> str:
     return value
 
 
+# Public alias: the same -100 rule applies to any channel id read from env,
+# so callers normalise through this rather than re-implementing it.
+normalise_channel_id = _normalise_dump_channel
+
 DUMP_CHANNEL_ID_RAW = _normalise_dump_channel(os.getenv("DUMP_CHANNEL_ID", ""))
 DUMP_CHANNEL_ID = DUMP_CHANNEL_ID_RAW
 
