@@ -606,33 +606,30 @@ def _send_broadcast_background(text: str, user_ids: list):
 @app.get("/backup/download")
 @_requires_auth
 def download_backup():
-    # Directories/Files to include
-    include_dirs = ['data']
-    include_files = ['bot.py', 'admin_panel.py', 'config.py', 'runtime_store.py', 'plans.py', 'main.py', 'requirements.txt', 'api_client.py', 'downloader.py', '.env']
-    
-    # Create a temporary directory
+    """
+    Download a snapshot of the data directory.
+
+    This used to zip a hardcoded 'data' folder plus the source files and .env.
+    In production DATA_DIR is /data, so the hardcoded relative path matched
+    nothing and the "full backup" contained no database at all — only source
+    code that is already in git, and every secret in the repo's .env. It now
+    ships the data and nothing else, through the same consistent-snapshot path
+    the scheduled backup uses.
+    """
+    from backup import build_backup_archive
+
     temp_dir = tempfile.mkdtemp()
-    zip_path = os.path.join(temp_dir, 'gheychi_backup.zip')
-    
     try:
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            # Add files
-            for file_name in include_files:
-                if os.path.exists(file_name):
-                    zipf.write(file_name)
-                    
-            # Add data directory recursively
-            for dir_name in include_dirs:
-                if os.path.exists(dir_name):
-                    for root, _, files in os.walk(dir_name):
-                        for file in files:
-                            file_path = os.path.join(root, file)
-                            arcname = os.path.relpath(file_path, os.path.dirname(dir_name))
-                            zipf.write(file_path, arcname)
-                            
-        add_log("INFO", "system_backup", f"یک نسخه پشتیبان کامل از سیستم استخراج شد.", metadata={"source": "پنل ادمین"})
-        return send_file(zip_path, as_attachment=True, download_name='gheychi_premium_backup.zip', mimetype='application/zip')
+        archive = build_backup_archive(temp_dir)
+        add_log("INFO", "system_backup", "یک نسخه پشتیبان از دیتابیس استخراج شد.", metadata={"source": "پنل ادمین"})
+        return send_file(
+            str(archive),
+            as_attachment=True,
+            download_name=archive.name,
+            mimetype="application/zip",
+        )
     except Exception as e:
+        add_log("ERROR", "system_backup_failed", f"استخراج نسخه پشتیبان ناموفق بود: {e}", metadata={"source": "پنل ادمین"})
         return f"Backup failed: {str(e)}", 500
 
 @app.post("/broadcast")
