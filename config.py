@@ -80,7 +80,7 @@ ALLOWED_PLATFORMS = [
     "YouTube", "TikTok", "Twitter/X", "Instagram",
     "Facebook", "Vimeo", "Dailymotion", "Reddit",
     "Twitch", "SoundCloud", "RadioJavan", "PornHub",
-    "Telegram",
+    "Telegram", "LinkedIn",
     "و بیش از ۱۰۰۰ سایت دیگر",
 ]
 

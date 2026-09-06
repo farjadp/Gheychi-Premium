@@ -21,6 +21,7 @@ DEFAULT_SUBSCRIPTION_PLANS = {
             {"platform": "Twitter/X", "limit": 5, "period": "month"},
             {"platform": "Instagram", "limit": 5, "period": "month"},
             {"platform": "Telegram", "limit": 3, "period": "month"},
+            {"platform": "LinkedIn", "limit": 3, "period": "month"},
         ],
     },
     "starter": {
@@ -38,6 +39,7 @@ DEFAULT_SUBSCRIPTION_PLANS = {
             {"platform": "YouTube", "limit": 5, "period": "week", "max_duration_seconds": 900},
             {"platform": "PornHub", "limit": 3, "period": "month", "max_duration_seconds": 1800},
             {"platform": "Telegram", "limit": 20, "period": "month"},
+            {"platform": "LinkedIn", "limit": 13, "period": "month"},
         ],
     },
     "standard": {
@@ -56,6 +58,7 @@ DEFAULT_SUBSCRIPTION_PLANS = {
             {"platform": "YouTube", "limit": 10, "period": "month", "max_duration_seconds": 1800},
             {"platform": "PornHub", "limit": 5, "period": "month", "max_duration_seconds": 1800},
             {"platform": "Telegram", "limit": 50, "period": "month"},
+            {"platform": "LinkedIn", "limit": None, "period": None},
         ],
     },
     "pro": {
@@ -75,6 +78,7 @@ DEFAULT_SUBSCRIPTION_PLANS = {
             {"platform": "YouTube", "limit": 10, "period": "month", "max_duration_seconds": 3600},
             {"platform": "PornHub", "limit": 13, "period": "month", "max_duration_seconds": 2700},
             {"platform": "Telegram", "limit": None, "period": None},
+            {"platform": "LinkedIn", "limit": None, "period": None},
         ],
     },
 }
@@ -123,7 +127,7 @@ def ensure_plan_defaults() -> bool:
             platform = default_rule.get("platform", "")
             # Only backfill platforms the operator has never seen; anything they
             # removed on purpose for an existing platform stays removed.
-            if platform.lower() not in have and platform == "Telegram":
+            if platform.lower() not in have and platform in ("Telegram", "LinkedIn"):
                 rules.append(dict(default_rule))
                 have.add(platform.lower())
                 changed = True
@@ -200,6 +204,8 @@ def normalize_platform(raw_platform: str | None, url: str = "") -> str:
         return "Twitch"
     if "dailymotion.com" in host or "dailymotion" in platform:
         return "Dailymotion"
+    if "linkedin.com" in host or "linkedin" in platform:
+        return "LinkedIn"
     if "pornhub.com" in host or "pornhub" in platform:
         return "PornHub"
     from locales import get_text
