@@ -32,7 +32,8 @@ Everything else the product does — 1000+ sites via yt-dlp, quality selection, 
 
 - The whole primary workflow happens inside a Telegram chat. The website is never where the work happens; it is where the offer is understood and the account is managed.
 - The user's own device is the destination. There is no cloud library, no player, no storage — the file arrives in the chat and the temporary copy is deleted server-side within the hour.
-- Access to the web dashboard is by magic link issued from the bot, not by password. There is no signup form and no account creation on the site.
+- Access to the web dashboard is passwordless by two routes: a magic link issued from the bot, or a six-digit code emailed to the address the visitor signs up with. There is no password anywhere.
+- One account can hold several verified Telegram accounts, capped by plan tier. The plan and the quota belong to the account, and linked Telegram accounts share one quota pool rather than each getting their own.
 
 ## Capabilities and Constraints
 
@@ -43,6 +44,7 @@ Everything else the product does — 1000+ sites via yt-dlp, quality selection, 
 - Per-plan quotas by platform, with daily / weekly / monthly periods and per-platform duration caps
 - Bilingual bot interface, Persian and English
 - Magic-link web dashboard showing plan, quota, and history
+- Email sign-up and sign-in on the site, and an account page for linking Telegram accounts by deep link, QR, or a six-digit code sent to the bot
 - Admin panel: plans, subscriptions, transactions, logs, broadcast, analytics, backup
 
 **Hard constraints that copy must respect:**
@@ -50,6 +52,8 @@ Everything else the product does — 1000+ sites via yt-dlp, quality selection, 
 - Telegram invite links (`t.me/+hash`) are not supported.
 - RadioJavan is audio-only; video is rejected.
 - Automated card payment is **not live**. Stripe is coded but unconfigured; subscriptions are activated manually by the admin today. Pricing pages may show plans and prices, but must not promise instant automated checkout until Stripe is configured.
+- **Email delivery depends on Resend being configured.** Without `RESEND_API_KEY` and authenticated DNS on the sending domain, email sign-in does not work at all, so no page may present it as the primary way in until that is live.
+- Linked-Telegram-account caps are Free 1, Starter 1, Standard 2, Pro 3. Copy must not imply a subscription covers unlimited devices.
 
 ## Brand Commitments
 
@@ -72,7 +76,7 @@ Everything else the product does — 1000+ sites via yt-dlp, quality selection, 
 1. **The chat is the product; the site is the argument.** Never design the website as though it were the application.
 2. **Claim only what runs.** The previous site's inflated numbers are the specific failure this rebuild corrects. 50 MB is 50 MB.
 3. **Lead with the thing only we do.** Restricted Telegram content is the differentiator; generic downloading is the commodity.
-4. **No account to create.** Every call to action ends in Telegram, never in a signup form.
+4. **Signing up must never be the price of trying it.** The bot still works with no account at all, and the marketing pages still end in Telegram. The account exists for people who already use the product and need to manage several Telegram accounts, a plan, or a quota — it is a destination for existing users, not a toll gate in front of new ones.
 5. **One operator, many users.** Admin surfaces optimize for a single person scanning quickly, not for a team workflow.
 
 ## Accessibility & Inclusion
