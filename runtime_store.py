@@ -227,11 +227,122 @@ def init_logs_db() -> None:
             ON usage_events (telegram_user_id, platform, created_at)
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS consumed_auth_tokens (
+                jti TEXT PRIMARY KEY,
+                purpose TEXT NOT NULL,
+                subject TEXT,
+                consumed_at TEXT NOT NULL,
+                prunable_after TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS rate_limits (
+                bucket TEXT NOT NULL,
+                key TEXT NOT NULL,
+                hit_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_rate_limits_bucket_key_time
+            ON rate_limits (bucket, key, hit_at)
+            """
+        )
         try:
             conn.execute("ALTER TABLE bot_users ADD COLUMN language_code TEXT")
         except sqlite3.OperationalError:
             pass  # Column already exists
 
+        conn.commit()
+
+
+# =====================================================================
+# AUTH: SINGLE-USE TOKENS AND RATE LIMITING
+# ---------------------------------------------------------------------
+# Both live in SQLite rather than a module-level dict because the panel
+# runs under gunicorn with two workers. An in-process dict would give
+# each worker its own counter, so every limit would silently be double
+# what it claims, and a token burnt in one worker would still be live in
+# the other.
+# =====================================================================
+
+
+def consume_auth_token(
+    jti: str,
+    purpose: str,
+    *,
+    subject: str | None = None,
+    retain_seconds: int = 86400,
+) -> bool:
+    """
+    Burn a one-time token. Returns True the first time a given jti is seen
+    and False on every replay.
+
+    A magic link sits in the Telegram chat forever, so expiry alone is not
+    enough: anyone who later reads that chat within the window can reuse it.
+    The row is kept a while past the token's own lifetime so a replay is
+    still recognised as a replay rather than falling off the end of the table.
+    """
+    init_logs_db()
+    prunable_after = (_utc_datetime() + timedelta(seconds=retain_seconds)).isoformat()
+    with _connect() as conn:
+        conn.execute(
+            "DELETE FROM consumed_auth_tokens WHERE prunable_after < ?", (_utc_now(),)
+        )
+        try:
+            conn.execute(
+                """
+                INSERT INTO consumed_auth_tokens (jti, purpose, subject, consumed_at, prunable_after)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (jti, purpose, subject, _utc_now(), prunable_after),
+            )
+        except sqlite3.IntegrityError:
+            return False
+        conn.commit()
+    return True
+
+
+def rate_limit_hit(bucket: str, key: str, limit: int, window_seconds: int) -> int:
+    """
+    Record an attempt and return how many seconds the caller must wait, or 0
+    when it is inside the limit. Nothing in this app was rate limited before;
+    a six-digit code with no ceiling is guessable in minutes.
+    """
+    init_logs_db()
+    now = _utc_datetime()
+    window_start = (now - timedelta(seconds=window_seconds)).isoformat()
+    with _connect() as conn:
+        conn.execute(
+            "DELETE FROM rate_limits WHERE bucket = ? AND key = ? AND hit_at < ?",
+            (bucket, key, window_start),
+        )
+        rows = conn.execute(
+            "SELECT hit_at FROM rate_limits WHERE bucket = ? AND key = ? ORDER BY hit_at",
+            (bucket, key),
+        ).fetchall()
+        if len(rows) >= limit:
+            oldest = _parse_datetime(rows[0][0])
+            retry_after = window_seconds - int((now - oldest).total_seconds())
+            return max(retry_after, 1)
+        conn.execute(
+            "INSERT INTO rate_limits (bucket, key, hit_at) VALUES (?, ?, ?)",
+            (bucket, key, now.isoformat()),
+        )
+        conn.commit()
+    return 0
+
+
+def rate_limit_clear(bucket: str, key: str) -> None:
+    """Drop a key's history after a success, so one bad guess costs nothing."""
+    init_logs_db()
+    with _connect() as conn:
+        conn.execute("DELETE FROM rate_limits WHERE bucket = ? AND key = ?", (bucket, key))
         conn.commit()
 
 

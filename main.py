@@ -65,6 +65,11 @@ def run_admin():
     run_admin_panel()
 
 
+def run_backups():
+    from backup import run_backup_loop
+    run_backup_loop()
+
+
 def run_housekeeping():
     """
     پاکسازی دوره‌ای فایل‌های موقتِ جامانده.
@@ -115,6 +120,7 @@ if __name__ == "__main__":
     bot_proc = multiprocessing.Process(target=run_bot, name="bot", daemon=False)
     admin_proc = multiprocessing.Process(target=run_admin, name="admin", daemon=False)
     housekeeping_proc = multiprocessing.Process(target=run_housekeeping, name="housekeeping", daemon=True)
+    backup_proc = multiprocessing.Process(target=run_backups, name="backup", daemon=True)
 
     bot_proc.start()
     logger.info("Bot process started (pid=%s)", bot_proc.pid)
@@ -124,6 +130,9 @@ if __name__ == "__main__":
 
     housekeeping_proc.start()
     logger.info("Housekeeping process started (pid=%s)", housekeeping_proc.pid)
+
+    backup_proc.start()
+    logger.info("Backup process started (pid=%s)", backup_proc.pid)
 
     # If either process dies, shut down both
     try:

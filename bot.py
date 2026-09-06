@@ -7,6 +7,7 @@ import os
 import re
 import asyncio
 import uuid
+import secrets
 import time
 from typing import Any, Optional
 
@@ -167,12 +168,20 @@ def build_quality_keyboard(info: VideoInfo, request_token: str, lang: str = "fa"
     return InlineKeyboardMarkup(buttons)
 
 
-def build_home_keyboard(user_id: int, lang: str = "fa") -> InlineKeyboardMarkup:
-    # Generate magic link
+def build_magic_link(user_id: int) -> str:
+    """
+    Mint a one-shot dashboard link.
+
+    The jti is what makes it single use: the panel records it on first use and
+    refuses every replay, so a link left sitting in the chat history cannot be
+    reused by whoever reads that chat later. It is valid for ten minutes.
+    """
     serializer = URLSafeTimedSerializer(FLASK_SECRET_KEY)
-    token = serializer.dumps(user_id, salt='magic-link')
-    dashboard_url = f"{BASE_URL}/auth/magic?token={token}"
-    
+    token = serializer.dumps({"uid": user_id, "jti": secrets.token_urlsafe(16)}, salt="magic-link")
+    return f"{BASE_URL}/auth/magic?token={token}"
+
+
+def build_home_keyboard(user_id: int, lang: str = "fa") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
@@ -189,7 +198,7 @@ def build_home_keyboard(user_id: int, lang: str = "fa") -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(get_text("btn_lang", lang) if "btn_lang" in locales[lang] else "🌐 Language / زبان", callback_data="lang|choose"),
-                InlineKeyboardButton(get_text("btn_dashboard", lang), url=dashboard_url)
+                InlineKeyboardButton(get_text("btn_dashboard", lang), callback_data="util|dashboard")
             ]
         ]
     )
@@ -393,6 +402,15 @@ async def handle_utility_callback(query, context: ContextTypes.DEFAULT_TYPE):
     subscription = get_bot_user(user.id)
     user_lang = subscription.get("language_code", "fa") if subscription else "fa"
 
+    if action == "dashboard":
+        dashboard_url = build_magic_link(user.id)
+        await query.message.reply_text(
+            get_text("login_link", user_lang, link=dashboard_url),
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton(get_text("btn_dashboard", user_lang), url=dashboard_url)]]
+            ),
+        )
+        return
     if action == "myid":
         await query.message.reply_text(
             get_text("my_id", user_lang, user_id=user.id),
@@ -971,11 +989,7 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     subscription = get_bot_user(user.id)
     user_lang = subscription.get("language_code", "fa") if subscription else "fa"
     
-    # Generate magic link
-    serializer = URLSafeTimedSerializer(FLASK_SECRET_KEY)
-    token = serializer.dumps(user.id, salt='magic-link')
-    dashboard_url = f"{BASE_URL}/auth/magic?token={token}"
-    
+    dashboard_url = build_magic_link(user.id)
     keyboard = [[InlineKeyboardButton(get_text("btn_dashboard", user_lang), url=dashboard_url)]]
     await update.message.reply_text(
         get_text("login_link", user_lang, link=dashboard_url),
