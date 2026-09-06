@@ -5,7 +5,6 @@
 import os
 import tempfile
 import zipfile
-import time
 from functools import wraps
 import asyncio
 import threading
@@ -34,17 +33,35 @@ from runtime_store import (
     update_transaction_status,
     get_financial_stats,
     get_analytics_stats,
+    consume_auth_token,
+    rate_limit_hit,
+    rate_limit_clear,
 )
 
 app = Flask(__name__)
 # Security configs
 import secrets
 from datetime import timedelta
-app.secret_key = os.getenv("FLASK_SECRET_KEY", secrets.token_hex(24))
-app.permanent_session_lifetime = timedelta(hours=8)
+from config import FLASK_SECRET_KEY, BASE_URL
 
-# Brute force tracking: { "ip": { "attempts": int, "blocked_until": float } }
-login_attempts = {}
+# This used to be os.getenv(..., secrets.token_hex(24)), which differed from the
+# constant config.py fell back to. With two gunicorn workers each generating its
+# own random key, sessions broke whenever a request hit the other worker, while
+# magic links were still validated against the public constant. One key now.
+app.secret_key = FLASK_SECRET_KEY
+app.permanent_session_lifetime = timedelta(hours=8)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=BASE_URL.startswith("https://"),
+)
+
+# Two trust levels share this cookie: the admin and dashboard visitors. Flask
+# gives an app exactly one session cookie, so they are kept apart by an explicit
+# role claim that every guard checks, and by clearing the session on each login
+# so a role can never be carried over from a previous one.
+ROLE_ADMIN = "admin"
+ROLE_USER = "user"
 
 @app.before_request
 def csrf_protect():
@@ -79,7 +96,7 @@ def flag_map(lang_code):
 def _requires_auth(handler):
     @wraps(handler)
     def wrapped(*args, **kwargs):
-        if not session.get("logged_in"):
+        if not session.get("logged_in") or session.get("role") != ROLE_ADMIN:
             return redirect(url_for("login"))
         return handler(*args, **kwargs)
 
@@ -87,45 +104,32 @@ def _requires_auth(handler):
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    ip = request.remote_addr
-    now = time.time()
-    
-    # Check brute force block
-    if ip in login_attempts:
-        if login_attempts[ip]["blocked_until"] > now:
-            return "Too many failed attempts. Try again later.", 429
-        elif login_attempts[ip]["blocked_until"] <= now:
-            # Block expired
-            login_attempts[ip] = {"attempts": 0, "blocked_until": 0}
-            
+    ip = request.remote_addr or "unknown"
+
     if request.method == "GET":
         return render_template_string(LOGIN_TEMPLATE)
 
-    # Validate login
+    # The counter used to be a module-level dict, so each of the two gunicorn
+    # workers kept its own and the real ceiling was ten attempts, not five.
+    retry_after = rate_limit_hit("admin_login", ip, limit=5, window_seconds=900)
+    if retry_after:
+        add_log("WARNING", "brute_force_blocked", f"ورود ادمین از {ip} به دلیل تلاش بیش از حد مسدود شد.", metadata={"source": "پنل ادمین"})
+        return Response("Too many failed attempts. Try again later.", status=429, headers={"Retry-After": str(retry_after)})
+
     password = request.form.get("password", "")
-    if ADMIN_PASSWORD and password == ADMIN_PASSWORD:
+    if ADMIN_PASSWORD and secrets.compare_digest(password, ADMIN_PASSWORD):
+        session.clear()
         session.permanent = True
         session["logged_in"] = True
+        session["role"] = ROLE_ADMIN
         session["csrf_token"] = secrets.token_hex(16)
-        if ip in login_attempts:
-            login_attempts[ip]["attempts"] = 0
-            
+        rate_limit_clear("admin_login", ip)
+
         add_log("INFO", "admin_login", f"ورود موفق ادمین از {ip}", metadata={"source": "پنل ادمین"})
         return redirect(url_for("admin_index"))
-    else:
-        # Register failed attempt
-        if ip not in login_attempts:
-            login_attempts[ip] = {"attempts": 0, "blocked_until": 0}
-            
-        login_attempts[ip]["attempts"] += 1
-        if login_attempts[ip]["attempts"] >= 5:
-            # Block for 15 minutes
-            login_attempts[ip]["blocked_until"] = now + 900
-            add_log("WARNING", "brute_force_blocked", f"مسدودسازی 15 دقیقه‌ای به دلیل لاگین‌های ناموفق. آدرس: {ip}", metadata={"source": "پنل ادمین"})
-        else:
-            add_log("WARNING", "failed_login", f"تلاش ناموفق برای ورود. آدرس: {ip}", metadata={"source": "پنل ادمین"})
-            
-        return render_template_string(LOGIN_TEMPLATE, error="رمز عبور اشتباه است.")
+
+    add_log("WARNING", "failed_login", f"تلاش ناموفق برای ورود. آدرس: {ip}", metadata={"source": "پنل ادمین"})
+    return render_template_string(LOGIN_TEMPLATE, error="رمز عبور اشتباه است.")
 
 @app.route("/logout")
 def logout():
@@ -866,31 +870,60 @@ def stripe_webhook():
 # USER WEB DASHBOARD ROUTES
 # =====================================================================
 
+# A magic link lives in a Telegram chat forever and travels in a query string,
+# so it leaks through Referer headers, browser history and link-preview
+# prefetch. Expiry alone does not cover that: anyone who reads the chat inside
+# the window can replay it. Hence a short window, one use only, and a redirect
+# that gets the token out of the address bar.
+MAGIC_LINK_MAX_AGE_SECONDS = 600
+
+
 @app.route("/auth/magic")
 def magic_login():
-    from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
-    from config import FLASK_SECRET_KEY
-    
+    from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+
+    ip = request.remote_addr or "unknown"
+    retry_after = rate_limit_hit("magic_login", ip, limit=10, window_seconds=600)
+    if retry_after:
+        return Response("Too many attempts. Try again later.", status=429, headers={"Retry-After": str(retry_after)})
+
     token = request.args.get("token")
     if not token:
         return "کد ورود (Token) ارسال نشده است.", 400
-    
+
     serializer = URLSafeTimedSerializer(FLASK_SECRET_KEY)
     try:
-        # Token valid for 30 minutes (1800 seconds)
-        user_id = serializer.loads(token, salt='magic-link', max_age=1800)
+        payload = serializer.loads(token, salt="magic-link", max_age=MAGIC_LINK_MAX_AGE_SECONDS)
     except SignatureExpired:
         return "لینک ورود شما منقضی شده است. لطفاً از طریق ربات، لینک جدیدی دریافت کنید.", 401
-    except BadTimeSignature:
+    except BadSignature:
+        # BadTimeSignature alone let a plain forged signature through as a 500.
         return "لینک نامعتبر است یا دستکاری شده است.", 401
-        
+
+    # Links minted before the single-use change carried a bare integer. Those
+    # cannot be burnt, so they are refused outright rather than trusted.
+    if not isinstance(payload, dict) or "uid" not in payload or "jti" not in payload:
+        return "این لینک قدیمی است. لطفاً از ربات لینک تازه بگیرید.", 401
+
+    user_id = payload["uid"]
+    if not consume_auth_token(payload["jti"], "magic-link", subject=str(user_id)):
+        add_log("WARNING", "magic_link_replay", f"تلاش برای استفاده‌ی دوباره از لینک ورود کاربر {user_id} از {ip}", metadata={"source": "پنل ادمین"})
+        return "این لینک قبلاً استفاده شده است. لطفاً از ربات لینک تازه بگیرید.", 401
+
+    # Clear first: without it a stale admin role could survive into a user session.
+    session.clear()
+    session.permanent = True
     session["user_id"] = user_id
-    return redirect(url_for("user_dashboard"))
+    session["role"] = ROLE_USER
+
+    response = redirect(url_for("user_dashboard"))
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
 
 @app.route("/dashboard")
 def user_dashboard():
     user_id = session.get("user_id")
-    if not user_id:
+    if not user_id or session.get("role") != ROLE_USER:
         return "شما وارد نشده‌اید. لطفاً ابتدا از طریق ربات تلگرام روی دکمه ورود کلیک کنید.", 401
         
     from runtime_store import get_bot_user, get_user_download_history
@@ -918,7 +951,7 @@ def user_dashboard_upgrade():
 
 @app.route("/auth/logout")
 def user_logout():
-    session.pop("user_id", None)
+    session.clear()
     return redirect(url_for("landing_page"))
 
 @app.route("/<path:filename>")

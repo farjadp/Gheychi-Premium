@@ -17,7 +17,47 @@ SUPPORT_CONTACT = os.getenv("SUPPORT_CONTACT", "")
 BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 if not BASE_URL.startswith("http://") and not BASE_URL.startswith("https://"):
     BASE_URL = "https://" + BASE_URL
-FLASK_SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "fallback-secret-for-magic-links")
+# The key signs both the admin session cookie and every magic link. It used to
+# fall back to a constant that is public in this repo, which meant an unset key
+# let anyone forge a login link for any telegram_user_id — and those ids are
+# small sequential integers. There is no safe default, so production refuses to
+# start without one; only a local run gets an ephemeral key, and it says so.
+_PLACEHOLDER_SECRETS = {
+    "fallback-secret-for-magic-links",
+    "change_me_to_a_long_random_string",
+}
+_IS_LOCAL = BASE_URL.startswith(("http://127.0.0.1", "http://localhost", "https://localhost"))
+
+
+def _resolve_secret_key() -> str:
+    import secrets as _secrets
+
+    value = os.getenv("FLASK_SECRET_KEY", "").strip()
+    if value and value not in _PLACEHOLDER_SECRETS and len(value) >= 32:
+        return value
+
+    if value in _PLACEHOLDER_SECRETS:
+        problem = "is still set to a placeholder value"
+    elif value:
+        problem = f"is only {len(value)} characters long (32 minimum)"
+    else:
+        problem = "is not set"
+
+    if _IS_LOCAL:
+        print(
+            f"WARNING: FLASK_SECRET_KEY {problem}. Using a random key for this "
+            "local run — magic links and sessions will not survive a restart."
+        )
+        return _secrets.token_hex(32)
+
+    raise RuntimeError(
+        f"FLASK_SECRET_KEY {problem}. It signs admin sessions and magic links, "
+        "so an absent or guessable key lets anyone forge a login for any user. "
+        "Generate one with: python3 -c \'import secrets; print(secrets.token_hex(32))\'"
+    )
+
+
+FLASK_SECRET_KEY = _resolve_secret_key()
 
 # ===== UserBot (Save Restricted Content) =====
 # Get from https://my.telegram.org
