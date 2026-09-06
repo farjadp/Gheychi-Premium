@@ -229,6 +229,62 @@ def init_logs_db() -> None:
         )
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS accounts (
+                account_id TEXT PRIMARY KEY,
+                email TEXT UNIQUE,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS account_telegram_links (
+                telegram_user_id INTEGER PRIMARY KEY,
+                account_id TEXT NOT NULL,
+                linked_at TEXT NOT NULL,
+                FOREIGN KEY (account_id) REFERENCES accounts (account_id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_links_account
+            ON account_telegram_links (account_id)
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS link_cooldowns (
+                account_id TEXT NOT NULL,
+                telegram_user_id INTEGER NOT NULL,
+                unlinked_at TEXT NOT NULL,
+                reusable_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS auth_codes (
+                code_id TEXT PRIMARY KEY,
+                purpose TEXT NOT NULL,
+                subject TEXT NOT NULL,
+                code_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                consumed_at TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_auth_codes_lookup
+            ON auth_codes (purpose, subject, consumed_at)
+            """
+        )
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS consumed_auth_tokens (
                 jti TEXT PRIMARY KEY,
                 purpose TEXT NOT NULL,

@@ -163,6 +163,30 @@ def get_plan(plan_code: str) -> dict:
 
 from typing import Optional
 
+
+# How many Telegram accounts one subscription may hold. This is half of the
+# anti-sharing design in model C — the shared quota pool is the other half —
+# and it is what turns "I have a second Telegram account" into an upsell
+# instead of a way for five people to split one subscription.
+DEFAULT_LINK_CAPS = {"free": 1, "starter": 1, "standard": 2, "pro": 3}
+
+
+def get_max_linked_accounts(plan_code: str) -> int:
+    """
+    Telegram-account slots for a plan.
+
+    Reads `max_linked_accounts` from the plan when an operator has set one in
+    plans.json, otherwise the tier default. Falls back to 1 rather than to
+    unlimited, so a plan added later without the key cannot silently become a
+    licence to share.
+    """
+    plan = get_plan(plan_code) or {}
+    configured = plan.get("max_linked_accounts")
+    if isinstance(configured, int) and configured >= 1:
+        return configured
+    return DEFAULT_LINK_CAPS.get(plan_code, 1)
+
+
 def get_plan_rule(plan_code: str, platform: str) -> Optional[dict]:
     plan = get_plan(plan_code)
     if not plan:
