@@ -37,7 +37,7 @@ Everything else the product does — 1000+ sites via yt-dlp, quality selection, 
 ## Capabilities and Constraints
 
 **Working today:**
-- Download from YouTube, Instagram, Twitter/X, TikTok, Reddit, Facebook, Vimeo, Dailymotion, Twitch, SoundCloud and 1000+ other sites via yt-dlp
+- Download from YouTube, Instagram, Twitter/X, TikTok, LinkedIn, Reddit, Facebook, Vimeo, Dailymotion, Twitch, SoundCloud and 1000+ other sites via yt-dlp
 - Quality selection per request; audio-only (MP3) extraction
 - Save Restricted Content from private Telegram channels, groups, and topics, including full albums
 - Per-plan quotas by platform, with daily / weekly / monthly periods and per-platform duration caps
