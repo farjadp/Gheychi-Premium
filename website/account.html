@@ -48,7 +48,8 @@
   }
   .ledger td { padding: .8125rem .75rem; border-bottom: 1px solid var(--rule-soft); font-size: .875rem; vertical-align: baseline; }
   .ledger td:first-child, .ledger th:first-child { padding-left: 0; }
-  .ledger td:last-child,  .ledger th:last-child  { padding-right: 0; text-align: right; }
+  .ledger td:last-child,  .ledger th:last-child  { padding-right: 0; }
+  .ledger .right { text-align: right; }
   .ledger .num { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-2); }
   .table-scroll { overflow-x: auto; }
 
@@ -59,6 +60,61 @@
   }
   .countdown { font-family: var(--mono); font-size: .8125rem; color: var(--ink-3); font-variant-numeric: tabular-nums; }
   [hidden] { display: none !important; }
+
+  .tabs { display: flex; gap: .25rem; border-bottom: 1px solid var(--rule); margin-bottom: clamp(1.5rem,4vw,2.25rem); overflow-x: auto; }
+  .tab {
+    appearance: none; background: none; border: 0; cursor: pointer; white-space: nowrap;
+    padding: .75rem .875rem; margin-bottom: -1px;
+    border-bottom: 2px solid transparent; color: var(--ink-2);
+    font-family: var(--mono); font-size: .6875rem; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab[aria-selected="true"] { color: var(--signal-deep); border-bottom-color: var(--signal); }
+  .tab:focus-visible { outline: 2px solid var(--signal); outline-offset: -2px; }
+
+  .figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 1px; background: var(--rule-soft); border: 1px solid var(--rule-soft); }
+  .figure { background: var(--paper); padding: 1rem .875rem; }
+  .figure dt { font-family: var(--mono); font-size: .625rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); margin-bottom: .375rem; }
+  .figure dd { margin: 0; font-family: var(--mono); font-size: 1.75rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .figure .sub { display: block; margin-top: .25rem; font-family: var(--sans); font-size: .75rem; color: var(--ink-3); }
+
+  .bars { display: grid; gap: .5rem; }
+  .bar-row { display: grid; grid-template-columns: 9rem 1fr 3rem; align-items: center; gap: .75rem; font-size: .875rem; }
+  .bar-track { display: block; width: 100%; height: 8px; background: var(--paper-3); border-radius: 99px; overflow: hidden; }
+  .bar-fill { display: block; height: 100%; min-width: 3px; background: var(--signal); border-radius: 99px; }
+  .bar-row .n { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; color: var(--ink-2); font-size: .8125rem; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: .375rem; margin-bottom: 1rem; }
+  .chip {
+    appearance: none; cursor: pointer; padding: .375rem .6875rem;
+    border: 1px solid var(--rule); border-radius: 99px; background: var(--paper);
+    font-family: var(--mono); font-size: .75rem; color: var(--ink-2);
+  }
+  .chip[aria-pressed="true"] { background: var(--plate); border-color: var(--plate); color: var(--plate-ink); }
+  .chip .c { opacity: .6; margin-left: .3125rem; }
+
+  .plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; }
+  .plan-card { border: 1px solid var(--rule); border-radius: var(--radius); padding: 1.125rem; display: flex; flex-direction: column; gap: .625rem; }
+  .plan-card.current { border-color: var(--plate); background: var(--paper-2); }
+  .plan-card h3 { margin: 0; font-size: 1.0625rem; }
+  .plan-card .price { font-family: var(--mono); font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+  .plan-card .price small { font-size: .75rem; color: var(--ink-3); font-family: var(--sans); }
+  .plan-card ul { margin: 0; padding-left: 1.125rem; font-size: .8125rem; color: var(--ink-2); line-height: 1.7; }
+  .plan-card .btn { margin-top: auto; }
+
+  .pill { display: inline-block; padding: .1875rem .5rem; border-radius: 99px; font-family: var(--mono); font-size: .6875rem; letter-spacing: .06em; text-transform: uppercase; }
+  .pill-ok   { background: var(--paper-3); color: var(--ok); }
+  .pill-wait { background: var(--hazard-wash); color: var(--warn); }
+  .pill-dead { background: var(--paper-3); color: var(--ink-3); }
+
+  .faq details { border-bottom: 1px solid var(--rule-soft); }
+  .faq summary { cursor: pointer; padding: .875rem 0; font-weight: 500; font-size: .9375rem; list-style: none; display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: '+'; font-family: var(--mono); color: var(--ink-3); }
+  .faq details[open] summary::after { content: '\2212'; }
+  .faq summary:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+  .faq p { margin: 0 0 1rem; font-size: .875rem; line-height: 1.65; color: var(--ink-2); max-width: 60ch; }
 
   /* On a phone the table pushes Unlink off the edge. Horizontal scroll keeps
      it reachable, but the primary action on the most likely device should not
@@ -147,11 +203,85 @@
   </div>
 
 {% else %}
-  <!-- ============ PROFILE ============ -->
+  <!-- ============ DASHBOARD ============ -->
   <div class="sec-rule">
     <span class="spec spec-ink">Account</span>
     <span class="spec">{{ account.email or 'No email yet' }}</span>
   </div>
+
+  <div class="tabs" role="tablist" aria-label="Dashboard sections">
+    <button class="tab" role="tab" id="tab-overview" aria-controls="panel-overview" aria-selected="true">Overview</button>
+    <button class="tab" role="tab" id="tab-library"  aria-controls="panel-library"  aria-selected="false">Library</button>
+    <button class="tab" role="tab" id="tab-billing"  aria-controls="panel-billing"  aria-selected="false">Billing</button>
+    <button class="tab" role="tab" id="tab-telegram" aria-controls="panel-telegram" aria-selected="false">Telegram</button>
+    <button class="tab" role="tab" id="tab-support"  aria-controls="panel-support"  aria-selected="false">Support</button>
+  </div>
+
+  <!-- ---------- OVERVIEW ---------- -->
+  <section id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" class="stack">
+    <dl class="figures" id="figures">
+      <div class="figure"><dt>Downloads</dt><dd id="f-total">—</dd></div>
+      <div class="figure"><dt>Last 30 days</dt><dd id="f-30">—</dd></div>
+      <div class="figure"><dt>Last 7 days</dt><dd id="f-7">—</dd></div>
+      <div class="figure"><dt>Media time</dt><dd id="f-mins">—</dd><span class="sub">minutes pulled down</span></div>
+    </dl>
+
+    <div class="cols cols-2" style="align-items:start;margin-top:clamp(1.5rem,4vw,2rem)">
+      <div class="stack-s">
+        <div class="sec-rule"><span class="spec spec-ink">What you pull</span></div>
+        <div class="bars" id="bars"><p class="t-body" style="font-size:.875rem">Nothing yet.</p></div>
+      </div>
+      <div class="stack-s">
+        <div class="sec-rule"><span class="spec spec-ink">Compared with other members</span></div>
+        <div id="compare"><p class="t-body" style="font-size:.875rem">—</p></div>
+        <dl class="specs" style="margin:.5rem 0 0">
+          <div class="spec-row"><dt>Busiest day</dt><span class="leader"></span><dd id="f-busy">—</dd></div>
+          <div class="spec-row"><dt>First download</dt><span class="leader"></span><dd id="f-since">—</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- LIBRARY ---------- -->
+  <section id="panel-library" role="tabpanel" aria-labelledby="tab-library" class="stack" hidden>
+    <div class="sec-rule">
+      <span class="spec spec-ink">Library</span>
+      <span class="spec spec-plain" id="lib-count"></span>
+    </div>
+    <p class="t-body" style="font-size:.875rem">
+      Everything you have pulled through the bot, from every linked Telegram account.
+      Files are never stored on our servers — these are the records, with the original links.
+    </p>
+    <div class="chips" id="chips"></div>
+    <div class="table-scroll">
+      <table class="ledger">
+        <thead><tr><th scope="col">When</th><th scope="col">Category</th><th scope="col">Platform</th><th scope="col">Source</th></tr></thead>
+        <tbody id="lib-body"></tbody>
+      </table>
+    </div>
+    <p id="lib-empty" class="t-body" style="font-size:.875rem" hidden>Nothing here yet. Send a link to the bot to get started.</p>
+  </section>
+
+  <!-- ---------- BILLING ---------- -->
+  <section id="panel-billing" role="tabpanel" aria-labelledby="tab-billing" class="stack" hidden>
+    <div id="billing-notice" class="note note-warn" hidden></div>
+
+    <div class="sec-rule"><span class="spec spec-ink">Plans</span></div>
+    <div class="plan-grid" id="plan-grid"></div>
+
+    <div class="sec-rule" style="margin-top:clamp(1.5rem,4vw,2rem)"><span class="spec spec-ink">Invoices</span></div>
+    <div class="table-scroll">
+      <table class="ledger">
+        <thead><tr><th scope="col">Date</th><th scope="col">Plan</th><th scope="col">Amount</th><th scope="col" class="right">Status</th></tr></thead>
+        <tbody id="inv-body"></tbody>
+      </table>
+    </div>
+    <p id="inv-empty" class="t-body" style="font-size:.875rem" hidden>No invoices yet.</p>
+    <p class="spec spec-plain">Payments are handled by Stripe. We never see or store your card details.</p>
+  </section>
+
+  <!-- ---------- TELEGRAM ---------- -->
+  <section id="panel-telegram" role="tabpanel" aria-labelledby="tab-telegram" class="stack" hidden>
 
   <div class="cols cols-2" style="align-items:start;margin-bottom:clamp(2rem,5vw,3rem)">
     <div class="stack">
@@ -213,7 +343,7 @@
     <div class="table-scroll">
       <table class="ledger">
         <thead>
-          <tr><th scope="col">Telegram</th><th scope="col">ID</th><th scope="col">Linked</th><th scope="col">Action</th></tr>
+          <tr><th scope="col">Telegram</th><th scope="col">ID</th><th scope="col">Linked</th><th scope="col" class="right">Action</th></tr>
         </thead>
         <tbody id="links-body">
           {% for link in links %}
@@ -221,7 +351,7 @@
               <td>{{ link.first_name or '' }} {{ link.last_name or '' }}{% if link.username %} <span class="num">@{{ link.username }}</span>{% endif %}</td>
               <td class="num" data-label="ID">{{ link.telegram_user_id }}</td>
               <td class="num" data-label="Linked">{{ link.linked_at[:10] }}</td>
-              <td><button class="btn btn-line btn-sm btn-unlink" data-tg="{{ link.telegram_user_id }}">Unlink</button></td>
+              <td class="right"><button class="btn btn-line btn-sm btn-unlink" data-tg="{{ link.telegram_user_id }}">Unlink</button></td>
             </tr>
           {% endfor %}
         </tbody>
@@ -237,6 +367,55 @@
   </div>
 
   <div id="profile-msg" class="note note-bad" hidden style="margin-top:1rem"></div>
+  </section>
+
+  <!-- ---------- SUPPORT ---------- -->
+  <section id="panel-support" role="tabpanel" aria-labelledby="tab-support" class="stack" hidden>
+    <div class="sec-rule"><span class="spec spec-ink">Support</span></div>
+    <p class="t-lead" style="font-size:1rem">
+      Support runs through Telegram, where the product itself lives — so you can
+      show us the exact chat where something went wrong.
+    </p>
+    <div class="row">
+      {% if support_contact %}
+      <a class="btn btn-signal" href="https://t.me/{{ support_contact|replace('@','') }}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-send"/></svg> Message support
+      </a>
+      <a class="btn btn-line" href="https://t.me/{{ bot_username }}" target="_blank" rel="noopener">Open the bot</a>
+      {% else %}
+      <a class="btn btn-signal" href="https://t.me/{{ bot_username }}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-send"/></svg> Open the bot
+      </a>
+      {% endif %}
+    </div>
+    <p class="spec spec-plain">
+      When you write in, include your account ID <span class="num">{{ account.account_id[:12] }}</span> — it saves a round trip.
+    </p>
+
+    <div class="sec-rule" style="margin-top:clamp(1.5rem,4vw,2rem)"><span class="spec spec-ink">Common questions</span></div>
+    <div class="faq">
+      <details>
+        <summary>A file was too big</summary>
+        <p>Telegram caps what a bot can send. Oversized files are relayed another way when
+        possible, and when they cannot be, you get the original link instead.</p>
+      </details>
+      <details>
+        <summary>My plan did not activate</summary>
+        <p>Card payments activate automatically within a minute. If it has been longer than
+        that, message support with the date on the invoice.</p>
+      </details>
+      <details>
+        <summary>A private Telegram channel will not download</summary>
+        <p>Our Telegram account has to be a member of that channel or group first. Invite
+        links of the form <span class="num">t.me/+hash</span> are not supported.</p>
+      </details>
+      <details>
+        <summary>I want to use a second Telegram account</summary>
+        <p>Link it under the Telegram tab. How many you can link depends on your plan, and
+        they all share one quota pool rather than each getting their own.</p>
+      </details>
+    </div>
+  </section>
 {% endif %}
 
 </main>
@@ -314,6 +493,211 @@
     });
   }
 
+  /* ---------- tabs ---------- */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  if (tabs.length) {
+    var loaded = {};
+    function show(id) {
+      tabs.forEach(function (t) {
+        var on = t.id === id;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      });
+      // Remembered per viewer only — a convenience, not state anyone else needs.
+      try { localStorage.setItem('gh-tab', id); } catch (e) {}
+      if (!loaded[id]) { loaded[id] = true; load(id); }
+    }
+    tabs.forEach(function (t) {
+      t.addEventListener('click', function () { show(t.id); });
+      t.addEventListener('keydown', function (e) {
+        var i = tabs.indexOf(t);
+        if (e.key === 'ArrowRight') { tabs[(i + 1) % tabs.length].focus(); tabs[(i + 1) % tabs.length].click(); }
+        if (e.key === 'ArrowLeft')  { tabs[(i - 1 + tabs.length) % tabs.length].focus(); tabs[(i - 1 + tabs.length) % tabs.length].click(); }
+      });
+    });
+    var start = 'tab-overview';
+    try { var saved = localStorage.getItem('gh-tab'); if (saved && document.getElementById(saved)) { start = saved; } } catch (e) {}
+    if (new URLSearchParams(location.search).has('paid')) { start = 'tab-billing'; }
+    show(start);
+
+    function load(id) {
+      if (id === 'tab-overview') { loadStats(); }
+      if (id === 'tab-library')  { loadLibrary(); }
+      if (id === 'tab-billing')  { loadBilling(); }
+    }
+  }
+
+  function getJSON(url) {
+    return fetch(url, { headers: { 'Accept': 'application/json' } }).then(function (r) { return r.json(); });
+  }
+  function text(el, value) { var n = document.getElementById(el); if (n) { n.textContent = value; } }
+
+  /* ---------- overview ---------- */
+  function loadStats() {
+    getJSON('/account/stats').then(function (j) {
+      if (!j.success) { return; }
+      var s = j.stats;
+      text('f-total', s.total);
+      text('f-30', s.last_30_days);
+      text('f-7', s.last_7_days);
+      text('f-mins', s.minutes_saved);
+      text('f-busy', s.busiest_day ? s.busiest_day.date + ' (' + s.busiest_day.count + ')' : '—');
+      text('f-since', s.member_since || '—');
+
+      var max = Math.max.apply(null, s.by_category.map(function (c) { return c.count; }).concat([1]));
+      var bars = document.getElementById('bars');
+      bars.innerHTML = '';
+      var any = s.by_category.some(function (c) { return c.count > 0; });
+      if (!any) {
+        bars.innerHTML = '<p class="t-body" style="font-size:.875rem">Nothing yet. Send a link to the bot.</p>';
+      } else {
+        s.by_category.forEach(function (c) {
+          var row = document.createElement('div');
+          row.className = 'bar-row';
+          row.innerHTML = '<span></span><span class="bar-track"><span class="bar-fill" style="width:' +
+            Math.round(c.count / max * 100) + '%"></span></span><span class="n">' + c.count + '</span>';
+          row.children[0].textContent = c.label_en;
+          bars.appendChild(row);
+        });
+      }
+
+      var cmp = document.getElementById('compare');
+      if (s.comparison.available) {
+        var p = s.comparison.percentile;
+        cmp.innerHTML = '<p class="t-body" style="font-size:.9375rem"><strong style="font-family:var(--mono);font-size:1.5rem">' +
+          p + '%</strong> of members download less than you.</p>' +
+          '<p class="spec spec-plain">Median member: ' + s.comparison.median + ' downloads. ' +
+          'Compared across ' + s.comparison.peer_count + ' accounts.</p>';
+      } else {
+        cmp.innerHTML = '<p class="t-body" style="font-size:.875rem">Comparisons appear once enough members have joined. ' +
+          'With only a handful, a ranking says more about who is here than about you.</p>';
+      }
+    });
+  }
+
+  /* ---------- library ---------- */
+  var libRows = [], libFilter = 'all';
+  function loadLibrary() {
+    getJSON('/account/history').then(function (j) {
+      if (!j.success) { return; }
+      libRows = j.history;
+      var counts = {};
+      libRows.forEach(function (r) { counts[r.category] = (counts[r.category] || 0) + 1; });
+      var order = ['video', 'social', 'audio', 'telegram', 'adult', 'other'];
+      var labels = { video: 'Video', social: 'Social', audio: 'Music & audio', telegram: 'Telegram', adult: 'Adult', other: 'Other' };
+      var chips = document.getElementById('chips');
+      chips.innerHTML = '';
+      [{ k: 'all', l: 'All', n: libRows.length }].concat(
+        order.filter(function (k) { return counts[k]; }).map(function (k) { return { k: k, l: labels[k], n: counts[k] }; })
+      ).forEach(function (c) {
+        var b = document.createElement('button');
+        b.className = 'chip';
+        b.type = 'button';
+        b.setAttribute('aria-pressed', c.k === libFilter ? 'true' : 'false');
+        b.dataset.k = c.k;
+        b.innerHTML = '<span></span><span class="c">' + c.n + '</span>';
+        b.children[0].textContent = c.l;
+        b.addEventListener('click', function () { libFilter = c.k; renderLibrary(); });
+        chips.appendChild(b);
+      });
+      renderLibrary();
+    });
+  }
+
+  function renderLibrary() {
+    var rows = libFilter === 'all' ? libRows : libRows.filter(function (r) { return r.category === libFilter; });
+    var labels = { video: 'Video', social: 'Social', audio: 'Music & audio', telegram: 'Telegram', adult: 'Adult', other: 'Other' };
+    var body = document.getElementById('lib-body');
+    body.innerHTML = '';
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td class="num" data-label="When"></td><td data-label="Category"></td>' +
+                     '<td data-label="Platform"></td><td class="src" data-label="Source"></td>';
+      tr.children[0].textContent = (r.created_at || '').slice(0, 16).replace('T', ' ');
+      tr.children[1].textContent = labels[r.category] || r.category;
+      tr.children[2].textContent = r.platform || '—';
+      if (r.url) {
+        var a = document.createElement('a');
+        a.href = r.url; a.target = '_blank'; a.rel = 'noopener nofollow noreferrer';
+        a.textContent = r.url;
+        tr.children[3].appendChild(a);
+      } else { tr.children[3].textContent = '—'; }
+      body.appendChild(tr);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#chips .chip'), function (b) {
+      b.setAttribute('aria-pressed', b.dataset.k === libFilter ? 'true' : 'false');
+    });
+    document.getElementById('lib-empty').hidden = rows.length > 0;
+    text('lib-count', rows.length + ' of ' + libRows.length);
+  }
+
+  /* ---------- billing ---------- */
+  function loadBilling() {
+    getJSON('/account/billing').then(function (j) {
+      if (!j.success) { return; }
+      var notice = document.getElementById('billing-notice');
+      if (!j.stripe_ready) {
+        notice.textContent = 'Card payment is not switched on yet. Message support to arrange an upgrade.';
+        notice.hidden = false;
+      } else if (!j.can_purchase) {
+        notice.textContent = 'Link a Telegram account first — a plan is granted to a Telegram account, so there has to be one to grant it to.';
+        notice.hidden = false;
+      }
+
+      var grid = document.getElementById('plan-grid');
+      grid.innerHTML = '';
+      j.options.forEach(function (o) {
+        var card = document.createElement('div');
+        card.className = 'plan-card' + (o.is_current ? ' current' : '');
+        var rules = (o.rules || []).slice(0, 4).map(function (r) {
+          return '<li>' + r.platform + ' — ' + (r.limit ? r.limit + '/' + r.period : 'unlimited') + '</li>';
+        }).join('');
+        card.innerHTML =
+          '<h3></h3>' +
+          '<div class="price">$' + o.price_usd + ' <small>/ month</small></div>' +
+          '<ul>' + rules + '</ul>';
+        card.children[0].textContent = o.name + (o.is_current ? ' — current' : '');
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        if (o.is_current) {
+          btn.className = 'btn btn-line'; btn.textContent = 'Your plan'; btn.disabled = true;
+        } else if (o.is_downgrade) {
+          btn.className = 'btn btn-line'; btn.textContent = 'Contact support'; btn.disabled = true;
+        } else {
+          btn.className = 'btn btn-signal'; btn.textContent = 'Upgrade to ' + o.name;
+          btn.disabled = !(j.stripe_ready && j.can_purchase);
+          btn.addEventListener('click', function () {
+            btn.disabled = true;
+            post('/account/billing/checkout', { plan_code: o.code }).then(function (res) {
+              if (res.body.success && res.body.url) { window.location = res.body.url; return; }
+              btn.disabled = false;
+              notice.textContent = 'Could not start checkout. Try again, or message support.';
+              notice.hidden = false;
+            });
+          });
+        }
+        card.appendChild(btn);
+        grid.appendChild(card);
+      });
+
+      var body = document.getElementById('inv-body');
+      body.innerHTML = '';
+      j.invoices.forEach(function (inv) {
+        var tr = document.createElement('tr');
+        var cls = inv.is_paid ? 'pill-ok' : (inv.is_pending ? 'pill-wait' : 'pill-dead');
+        tr.innerHTML = '<td class="num" data-label="Date"></td><td data-label="Plan"></td>' +
+                       '<td class="num" data-label="Amount"></td>' +
+                       '<td class="right" data-label="Status"><span class="pill ' + cls + '"></span></td>';
+        tr.children[0].textContent = (inv.created_at || '').slice(0, 10);
+        tr.children[1].textContent = inv.plan_name;
+        tr.children[2].textContent = '$' + inv.amount_usd;
+        tr.children[3].firstChild.textContent = inv.status;
+        body.appendChild(tr);
+      });
+      document.getElementById('inv-empty').hidden = j.invoices.length > 0;
+    });
+  }
+
   /* ---------- profile ---------- */
   var btnAdd = document.getElementById('btn-add');
   if (btnAdd) {
@@ -337,7 +721,7 @@
         tr.innerHTML =
           '<td></td><td class="num" data-label="ID">' + l.telegram_user_id + '</td>' +
           '<td class="num" data-label="Linked">' + (l.linked_at || '').slice(0, 10) + '</td>' +
-          '<td><button class="btn btn-line btn-sm btn-unlink" data-tg="' + l.telegram_user_id + '">Unlink</button></td>';
+          '<td class="right"><button class="btn btn-line btn-sm btn-unlink" data-tg="' + l.telegram_user_id + '">Unlink</button></td>';
         // Written as text, never as markup: a Telegram display name is
         // attacker-controlled and must not be able to inject into this page.
         tr.children[0].textContent = name + (l.username ? ' @' + l.username : '');
