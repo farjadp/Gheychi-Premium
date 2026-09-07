@@ -10,3 +10,6 @@ session_string.txt
 
 # Impeccable working state (review screenshots, local config)
 .impeccable/
+
+# Browser-pane dev server config — machine-specific, not shared state
+.claude/launch.json
