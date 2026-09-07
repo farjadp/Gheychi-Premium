@@ -11,6 +11,7 @@
 زیرساختی که این پروژه از قبل دارد.
 """
 import asyncio
+import json
 import logging
 import os
 import sqlite3
@@ -33,7 +34,12 @@ TELEGRAM_UPLOAD_LIMIT_BYTES = 50 * 1024 * 1024
 # Cookie files are re-created from the COOKIES_*_B64 env vars on every boot, so
 # they are recoverable without a backup — and they are login credentials for
 # other people's sites. Keeping them out means the archive holds no secrets.
+# Operational bookkeeping, not data — keeping it out means restoring an archive
+# cannot resurrect a stale "last backup" time and skip the next one.
+STATE_FILE = "backup_state.json"
+
 _EXCLUDED_PREFIXES = ("cookies_",)
+_EXCLUDED_NAMES = (STATE_FILE,)
 
 # The -wal and -shm sidecars belong to the *live* database. Their contents are
 # already folded into the snapshot the backup API produces, and shipping a stale
@@ -77,6 +83,8 @@ def build_backup_archive(dest_dir: str) -> Path:
         for entry in sorted(data_dir.iterdir()):
             if not entry.is_file() or entry.name.startswith(_EXCLUDED_PREFIXES):
                 continue
+            if entry.name in _EXCLUDED_NAMES:
+                continue
             if entry.name.endswith(_EXCLUDED_SUFFIXES):
                 continue
             if entry.suffix == ".db":
@@ -90,6 +98,46 @@ def build_backup_archive(dest_dir: str) -> Path:
             else:
                 zipf.write(entry, entry.name)
     return archive
+
+
+def _state_path() -> Path:
+    return Path(DATA_DIR) / STATE_FILE
+
+
+def last_backup_at() -> datetime | None:
+    """
+    When the last archive was delivered, read from the volume.
+
+    Kept on disk rather than in memory because the whole point is to survive
+    the restart: the process starts fresh on every deploy and would otherwise
+    have no idea a backup was taken four minutes ago.
+    """
+    try:
+        raw = json.loads(_state_path().read_text(encoding="utf-8"))
+        return datetime.fromisoformat(raw["last_backup_at"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def _record_backup(moment: datetime) -> None:
+    try:
+        _state_path().write_text(
+            json.dumps({"last_backup_at": moment.isoformat()}), encoding="utf-8"
+        )
+    except OSError as exc:
+        # Losing this only costs an extra backup, so it must never take the
+        # successful upload down with it.
+        logger.warning("Backup: could not record the timestamp: %s", exc)
+
+
+def seconds_until_due(now: datetime | None = None) -> float:
+    """How long to wait before the next backup is due. 0 means overdue."""
+    now = now or datetime.now(timezone.utc)
+    previous = last_backup_at()
+    if previous is None:
+        return 0.0
+    elapsed = (now - previous).total_seconds()
+    return max(0.0, BACKUP_INTERVAL_SECONDS - elapsed)
 
 
 async def _upload(archive: Path, caption: str) -> None:
@@ -135,6 +183,7 @@ def run_backup_once() -> bool:
             logger.error("Backup: upload failed: %s", exc)
             return False
 
+    _record_backup(datetime.now(timezone.utc))
     logger.info("Backup: sent %s (%.0f KB)", archive.name, size / 1024)
     return True
 
@@ -151,6 +200,15 @@ def run_backup_loop() -> None:
         return
 
     while True:
+        # The loop used to back up the moment it started, which meant one
+        # archive per container start rather than one per interval — five in a
+        # night of deploys. A backup nobody reads is a backup nobody checks, so
+        # the schedule is honoured across restarts instead.
+        wait = seconds_until_due()
+        if wait > 0:
+            logger.info("Backup: last one was recent, next due in %.1f h", wait / 3600)
+            time.sleep(wait)
+            continue
         try:
             run_backup_once()
         except Exception as exc:
