@@ -16,6 +16,7 @@ from telegram import (
     Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    LinkPreviewOptions,
     Message,
 )
 from telegram.ext import (
@@ -446,6 +447,9 @@ async def handle_utility_callback(query, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(
                 [[InlineKeyboardButton(get_text("btn_dashboard", user_lang), url=dashboard_url)]]
             ),
+            # Telegram's preview crawler opens any URL in the message body. On a
+            # single-use link that spends the token before the user taps it.
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
         )
         return
     if action == "myid":
@@ -1149,7 +1153,8 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton(get_text("btn_dashboard", user_lang), url=dashboard_url)]]
     await update.message.reply_text(
         get_text("login_link", user_lang, link=dashboard_url),
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
 
 async def handle_lang_callback(query, context: ContextTypes.DEFAULT_TYPE):

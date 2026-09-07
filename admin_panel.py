@@ -965,6 +965,25 @@ def email_verify_code():
 # that gets the token out of the address bar.
 MAGIC_LINK_MAX_AGE_SECONDS = 600
 
+# Link-preview crawlers fetch a URL the moment it appears in a message, which on
+# a single-use token means it is spent before the human ever taps it. That is
+# exactly what happened in production: Telegram's crawler took the link at
+# 01:15:17 and the user's iPhone got "already used" at 01:15:23.
+#
+# The preview is disabled on the bot's side now, so this should never fire. It
+# stays because any client, forwarded chat or link-scanning service can prefetch
+# a URL, and a login that breaks on the first click is not worth risking twice.
+# These requests get no session and never touch the token, so a forged user
+# agent buys an attacker nothing.
+_PREFETCH_AGENTS = ("telegrambot", "twitterbot", "facebookexternalhit", "whatsapp",
+                    "slackbot", "discordbot", "linkedinbot", "skypeuripreview",
+                    "bingbot", "googlebot", "embedly", "vkshare", "preview")
+
+
+def _is_link_prefetch(user_agent: str) -> bool:
+    agent = (user_agent or "").lower()
+    return any(crawler in agent for crawler in _PREFETCH_AGENTS)
+
 
 @app.route("/auth/magic")
 def magic_login():
@@ -978,6 +997,17 @@ def magic_login():
     token = request.args.get("token")
     if not token:
         return "کد ورود (Token) ارسال نشده است.", 400
+
+    if _is_link_prefetch(request.headers.get("User-Agent", "")):
+        # Enough for a preview to render, without spending the token or
+        # handing out a session.
+        return Response(
+            "<!doctype html><title>Gheychi Premium</title>"
+            "<meta name=\"robots\" content=\"noindex\">"
+            "<p>Open this link in your browser to sign in.</p>",
+            status=200,
+            mimetype="text/html",
+        )
 
     serializer = URLSafeTimedSerializer(FLASK_SECRET_KEY)
     try:
