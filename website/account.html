@@ -94,6 +94,18 @@
   .chip[aria-pressed="true"] { background: var(--plate); border-color: var(--plate); color: var(--plate-ink); }
   .chip .c { opacity: .6; margin-left: .3125rem; }
 
+  .filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem 1rem; margin-bottom: 1rem; }
+  .f-field { display: flex; flex-direction: column; gap: .3125rem; }
+  .f-field > span { font-family: var(--mono); font-size: .625rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+  .f-field input {
+    padding: .4375rem .5625rem; border: 1px solid var(--rule); border-radius: var(--radius);
+    background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: .875rem;
+  }
+  .f-field input:focus-visible { outline: 2px solid var(--signal); outline-offset: 1px; }
+  .filters .btn { margin-bottom: 1px; }
+  .row-actions { display: inline-flex; gap: .375rem; justify-content: flex-end; }
+  .no-record { font-size: .75rem; color: var(--ink-3); font-family: var(--mono); }
+
   .plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; }
   .plan-card { border: 1px solid var(--rule); border-radius: var(--radius); padding: 1.125rem; display: flex; flex-direction: column; gap: .625rem; }
   .plan-card.current { border-color: var(--plate); background: var(--paper-2); }
@@ -252,10 +264,36 @@
       Everything you have pulled through the bot, from every linked Telegram account.
       Files are never stored on our servers — these are the records, with the original links.
     </p>
+    <div class="filters">
+      <label class="f-field">
+        <span>Search</span>
+        <input type="search" id="lib-q" placeholder="title, platform or link" autocomplete="off">
+      </label>
+      <label class="f-field">
+        <span>From</span>
+        <input type="date" id="lib-from">
+      </label>
+      <label class="f-field">
+        <span>To</span>
+        <input type="date" id="lib-to">
+      </label>
+      <div class="f-field">
+        <span>Quick range</span>
+        <div class="chips" id="ranges" style="margin:0">
+          <button class="chip" type="button" data-days="7">7 days</button>
+          <button class="chip" type="button" data-days="30">30 days</button>
+          <button class="chip" type="button" data-days="0" aria-pressed="true">All time</button>
+        </div>
+      </div>
+      <button class="btn btn-line btn-sm" type="button" id="lib-reset">Reset</button>
+    </div>
     <div class="chips" id="chips"></div>
     <div class="table-scroll">
       <table class="ledger">
-        <thead><tr><th scope="col">When</th><th scope="col">Category</th><th scope="col">Platform</th><th scope="col">Source</th></tr></thead>
+        <thead><tr>
+          <th scope="col">When</th><th scope="col">Category</th><th scope="col">Platform</th>
+          <th scope="col">Source</th><th scope="col" class="right">In Telegram</th>
+        </tr></thead>
         <tbody id="lib-body"></tbody>
       </table>
     </div>
@@ -604,15 +642,32 @@
     });
   }
 
+  function libMatches(r) {
+    if (libFilter !== 'all' && r.category !== libFilter) { return false; }
+    var q = (document.getElementById('lib-q').value || '').trim().toLowerCase();
+    if (q) {
+      var hay = [(r.platform || ''), (r.url || ''), (r.quality || '')].join(' ').toLowerCase();
+      if (hay.indexOf(q) === -1) { return false; }
+    }
+    var day = (r.created_at || '').slice(0, 10);
+    var from = document.getElementById('lib-from').value;
+    var to = document.getElementById('lib-to').value;
+    // String comparison is safe here: both sides are ISO yyyy-mm-dd.
+    if (from && day < from) { return false; }
+    if (to && day > to) { return false; }
+    return true;
+  }
+
   function renderLibrary() {
-    var rows = libFilter === 'all' ? libRows : libRows.filter(function (r) { return r.category === libFilter; });
+    var rows = libRows.filter(libMatches);
     var labels = { video: 'Video', social: 'Social', audio: 'Music & audio', telegram: 'Telegram', adult: 'Adult', other: 'Other' };
     var body = document.getElementById('lib-body');
     body.innerHTML = '';
     rows.forEach(function (r) {
       var tr = document.createElement('tr');
       tr.innerHTML = '<td class="num" data-label="When"></td><td data-label="Category"></td>' +
-                     '<td data-label="Platform"></td><td class="src" data-label="Source"></td>';
+                     '<td data-label="Platform"></td><td class="src" data-label="Source"></td>' +
+                     '<td class="right" data-label="In Telegram"></td>';
       tr.children[0].textContent = (r.created_at || '').slice(0, 16).replace('T', ' ');
       tr.children[1].textContent = labels[r.category] || r.category;
       tr.children[2].textContent = r.platform || '—';
@@ -622,6 +677,35 @@
         a.textContent = r.url;
         tr.children[3].appendChild(a);
       } else { tr.children[3].textContent = '—'; }
+
+      var actions = document.createElement('span');
+      actions.className = 'row-actions';
+      if (r.can_resend) {
+        var send = document.createElement('button');
+        send.type = 'button';
+        send.className = 'btn btn-signal btn-sm btn-resend';
+        send.textContent = 'Send again';
+        send.dataset.id = r.id;
+        actions.appendChild(send);
+        if (r.jump_link) {
+          // Secondary on purpose: tg:// is undocumented and silently does
+          // nothing on Web and much of Android, so it can never be the only
+          // way back to a file.
+          var jump = document.createElement('a');
+          jump.className = 'btn btn-line btn-sm';
+          jump.href = r.jump_link;
+          jump.textContent = 'Open';
+          jump.title = 'Jump to the original message. Not supported by every Telegram app.';
+          actions.appendChild(jump);
+        }
+      } else {
+        var none = document.createElement('span');
+        none.className = 'no-record';
+        none.textContent = '—';
+        none.title = 'Downloaded before we started recording delivery details.';
+        actions.appendChild(none);
+      }
+      tr.children[4].appendChild(actions);
       body.appendChild(tr);
     });
     Array.prototype.forEach.call(document.querySelectorAll('#chips .chip'), function (b) {
@@ -630,6 +714,68 @@
     document.getElementById('lib-empty').hidden = rows.length > 0;
     text('lib-count', rows.length + ' of ' + libRows.length);
   }
+
+  /* library filter controls */
+  ['lib-q', 'lib-from', 'lib-to'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) { el.addEventListener('input', function () { markRange(null); renderLibrary(); }); }
+  });
+
+  function markRange(days) {
+    Array.prototype.forEach.call(document.querySelectorAll('#ranges .chip'), function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.days) === String(days) ? 'true' : 'false');
+    });
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('#ranges .chip'), function (b) {
+    b.addEventListener('click', function () {
+      var days = parseInt(b.dataset.days, 10);
+      var from = document.getElementById('lib-from'), to = document.getElementById('lib-to');
+      if (!days) { from.value = ''; to.value = ''; }
+      else {
+        var d = new Date(); d.setDate(d.getDate() - days);
+        from.value = d.toISOString().slice(0, 10);
+        to.value = '';
+      }
+      markRange(days);
+      renderLibrary();
+    });
+  });
+
+  var libReset = document.getElementById('lib-reset');
+  if (libReset) {
+    libReset.addEventListener('click', function () {
+      document.getElementById('lib-q').value = '';
+      document.getElementById('lib-from').value = '';
+      document.getElementById('lib-to').value = '';
+      libFilter = 'all';
+      markRange(0);
+      renderLibrary();
+    });
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.btn-resend');
+    if (!btn) { return; }
+    var original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    post('/account/resend', { event_id: btn.dataset.id }).then(function (res) {
+      if (res.body.success) {
+        btn.textContent = 'Sent ✓';
+        setTimeout(function () { btn.textContent = original; btn.disabled = false; }, 4000);
+        return;
+      }
+      btn.disabled = false;
+      btn.textContent = original;
+      var msg = res.body.error === 'no_delivery_record'
+        ? 'That download predates delivery tracking, so it cannot be re-sent. Use the source link.'
+        : (res.body.error === 'rate_limited'
+            ? 'Too many re-sends. Wait a few minutes.'
+            : 'Could not re-send it. The file may have expired in Telegram — try the source link.');
+      window.alert(msg);
+    });
+  });
 
   /* ---------- billing ---------- */
   function loadBilling() {

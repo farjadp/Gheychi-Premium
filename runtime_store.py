@@ -314,6 +314,28 @@ def init_logs_db() -> None:
         except sqlite3.OperationalError:
             pass  # Column already exists
 
+        # Delivery details, so the panel can put the file back in the user's
+        # chat. Added by ALTER rather than in CREATE TABLE because production
+        # already has this table with rows in it.
+        #
+        # Two resend routes, because the two send paths differ: an ordinary
+        # send gives back a file_id that can be re-sent instantly with no
+        # re-upload, while copy_message returns only a MessageId — so for
+        # relayed large files the dump-channel origin is kept and copied again.
+        for column, ddl in (
+            ("delivery_chat_id", "INTEGER"),
+            ("delivery_message_id", "INTEGER"),
+            ("delivery_file_id", "TEXT"),
+            ("delivery_kind", "TEXT"),
+            ("delivery_source_chat_id", "INTEGER"),
+            ("delivery_source_message_id", "INTEGER"),
+            ("file_size_bytes", "INTEGER"),
+        ):
+            try:
+                conn.execute(f"ALTER TABLE usage_events ADD COLUMN {column} {ddl}")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
         conn.commit()
 
 
@@ -656,17 +678,21 @@ def record_usage_event(
     quality: str | None = None,
     duration_seconds: int | None = None,
     metadata: dict[str, Any] | None = None,
+    delivery: dict[str, Any] | None = None,
 ) -> None:
     init_logs_db()
     user = get_bot_user(telegram_user_id)
+    delivery = delivery or {}
     serialized_metadata = json.dumps(metadata, ensure_ascii=False) if metadata else None
     with _connect() as conn:
         conn.execute(
             """
             INSERT INTO usage_events (
                 telegram_user_id, created_at, plan_code, platform, url,
-                media_kind, quality, duration_seconds, metadata
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                media_kind, quality, duration_seconds, metadata,
+                delivery_chat_id, delivery_message_id, delivery_file_id, delivery_kind,
+                delivery_source_chat_id, delivery_source_message_id, file_size_bytes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 telegram_user_id,
@@ -678,6 +704,13 @@ def record_usage_event(
                 quality,
                 duration_seconds,
                 serialized_metadata,
+                delivery.get("chat_id"),
+                delivery.get("message_id"),
+                delivery.get("file_id"),
+                delivery.get("kind"),
+                delivery.get("source_chat_id"),
+                delivery.get("source_message_id"),
+                delivery.get("file_size_bytes"),
             ),
         )
         conn.commit()
@@ -892,6 +925,15 @@ def get_financial_stats() -> dict:
             "total_completed": total_completed,
             "total_pending": total_pending
         }
+
+def get_usage_event(event_id: int) -> dict[str, Any] | None:
+    """One history row with its delivery details, for the panel's resend button."""
+    init_logs_db()
+    with closing(_connect()) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM usage_events WHERE id = ?", (event_id,)).fetchone()
+    return dict(row) if row else None
+
 
 def get_user_download_history(telegram_user_id: int, limit: int = 15) -> list[dict]:
     ensure_data_dir()

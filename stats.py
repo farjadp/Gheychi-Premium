@@ -42,7 +42,9 @@ def account_history(account_id: str, limit: int = 500) -> list[dict[str, Any]]:
         rows = conn.execute(
             f"""
             SELECT id, telegram_user_id, created_at, platform, url, media_kind,
-                   quality, duration_seconds
+                   quality, duration_seconds, delivery_chat_id, delivery_message_id,
+                   delivery_file_id, delivery_source_chat_id, delivery_source_message_id,
+                   file_size_bytes
             FROM usage_events
             WHERE telegram_user_id IN ({placeholders})
             ORDER BY created_at DESC
@@ -50,8 +52,31 @@ def account_history(account_id: str, limit: int = 500) -> list[dict[str, Any]]:
             """,
             (*ids, limit),
         ).fetchall()
-        cols = ["id", "telegram_user_id", "created_at", "platform", "url", "media_kind", "quality", "duration_seconds"]
-    return categories.annotate([dict(zip(cols, r)) for r in rows])
+        cols = ["id", "telegram_user_id", "created_at", "platform", "url", "media_kind",
+                "quality", "duration_seconds", "delivery_chat_id", "delivery_message_id",
+                "delivery_file_id", "delivery_source_chat_id", "delivery_source_message_id",
+                "file_size_bytes"]
+
+    events = categories.annotate([dict(zip(cols, r)) for r in rows])
+    for event in events:
+        # Whether the panel can offer to put this file back. Rows written
+        # before delivery details were captured cannot, and the UI has to say
+        # so rather than showing a button that fails.
+        event["can_resend"] = bool(
+            event.get("delivery_file_id")
+            or (event.get("delivery_source_chat_id") and event.get("delivery_source_message_id"))
+        )
+        # Undocumented and inconsistent across clients — Desktop and iOS
+        # usually honour it, Web and much of Android quietly do nothing — so it
+        # is offered as a secondary link, never as the only way back.
+        if event.get("delivery_chat_id") and event.get("delivery_message_id"):
+            event["jump_link"] = (
+                f"tg://openmessage?chat_id={event['delivery_chat_id']}"
+                f"&message_id={event['delivery_message_id']}"
+            )
+        else:
+            event["jump_link"] = None
+    return events
 
 
 def account_stats(account_id: str) -> dict[str, Any]:

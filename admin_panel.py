@@ -1172,6 +1172,97 @@ def account_stats_data():
     return jsonify(success=True, stats=stats.account_stats(account_id))
 
 
+@app.post("/account/resend")
+def account_resend():
+    """
+    Put a previously delivered file back in the user's Telegram chat.
+
+    Two routes, matching how it was delivered. An ordinary send left a file_id,
+    and re-sending by file_id costs nothing — Telegram still holds the bytes,
+    so there is no re-download and no re-upload. A relayed large file left only
+    a dump-channel origin, because copy_message returns no file, so that one is
+    copied across again.
+
+    Neither route touches the original site, so a video pulled from a link that
+    has since died still comes back.
+    """
+    from runtime_store import get_usage_event
+    from accounts import list_links
+
+    account_id = _current_account_id()
+    if not account_id:
+        return jsonify(success=False, error="not_signed_in"), 401
+
+    retry_after = rate_limit_hit("resend", account_id, 20, 600)
+    if retry_after:
+        return jsonify(success=False, error="rate_limited", retry_after=retry_after), 429
+
+    try:
+        event_id = int(request.form.get("event_id", ""))
+    except (TypeError, ValueError):
+        return jsonify(success=False, error="invalid_id"), 400
+
+    event = get_usage_event(event_id)
+    if not event:
+        return jsonify(success=False, error="not_found"), 404
+
+    # The row must belong to this account. Without this check an event id is a
+    # guessable integer that would deliver someone else's file.
+    owned = {l["telegram_user_id"] for l in list_links(account_id)}
+    if event["telegram_user_id"] not in owned:
+        return jsonify(success=False, error="not_found"), 404
+
+    target_chat = event.get("delivery_chat_id") or event["telegram_user_id"]
+    file_id = event.get("delivery_file_id")
+    source_chat = event.get("delivery_source_chat_id")
+    source_message = event.get("delivery_source_message_id")
+
+    if not file_id and not (source_chat and source_message):
+        # Everything downloaded before this feature shipped lands here.
+        return jsonify(success=False, error="no_delivery_record"), 409
+
+    caption = None
+    try:
+        import json as _json
+        caption = (_json.loads(event["metadata"]) or {}).get("title") if event.get("metadata") else None
+    except Exception:
+        caption = None
+
+    async def _send():
+        bot = Bot(token=BOT_TOKEN)
+        if file_id:
+            kind = (event.get("delivery_kind") or "document").lower()
+            sender = {
+                "video": bot.send_video,
+                "audio": bot.send_audio,
+                "voice": bot.send_voice,
+                "animation": bot.send_animation,
+            }.get(kind, bot.send_document)
+            kwargs = {"chat_id": target_chat, "caption": caption}
+            kwargs[{"video": "video", "audio": "audio", "voice": "voice",
+                    "animation": "animation"}.get(kind, "document")] = file_id
+            await sender(**kwargs)
+        else:
+            await bot.copy_message(
+                chat_id=target_chat, from_chat_id=source_chat, message_id=source_message
+            )
+
+    try:
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(_send())
+        finally:
+            loop.close()
+    except Exception as exc:
+        # A rotated bot token invalidates every file_id it ever issued, which is
+        # the most likely reason this fails — so say so rather than "error".
+        add_log("ERROR", "resend_failed", f"ارسال دوباره‌ی رویداد {event_id} ناموفق بود: {exc}", metadata={"source": "پنل کاربری"})
+        return jsonify(success=False, error="resend_failed", detail=str(exc)[:160]), 502
+
+    add_log("INFO", "resend_ok", f"فایل رویداد {event_id} دوباره برای کاربر ارسال شد.", metadata={"source": "پنل کاربری"})
+    return jsonify(success=True)
+
+
 @app.get("/account/billing")
 def account_billing_data():
     import billing
