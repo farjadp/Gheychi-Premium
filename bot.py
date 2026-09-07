@@ -168,6 +168,36 @@ def build_quality_keyboard(info: VideoInfo, request_token: str, lang: str = "fa"
     return InlineKeyboardMarkup(buttons)
 
 
+def delivery_details(message, *, file_size: int | None = None, source: tuple | None = None) -> dict:
+    """
+    Pull out what is needed to put this file back in the user's chat later.
+
+    Two different objects arrive here. An ordinary send returns a full Message
+    carrying the file, whose file_id can be re-sent instantly — Telegram
+    already holds the bytes, so there is no re-download and no re-upload.
+    copy_message returns a bare MessageId with no file at all, so for relayed
+    large files the dump-channel origin is kept instead and copied again.
+    """
+    details = {"file_size_bytes": file_size}
+    if message is None:
+        return details
+
+    details["message_id"] = getattr(message, "message_id", None)
+    chat = getattr(message, "chat", None)
+    details["chat_id"] = getattr(chat, "id", None)
+
+    for kind in ("video", "audio", "document", "voice", "animation"):
+        media = getattr(message, kind, None)
+        if media is not None and getattr(media, "file_id", None):
+            details["file_id"] = media.file_id
+            details["kind"] = kind
+            break
+
+    if source:
+        details["source_chat_id"], details["source_message_id"] = source
+    return details
+
+
 def build_magic_link(user_id: int) -> str:
     """
     Mint a one-shot dashboard link.
@@ -840,7 +870,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 get_text("document_caption", user_lang, title=caption), meta)
             if delivered:
                 dump_chat_id, dump_message_id = delivered
-                await context.bot.copy_message(
+                copied = await context.bot.copy_message(
                     chat_id=query.message.chat_id,
                     from_chat_id=dump_chat_id,
                     message_id=dump_message_id,
@@ -856,7 +886,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 record_usage_event(user_id, platform=platform_name, url=url,
                                    media_kind="audio" if quality == "audio" else "video",
                                    quality=quality, duration_seconds=duration_seconds,
-                                   metadata={"source": "تلگرام ربات", "title": caption})
+                                   metadata={"source": "تلگرام ربات", "title": caption},
+                                   delivery=delivery_details(
+                                       copied, file_size=file_size,
+                                       source=(dump_chat_id, dump_message_id)))
                 cleanup_file(file_path)
                 delete_pending_request(request_token)
                 return
@@ -879,7 +912,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             uploader = request_data.get("uploader", "Voice")
             bot_id = f"@{BOT_USERNAME}"
             with open(file_path, "rb") as f:
-                await query.message.reply_audio(
+                sent_message = await query.message.reply_audio(
                     audio=f,
                     title=caption,
                     caption=get_text("document_caption", user_lang, title=caption),
@@ -894,7 +927,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await status_msg.chat.send_action(ChatAction.UPLOAD_VIDEO)
             bot_id = f"@{BOT_USERNAME}"
             with open(file_path, "rb") as f:
-                await query.message.reply_video(
+                sent_message = await query.message.reply_video(
                     video=f,
                     caption=get_text("document_caption", user_lang, title=caption),
                     width=result.width,
@@ -923,6 +956,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             quality=quality,
             duration_seconds=duration_seconds,
             metadata={"source": "تلگرام ربات", "title": caption},
+            delivery=delivery_details(
+                sent_message,
+                file_size=os.path.getsize(file_path) if file_path and os.path.exists(file_path) else None,
+            ),
         )
         await status_msg.delete()
 
@@ -933,7 +970,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             bot_id = f"@{BOT_USERNAME}"
             with open(file_path, "rb") as f:
-                await query.message.reply_document(
+                sent_message = await query.message.reply_document(
                     document=f,
                     caption=get_text("document_caption", user_lang, title=result.title or get_text("file_fallback", user_lang)),
                     connect_timeout=TELEGRAM_CONNECT_TIMEOUT,
@@ -957,6 +994,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 quality=quality,
                 duration_seconds=duration_seconds,
                 metadata={"source": "تلگرام ربات", "title": result.title},
+                delivery=delivery_details(
+                    sent_message,
+                    file_size=os.path.getsize(file_path) if file_path and os.path.exists(file_path) else None,
+                ),
             )
             await status_msg.delete()
         except Exception as e2:

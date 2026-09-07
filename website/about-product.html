@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Roadmap — Gheychi Premium</title>
-<meta name="description" content="What has shipped, what is in progress, and what has not been started. Including the work to clear Telegram's 50 MB bot upload ceiling.">
+<meta name="description" content="What has shipped, what is in progress, and what has not been started. Including the relay that clears Telegram's 50 MB bot upload ceiling.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -151,9 +151,9 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
           <span class="spec spec-ink">V3.5</span>
           <div class="stack-s">
             <h2 class="t-h3">Past 50 MB</h2>
-            <p style="font-size:.9375rem;color:var(--ink-2);max-width:60ch">Routing large files through an intermediate channel to clear Telegram's bot upload ceiling. Built, not yet configured in production.</p>
+            <p style="font-size:.9375rem;color:var(--ink-2);max-width:60ch">Large files are routed through an intermediate channel and a real Telegram user session, clearing the 50 MB ceiling the Bot API imposes. Live, with the cap set at 500 MB.</p>
           </div>
-          <span class="tag tag-active">In progress</span>
+          <span class="tag tag-done">Live</span>
         </div>
         <div class="road-item rise">
           <span class="spec spec-ink">V4.0</span>

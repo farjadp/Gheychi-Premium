@@ -14,7 +14,7 @@ from config import STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, BOT_TOKEN, BOT_USER
 
 from flask import Flask, Response, jsonify, send_file, redirect, render_template_string, request, url_for, session, abort
 
-from config import ADMIN_PASSWORD, ALLOWED_PLATFORMS
+from config import ADMIN_PASSWORD, ALLOWED_PLATFORMS, SUPPORT_CONTACT
 from plans import format_rule, list_plans
 from runtime_store import (
     add_log,
@@ -1021,38 +1021,16 @@ def magic_login():
 
 @app.route("/dashboard")
 def user_dashboard():
-    from accounts import list_links
+    """
+    Redirect into the account page.
 
-    account_id = _current_account_id()
-    if not account_id:
-        return redirect(url_for("account_page"))
+    The bot's buttons, every magic link already sitting in a chat, and the
+    marketing pages all point here. Rather than keep two dashboards that drift
+    apart, this is now one door into the tabbed account page — where the plan,
+    quota and history it used to show live under Overview and Library.
+    """
+    return redirect(url_for("account_page"))
 
-    # An account can hold several Telegram accounts; the dashboard shows the
-    # one the session arrived on, else the first linked.
-    user_id = session.get("user_id")
-    if not user_id:
-        links = list_links(account_id)
-        if not links:
-            return redirect(url_for("account_page"))
-        user_id = links[0]["telegram_user_id"]
-        
-    from runtime_store import get_bot_user, get_user_download_history
-    import os
-    
-    # 1. Fetch user subscription details
-    user = get_bot_user(user_id)
-    if not user:
-        return "حساب کاربری یافت نشد.", 404
-        
-    # 2. Fetch history
-    history = get_user_download_history(user_id, limit=20)
-    
-    # 3. Read the template from file
-    template_path = os.path.join(os.path.dirname(__file__), "website", "user_dashboard.html")
-    with open(template_path, "r", encoding="utf-8") as f:
-        template_str = f.read()
-        
-    return render_template_string(template_str, user=user, history=history)
 
 @app.route("/dashboard/upgrade")
 def user_dashboard_upgrade():
@@ -1086,6 +1064,7 @@ def account_page():
         links=list_links(account_id) if account else [],
         capacity=link_capacity(account_id) if account else None,
         bot_username=BOT_USERNAME,
+        support_contact=SUPPORT_CONTACT,
         csrf_token=session.get("csrf_token"),
     )
 
@@ -1149,6 +1128,193 @@ def account_unlink():
 
     add_log("INFO", "telegram_unlinked", f"اکانت تلگرام {telegram_user_id} از حساب جدا شد.", metadata={"source": "پنل کاربری"})
     return jsonify(success=True, cooldown_days=UNLINK_COOLDOWN_DAYS)
+
+
+# =====================================================================
+# DASHBOARD DATA: HISTORY, STATS, BILLING
+# =====================================================================
+
+def _primary_telegram_id(account_id: str) -> int | None:
+    """
+    Which Telegram account a purchase is credited to.
+
+    The plan still lives on bot_users, so a web purchase has to name one. The
+    session's own account wins when there is one, else the oldest link — the
+    one most likely to be the person's main account.
+    """
+    from accounts import list_links
+
+    session_tg = session.get("user_id")
+    links = list_links(account_id)
+    ids = [l["telegram_user_id"] for l in links]
+    if session_tg in ids:
+        return session_tg
+    return ids[0] if ids else None
+
+
+@app.get("/account/history")
+def account_history_data():
+    import stats
+
+    account_id = _current_account_id()
+    if not account_id:
+        return jsonify(success=False, error="not_signed_in"), 401
+    return jsonify(success=True, history=stats.account_history(account_id))
+
+
+@app.get("/account/stats")
+def account_stats_data():
+    import stats
+
+    account_id = _current_account_id()
+    if not account_id:
+        return jsonify(success=False, error="not_signed_in"), 401
+    return jsonify(success=True, stats=stats.account_stats(account_id))
+
+
+@app.post("/account/resend")
+def account_resend():
+    """
+    Put a previously delivered file back in the user's Telegram chat.
+
+    Two routes, matching how it was delivered. An ordinary send left a file_id,
+    and re-sending by file_id costs nothing — Telegram still holds the bytes,
+    so there is no re-download and no re-upload. A relayed large file left only
+    a dump-channel origin, because copy_message returns no file, so that one is
+    copied across again.
+
+    Neither route touches the original site, so a video pulled from a link that
+    has since died still comes back.
+    """
+    from runtime_store import get_usage_event
+    from accounts import list_links
+
+    account_id = _current_account_id()
+    if not account_id:
+        return jsonify(success=False, error="not_signed_in"), 401
+
+    retry_after = rate_limit_hit("resend", account_id, 20, 600)
+    if retry_after:
+        return jsonify(success=False, error="rate_limited", retry_after=retry_after), 429
+
+    try:
+        event_id = int(request.form.get("event_id", ""))
+    except (TypeError, ValueError):
+        return jsonify(success=False, error="invalid_id"), 400
+
+    event = get_usage_event(event_id)
+    if not event:
+        return jsonify(success=False, error="not_found"), 404
+
+    # The row must belong to this account. Without this check an event id is a
+    # guessable integer that would deliver someone else's file.
+    owned = {l["telegram_user_id"] for l in list_links(account_id)}
+    if event["telegram_user_id"] not in owned:
+        return jsonify(success=False, error="not_found"), 404
+
+    target_chat = event.get("delivery_chat_id") or event["telegram_user_id"]
+    file_id = event.get("delivery_file_id")
+    source_chat = event.get("delivery_source_chat_id")
+    source_message = event.get("delivery_source_message_id")
+
+    if not file_id and not (source_chat and source_message):
+        # Everything downloaded before this feature shipped lands here.
+        return jsonify(success=False, error="no_delivery_record"), 409
+
+    caption = None
+    try:
+        import json as _json
+        caption = (_json.loads(event["metadata"]) or {}).get("title") if event.get("metadata") else None
+    except Exception:
+        caption = None
+
+    async def _send():
+        bot = Bot(token=BOT_TOKEN)
+        if file_id:
+            kind = (event.get("delivery_kind") or "document").lower()
+            sender = {
+                "video": bot.send_video,
+                "audio": bot.send_audio,
+                "voice": bot.send_voice,
+                "animation": bot.send_animation,
+            }.get(kind, bot.send_document)
+            kwargs = {"chat_id": target_chat, "caption": caption}
+            kwargs[{"video": "video", "audio": "audio", "voice": "voice",
+                    "animation": "animation"}.get(kind, "document")] = file_id
+            await sender(**kwargs)
+        else:
+            await bot.copy_message(
+                chat_id=target_chat, from_chat_id=source_chat, message_id=source_message
+            )
+
+    try:
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(_send())
+        finally:
+            loop.close()
+    except Exception as exc:
+        # A rotated bot token invalidates every file_id it ever issued, which is
+        # the most likely reason this fails — so say so rather than "error".
+        add_log("ERROR", "resend_failed", f"ارسال دوباره‌ی رویداد {event_id} ناموفق بود: {exc}", metadata={"source": "پنل کاربری"})
+        return jsonify(success=False, error="resend_failed", detail=str(exc)[:160]), 502
+
+    add_log("INFO", "resend_ok", f"فایل رویداد {event_id} دوباره برای کاربر ارسال شد.", metadata={"source": "پنل کاربری"})
+    return jsonify(success=True)
+
+
+@app.get("/account/billing")
+def account_billing_data():
+    import billing
+    from accounts import account_plan_code
+
+    account_id = _current_account_id()
+    if not account_id:
+        return jsonify(success=False, error="not_signed_in"), 401
+
+    plan_code = account_plan_code(account_id)
+    return jsonify(
+        success=True,
+        current_plan=plan_code,
+        invoices=billing.account_invoices(account_id),
+        options=billing.upgrade_options(plan_code),
+        stripe_ready=billing.is_configured(),
+        can_purchase=_primary_telegram_id(account_id) is not None,
+    )
+
+
+@app.post("/account/billing/checkout")
+def account_billing_checkout():
+    """Start a Stripe Checkout for an upgrade and hand back the URL."""
+    import billing
+
+    account_id = _current_account_id()
+    if not account_id:
+        return jsonify(success=False, error="not_signed_in"), 401
+
+    retry_after = rate_limit_hit("checkout", account_id, 10, 900)
+    if retry_after:
+        return jsonify(success=False, error="rate_limited", retry_after=retry_after), 429
+
+    plan_code = (request.form.get("plan_code") or "").strip()
+    telegram_user_id = _primary_telegram_id(account_id)
+
+    try:
+        url = billing.create_checkout_session(
+            account_id,
+            plan_code,
+            telegram_user_id,
+            success_url=f"{BASE_URL}/account?paid=1",
+            cancel_url=f"{BASE_URL}/account?paid=0",
+        )
+    except billing.BillingError as exc:
+        return jsonify(success=False, error=exc.code), 400
+    except Exception as exc:
+        add_log("ERROR", "checkout_failed", f"ساخت جلسه پرداخت ناموفق بود: {exc}", metadata={"source": "پنل کاربری"})
+        return jsonify(success=False, error="checkout_failed"), 500
+
+    add_log("INFO", "checkout_started", f"پرداخت {plan_code} برای کاربر {telegram_user_id} از پنل آغاز شد.", metadata={"source": "پنل کاربری"})
+    return jsonify(success=True, url=url)
 
 
 @app.route("/auth/logout")

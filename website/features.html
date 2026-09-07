@@ -218,15 +218,16 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
         <p class="t-body" style="margin-top:1rem">Stated plainly, because finding out after paying is worse.</p>
       </div>
       <dl class="specs">
-        <div class="spec-row"><dt>Maximum file size, any plan</dt><span class="leader"></span><dd>50 MB</dd></div>
+        <div class="spec-row"><dt>Maximum file size, any plan</dt><span class="leader"></span><dd>500 MB</dd></div>
         <div class="spec-row"><dt>Telegram invite links</dt><span class="leader"></span><dd>unsupported</dd></div>
         <div class="spec-row"><dt>RadioJavan video</dt><span class="leader"></span><dd>unsupported</dd></div>
         <div class="spec-row"><dt>Card checkout</dt><span class="leader"></span><dd>not yet live</dd></div>
         <div class="spec-row"><dt>Server-side library</dt><span class="leader"></span><dd>none by design</dd></div>
       </dl>
       <p class="t-body" style="margin-top:1.25rem;font-size:.9375rem">
-        The 50 MB ceiling is Telegram's own upload limit for bots, not a plan restriction — no tier raises it today.
-        Work to lift it is on the <a href="about-product.html">roadmap</a>; until it ships, this page will keep saying 50 MB.
+        Telegram stops a bot at 50 MB. Anything larger is uploaded through a real Telegram user session and
+        copied to you — the same mechanism that reaches restricted channels — which is how the ceiling here is
+        500 MB. It is the same for every tier; plans change quantity and platform access, not file size.
       </p>
     </div>
   </section>

@@ -48,7 +48,7 @@ Everything else the product does — 1000+ sites via yt-dlp, quality selection, 
 - Admin panel: plans, subscriptions, transactions, logs, broadcast, analytics, backup
 
 **Hard constraints that copy must respect:**
-- **File size is capped at 50 MB today.** This is the Telegram Bot API's upload limit. A dump-channel workaround exists in code but is not configured in production, so no page may claim 2 GB, 4K, or any figure above 50 MB. The previous site claimed 2 GB and 4K; both were false and must not be carried forward.
+- **File size is capped at 500 MB today**, set in the admin panel. Telegram's Bot API stops at 50 MB, but the dump-channel relay is configured in production: anything larger goes up through the real Telegram user session and is copied to the recipient, so 500 MB is what actually runs. The technical ceiling on that route is 2 GB, so the cap can be raised without new code — but no page may claim more than the number the panel is actually set to. The previous site claimed 2 GB and 4K when neither worked; that is the failure to avoid, not the figure itself.
 - Telegram invite links (`t.me/+hash`) are not supported.
 - RadioJavan is audio-only; video is rejected.
 - Automated card payment is **not live**. Stripe is coded but unconfigured; subscriptions are activated manually by the admin today. Pricing pages may show plans and prices, but must not promise instant automated checkout until Stripe is configured.
@@ -74,7 +74,7 @@ Everything else the product does — 1000+ sites via yt-dlp, quality selection, 
 ## Product Principles
 
 1. **The chat is the product; the site is the argument.** Never design the website as though it were the application.
-2. **Claim only what runs.** The previous site's inflated numbers are the specific failure this rebuild corrects. 50 MB is 50 MB.
+2. **Claim only what runs — and claim all of it.** The previous site's inflated numbers are the specific failure this rebuild corrects. The mirror failure is just as costly: the site said 50 MB for months after the relay made 500 MB real, and called it "Telegram's limit, not ours" when it was ours. Check the admin panel before writing a number.
 3. **Lead with the thing only we do.** Restricted Telegram content is the differentiator; generic downloading is the commodity.
 4. **Signing up must never be the price of trying it.** The bot still works with no account at all, and the marketing pages still end in Telegram. The account exists for people who already use the product and need to manage several Telegram accounts, a plan, or a quota — it is a destination for existing users, not a toll gate in front of new ones.
 5. **One operator, many users.** Admin surfaces optimize for a single person scanning quickly, not for a team workflow.
