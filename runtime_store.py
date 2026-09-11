@@ -10,8 +10,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from config import ALLOWED_PLATFORMS, DATA_DIR, DEFAULT_MAX_FILE_SIZE_MB, DUMP_CHANNEL_ID
-from plans import PERIOD_LABELS, get_plan, get_plan_rule
+from config import OTHER_SITES_PLATFORM, ALLOWED_PLATFORMS, DATA_DIR, DEFAULT_MAX_FILE_SIZE_MB, DUMP_CHANNEL_ID
+from plans import PERIOD_LABELS, get_plan, get_plan_rule, named_platforms, platform_label
 
 SETTINGS_FILE = DATA_DIR / "settings.json"
 LOGS_DB = DATA_DIR / "activity.db"
@@ -736,6 +736,28 @@ def count_usage_events(
     return int(row[0] if row else 0)
 
 
+def count_rule_usage(telegram_user_id: int, rule: dict) -> int:
+    """
+    Usage counted against one plan rule. The other-sites rule is a pool: every
+    download from a site no plan names draws on the same allowance however many
+    different sites that spans, so it counts events outside the named platforms
+    rather than events literally stored under the rule's name.
+    """
+    if rule["platform"] != OTHER_SITES_PLATFORM:
+        return count_usage_events(telegram_user_id, platform=rule["platform"], period=rule["period"])
+    init_logs_db()
+    named = sorted(named_platforms())
+    period_from = _period_start(rule["period"]).isoformat()
+    marks = ",".join("?" for _ in named) or "''"
+    with closing(_connect()) as conn:
+        row = conn.execute(
+            f"SELECT COUNT(*) FROM usage_events WHERE telegram_user_id = ? AND created_at >= ? "
+            f"AND LOWER(platform) NOT IN ({marks})",
+            (telegram_user_id, period_from, *named),
+        ).fetchone()
+    return int(row[0] if row else 0)
+
+
 def get_usage_snapshot(telegram_user_id: int) -> dict[str, Any]:
     user = get_bot_user(telegram_user_id)
     plan = user["effective_plan"]
@@ -744,11 +766,7 @@ def get_usage_snapshot(telegram_user_id: int) -> dict[str, Any]:
         used = None
         remaining = None
         if rule["limit"] is not None and rule["period"]:
-            used = count_usage_events(
-                telegram_user_id,
-                platform=rule["platform"],
-                period=rule["period"],
-            )
+            used = count_rule_usage(telegram_user_id, rule)
             remaining = max(rule["limit"] - used, 0)
         usage_rules.append(
             {
@@ -799,15 +817,11 @@ def evaluate_download_access(
             "rule": rule,
         }
 
-    used = count_usage_events(
-        telegram_user_id,
-        platform=platform,
-        period=rule["period"],
-    )
+    used = count_rule_usage(telegram_user_id, rule)
     if used >= rule["limit"]:
         return {
             "allowed": False,
-            "reason": f"سهمیه {platform} شما در {PERIOD_LABELS[rule['period']]} جاری تمام شده است ({used}/{rule['limit']}).",
+            "reason": f"سهمیه {platform_label(rule['platform']) if rule['platform'] == OTHER_SITES_PLATFORM else platform} شما در {PERIOD_LABELS[rule['period']]} جاری تمام شده است ({used}/{rule['limit']}).",
             "snapshot": snapshot,
             "rule": rule,
         }

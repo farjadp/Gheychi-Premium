@@ -128,4 +128,8 @@ ALLOWED_PLATFORMS = [
     "و بیش از ۱۰۰۰ سایت دیگر",
 ]
 
+# The catch-all entry above doubles as the plan-rule key for every site no plan
+# names on its own. One constant, so the rule and the admin checkbox cannot drift.
+OTHER_SITES_PLATFORM = "و بیش از ۱۰۰۰ سایت دیگر"
+
 SUPPORTED_PLATFORMS = ALLOWED_PLATFORMS
