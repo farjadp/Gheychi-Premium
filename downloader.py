@@ -811,6 +811,38 @@ async def download_audio(
     loop = asyncio.get_running_loop()
     last_download_error: yt_dlp.utils.DownloadError | None = None
 
+    # YouTube audio goes to the provider first, the same way video does. yt-dlp
+    # cannot reach YouTube from this host at all, so trying it first only spent
+    # six failed profiles before the MP3 failed with them. It stays behind the
+    # provider as a fallback, and every other site is untouched.
+    if _is_youtube_url(source_url):
+        api_result = await loop.run_in_executor(None, lambda: get_direct_media_url(source_url, "audio"))
+        if api_result.get("success"):
+            destination = download_dir / f"{request_id}.mp3"
+            try:
+                def _do_download():
+                    def _safe_progress(pct: int):
+                        if progress_callback:
+                            loop.call_soon_threadsafe(progress_callback, pct)
+                    _download_file(api_result["url"], destination, _safe_progress)
+                await loop.run_in_executor(None, _do_download)
+                if destination.exists() and destination.stat().st_size > 0:
+                    if destination.stat().st_size > max_file_size_bytes:
+                        destination.unlink(missing_ok=True)
+                        return DownloadResult(
+                            success=False,
+                            error=f"فایل بزرگتر از {max_file_size_bytes // (1024*1024)} مگابایت است.",
+                        )
+                    return DownloadResult(
+                        success=True, file_path=str(destination), title="صوت",
+                        source=api_result.get("source", "API"),
+                        duration=_extract_audio_duration(str(destination)),
+                    )
+            except Exception as e:
+                logger.error("YouTube audio via the provider failed: %s", e)
+        else:
+            logger.warning("YouTube audio provider failed: %s. Falling back to yt-dlp...", api_result.get("error"))
+
     for profile in _youtube_ydl_profiles(source_url):
         opts = _base_ydl_opts(
             output_template,
