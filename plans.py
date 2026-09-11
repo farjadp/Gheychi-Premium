@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from urllib.parse import urlparse
-from config import DATA_DIR
+from config import DATA_DIR, OTHER_SITES_PLATFORM
 
 PERIOD_LABELS = {
     "day": "روز",
@@ -22,6 +22,7 @@ DEFAULT_SUBSCRIPTION_PLANS = {
             {"platform": "Instagram", "limit": 5, "period": "month"},
             {"platform": "Telegram", "limit": 3, "period": "month"},
             {"platform": "LinkedIn", "limit": 3, "period": "month"},
+            {"platform": OTHER_SITES_PLATFORM, "limit": 3, "period": "month"},
         ],
     },
     "starter": {
@@ -40,6 +41,7 @@ DEFAULT_SUBSCRIPTION_PLANS = {
             {"platform": "PornHub", "limit": 3, "period": "month", "max_duration_seconds": 1800},
             {"platform": "Telegram", "limit": 20, "period": "month"},
             {"platform": "LinkedIn", "limit": 13, "period": "month"},
+            {"platform": OTHER_SITES_PLATFORM, "limit": 13, "period": "month"},
         ],
     },
     "standard": {
@@ -59,6 +61,7 @@ DEFAULT_SUBSCRIPTION_PLANS = {
             {"platform": "PornHub", "limit": 5, "period": "month", "max_duration_seconds": 1800},
             {"platform": "Telegram", "limit": 50, "period": "month"},
             {"platform": "LinkedIn", "limit": None, "period": None},
+            {"platform": OTHER_SITES_PLATFORM, "limit": None, "period": None},
         ],
     },
     "pro": {
@@ -79,6 +82,7 @@ DEFAULT_SUBSCRIPTION_PLANS = {
             {"platform": "PornHub", "limit": 13, "period": "month", "max_duration_seconds": 2700},
             {"platform": "Telegram", "limit": None, "period": None},
             {"platform": "LinkedIn", "limit": None, "period": None},
+            {"platform": OTHER_SITES_PLATFORM, "limit": None, "period": None},
         ],
     },
 }
@@ -127,7 +131,7 @@ def ensure_plan_defaults() -> bool:
             platform = default_rule.get("platform", "")
             # Only backfill platforms the operator has never seen; anything they
             # removed on purpose for an existing platform stays removed.
-            if platform.lower() not in have and platform in ("Telegram", "LinkedIn"):
+            if platform.lower() not in have and platform in ("Telegram", "LinkedIn", OTHER_SITES_PLATFORM):
                 rules.append(dict(default_rule))
                 have.add(platform.lower())
                 changed = True
@@ -187,6 +191,39 @@ def get_max_linked_accounts(plan_code: str) -> int:
     return DEFAULT_LINK_CAPS.get(plan_code, 1)
 
 
+ADULT_PLATFORM = "Adult"
+_ADULT = None
+
+def _adult_sites() -> tuple[set[str], set[str]]:
+    """Domains and yt-dlp extractor keys for adult sites, generated into adult_sites.json."""
+    global _ADULT
+    if _ADULT is None:
+        try:
+            with open(Path(__file__).with_name("adult_sites.json"), encoding="utf-8") as f:
+                data = json.load(f)
+            _ADULT = (set(data.get("domains", [])), set(data.get("extractors", [])))
+        except (OSError, ValueError):
+            _ADULT = (set(), set())
+    return _ADULT
+
+def named_platforms() -> set[str]:
+    """Lower-cased platforms that at least one plan has a rule for, the catch-all aside."""
+    names = set()
+    for plan in get_subscription_plans().values():
+        for rule in plan.get("rules", []):
+            if rule.get("platform") and rule["platform"] != OTHER_SITES_PLATFORM:
+                names.add(rule["platform"].lower())
+    if "youtube" in names:
+        names.add("yt")
+    return names
+
+def platform_label(platform: str, lang: str = "fa") -> str:
+    if platform == OTHER_SITES_PLATFORM:
+        return "سایر سایت‌ها" if lang == "fa" else "Other sites"
+    if platform == ADULT_PLATFORM:
+        return "سایت‌های بزرگسال" if lang == "fa" else "Adult sites"
+    return platform
+
 def get_plan_rule(plan_code: str, platform: str) -> Optional[dict]:
     plan = get_plan(plan_code)
     if not plan:
@@ -197,6 +234,14 @@ def get_plan_rule(plan_code: str, platform: str) -> Optional[dict]:
         # YouTube fallback mapping
         if platform.lower() in ("yt", "youtube") and rule["platform"].lower() == "youtube":
             return rule
+    # A site no plan names at all draws on the plan's other-sites rule. A platform
+    # some plan does name (YouTube, Facebook, TikTok...) never falls through here:
+    # leaving it out of a plan is how that plan excludes it.
+    # Adult sites are excluded from that allowance on every plan.
+    if platform != ADULT_PLATFORM and platform.lower() not in named_platforms():
+        for rule in plan.get("rules", []):
+            if rule["platform"] == OTHER_SITES_PLATFORM:
+                return rule
     return None
 
 def normalize_platform(raw_platform: str | None, url: str = "") -> str:
@@ -232,6 +277,11 @@ def normalize_platform(raw_platform: str | None, url: str = "") -> str:
         return "LinkedIn"
     if "pornhub.com" in host or "pornhub" in platform:
         return "PornHub"
+    # After every named platform, so PornHub keeps its own rules above.
+    domains, extractors = _adult_sites()
+    bare = host[4:] if host.startswith("www.") else host
+    if any(bare == d or bare.endswith("." + d) for d in domains) or platform in extractors:
+        return ADULT_PLATFORM
     from locales import get_text
     return raw_platform or get_text("unknown", "fa")
 
@@ -244,11 +294,11 @@ def format_duration_limit(seconds: int | None, lang: str = "fa") -> str | None:
 def format_rule(rule: dict, lang: str = "fa") -> str:
     from locales import get_text
     if rule["limit"] is None:
-        base = f"{rule['platform']}: {get_text('unlimited', lang)}"
+        base = f"{platform_label(rule['platform'], lang)}: {get_text('unlimited', lang)}"
     else:
         period_str = PERIOD_LABELS.get(rule['period'], rule['period']) if lang == "fa" else rule['period']
         per_str = "لینک در هر" if lang == "fa" else "links per"
-        base = f"{rule['platform']}: {rule['limit']} {per_str} {period_str}"
+        base = f"{platform_label(rule['platform'], lang)}: {rule['limit']} {per_str} {period_str}"
 
     duration_limit = format_duration_limit(rule.get("max_duration_seconds"), lang)
     if duration_limit:

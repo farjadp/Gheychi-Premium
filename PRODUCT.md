@@ -42,6 +42,7 @@ Everything else the product does — 1000+ sites via yt-dlp, quality selection, 
 - Quality selection per request; audio-only (MP3) extraction
 - Save Restricted Content from private Telegram channels, groups, and topics, including full albums
 - Per-plan quotas by platform, with daily / weekly / monthly periods and per-platform duration caps
+- An other-sites allowance on every plan (Free 3/month, Starter 13/month, Standard and Pro unlimited) that covers any site no plan names on its own; platforms a plan leaves out on purpose, such as YouTube on Free, stay excluded. Adult sites are excluded from it on every plan (the list is generated into `adult_sites.json`); PornHub keeps its own operator-set rules
 - Bilingual bot interface, Persian and English
 - Magic-link web dashboard showing plan, quota, and history
 - Email sign-up and sign-in on the site, and an account page for linking Telegram accounts by deep link, QR, or a six-digit code sent to the bot

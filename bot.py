@@ -40,7 +40,7 @@ from downloader import (
     cleanup_file,
     VideoInfo,
 )
-from plans import build_plan_catalog_text, normalize_platform
+from plans import build_plan_catalog_text, normalize_platform, platform_label
 from runtime_store import (
     TELEGRAM_BOT_UPLOAD_LIMIT_MB,
     add_log,
@@ -243,13 +243,13 @@ def build_usage_text(user_id: int, lang: str = "fa") -> str:
     ]
     for rule in snapshot["rules"]:
         if rule["limit"] is None:
-            lines.append(f"• {rule['platform']}: {get_text('unlimited', lang)}")
+            lines.append(f"• {platform_label(rule['platform'], lang)}: {get_text('unlimited', lang)}")
             continue
         extra = ""
         if rule.get("max_duration_seconds"):
             extra = f" | {rule['max_duration_seconds'] // 60}m"
         lines.append(
-            f"• {rule['platform']}: {rule['used']}/{rule['limit']} ({rule['period_label']}) | {rule['remaining']}{extra}"
+            f"• {platform_label(rule['platform'], lang)}: {rule['used']}/{rule['limit']} ({rule['period_label']}) | {rule['remaining']}{extra}"
         )
     return "\n".join(lines)
 

@@ -1,0 +1,20 @@
+# Gheychi Premium
+# Public pages are open to every crawler, AI search crawlers included.
+# Account, admin and API paths are private and carry nothing worth indexing.
+
+User-agent: *
+Allow: /
+Disallow: /account
+Disallow: /admin
+Disallow: /api/
+Disallow: /auth/
+Disallow: /backup
+Disallow: /broadcast
+Disallow: /dashboard
+Disallow: /finance
+Disallow: /login
+Disallow: /logout
+Disallow: /settings
+Disallow: /subscriptions
+
+Sitemap: https://www.gheychee.xyz/sitemap.xml
