@@ -336,6 +336,21 @@ def init_logs_db() -> None:
             except sqlite3.OperationalError:
                 pass  # Column already exists
 
+        # Model C: the quota pool belongs to the account, so each event records
+        # the account it was drawn from. Stamped at write time rather than looked
+        # up through the current links, so unlinking a Telegram account cannot
+        # hand its usage back. Existing rows are stamped once, when the column
+        # is first added.
+        try:
+            conn.execute("ALTER TABLE usage_events ADD COLUMN account_id TEXT")
+            conn.execute(
+                "UPDATE usage_events SET account_id = (SELECT l.account_id FROM account_telegram_links l "
+                "WHERE l.telegram_user_id = usage_events.telegram_user_id) WHERE account_id IS NULL"
+            )
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_usage_account ON usage_events (account_id, created_at)")
+
         conn.commit()
 
 
@@ -570,6 +585,76 @@ def _row_to_user(row: sqlite3.Row | None) -> dict[str, Any] | None:
     return user
 
 
+_PLAN_ORDER = {"free": 0, "starter": 1, "standard": 2, "pro": 3}
+
+
+def _linked_account_id(conn, telegram_user_id: int) -> str | None:
+    row = conn.execute(
+        "SELECT account_id FROM account_telegram_links WHERE telegram_user_id = ?", (telegram_user_id,)
+    ).fetchone()
+    return row[0] if row else None
+
+
+def _usage_scope(conn, telegram_user_id: int) -> tuple[str, tuple]:
+    """
+    Which usage events a quota check counts. A Telegram account linked to a web
+    account draws on that account's pool, so every linked ID shares one
+    allowance. One that is not linked counts only its own events, as before.
+    """
+    account_id = _linked_account_id(conn, telegram_user_id)
+    if account_id:
+        return "account_id = ?", (account_id,)
+    return "telegram_user_id = ?", (telegram_user_id,)
+
+
+def account_effective_plan_code(account_id: str) -> str:
+    """
+    The plan an account is entitled to: the best active plan among its linked
+    Telegram accounts. An expired plan counts as free, so a lapsed subscription
+    can no longer hold a slot cap or a quota open.
+    """
+    init_logs_db()
+    with closing(_connect()) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT u.telegram_user_id, u.username, u.first_name, u.last_name, u.language_code, u.plan_code,
+                   u.plan_started_at, u.plan_expires_at, u.assigned_note, u.created_at, u.updated_at
+            FROM account_telegram_links l JOIN bot_users u ON u.telegram_user_id = l.telegram_user_id
+            WHERE l.account_id = ?
+            """,
+            (account_id,),
+        ).fetchall()
+    best = "free"
+    for row in rows:
+        code = _row_to_user(row)["effective_plan_code"]
+        if _PLAN_ORDER.get(code, 0) > _PLAN_ORDER.get(best, 0):
+            best = code
+    return best
+
+
+def _with_account_plan(user: dict[str, Any]) -> dict[str, Any]:
+    """
+    Model C: the plan belongs to the account. A Telegram account linked to a web
+    account is entitled to the best active plan among every Telegram account
+    linked there, so paying on one covers the others. The Telegram account's own
+    assignment stays in plan_code / assigned_plan for the admin panel.
+    """
+    if not user:
+        return user
+    with closing(_connect()) as conn:
+        account_id = _linked_account_id(conn, user["telegram_user_id"])
+    user["account_id"] = account_id
+    user["plan_via_account"] = False
+    if account_id:
+        best = account_effective_plan_code(account_id)
+        if _PLAN_ORDER.get(best, 0) > _PLAN_ORDER.get(user["effective_plan_code"], 0):
+            user["effective_plan_code"] = best
+            user["effective_plan"] = get_plan(best)
+            user["plan_via_account"] = True
+    return user
+
+
 def get_bot_user(telegram_user_id: int) -> dict[str, Any]:
     init_logs_db()
     with closing(_connect()) as conn:
@@ -586,7 +671,7 @@ def get_bot_user(telegram_user_id: int) -> dict[str, Any]:
     if row is None:
         upsert_bot_user(telegram_user_id)
         return get_bot_user(telegram_user_id)
-    return _row_to_user(row) or {}
+    return _with_account_plan(_row_to_user(row) or {})
 
 
 def assign_user_plan(
@@ -691,8 +776,8 @@ def record_usage_event(
                 telegram_user_id, created_at, plan_code, platform, url,
                 media_kind, quality, duration_seconds, metadata,
                 delivery_chat_id, delivery_message_id, delivery_file_id, delivery_kind,
-                delivery_source_chat_id, delivery_source_message_id, file_size_bytes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                delivery_source_chat_id, delivery_source_message_id, file_size_bytes, account_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 telegram_user_id,
@@ -711,6 +796,7 @@ def record_usage_event(
                 delivery.get("source_chat_id"),
                 delivery.get("source_message_id"),
                 delivery.get("file_size_bytes"),
+                _linked_account_id(conn, telegram_user_id),
             ),
         )
         conn.commit()
@@ -725,13 +811,14 @@ def count_usage_events(
     init_logs_db()
     period_from = _period_start(period).isoformat()
     with closing(_connect()) as conn:
+        scope, args = _usage_scope(conn, telegram_user_id)
         row = conn.execute(
-            """
+            f"""
             SELECT COUNT(*) AS total
             FROM usage_events
-            WHERE telegram_user_id = ? AND platform = ? AND created_at >= ?
+            WHERE {scope} AND platform = ? AND created_at >= ?
             """,
-            (telegram_user_id, platform, period_from),
+            (*args, platform, period_from),
         ).fetchone()
     return int(row[0] if row else 0)
 
@@ -750,10 +837,11 @@ def count_rule_usage(telegram_user_id: int, rule: dict) -> int:
     period_from = _period_start(rule["period"]).isoformat()
     marks = ",".join("?" for _ in named) or "''"
     with closing(_connect()) as conn:
+        scope, args = _usage_scope(conn, telegram_user_id)
         row = conn.execute(
-            f"SELECT COUNT(*) FROM usage_events WHERE telegram_user_id = ? AND created_at >= ? "
+            f"SELECT COUNT(*) FROM usage_events WHERE {scope} AND created_at >= ? "
             f"AND LOWER(platform) NOT IN ({marks})",
-            (telegram_user_id, period_from, *named),
+            (*args, period_from, *named),
         ).fetchone()
     return int(row[0] if row else 0)
 

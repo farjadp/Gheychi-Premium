@@ -16,7 +16,7 @@ from datetime import timedelta
 from typing import Any
 
 from plans import get_max_linked_accounts
-from runtime_store import _connect, _parse_datetime, _utc_datetime, _utc_now, init_logs_db
+from runtime_store import _connect, _parse_datetime, _utc_datetime, _utc_now, account_effective_plan_code, init_logs_db
 
 UNLINK_COOLDOWN_DAYS = 7
 
@@ -179,19 +179,11 @@ def _active_cooldown(conn, account_id: str, telegram_user_id: int) -> str | None
 
 def account_plan_code(account_id: str) -> str:
     """
-    The plan this account is entitled to.
-
-    Phase 1 still stores the plan on bot_users, so the account's plan is the
-    best one among its linked Telegram accounts. Phase 2 moves the column onto
-    accounts and this becomes a plain read.
+    The plan this account is entitled to: the best active plan among its linked
+    Telegram accounts. Expiry counts, so a lapsed plan no longer props up the
+    slot cap. The same resolution runs in the download gate.
     """
-    order = {"free": 0, "starter": 1, "standard": 2, "pro": 3}
-    best = "free"
-    for link in list_links(account_id):
-        code = link.get("plan_code") or "free"
-        if order.get(code, 0) > order.get(best, 0):
-            best = code
-    return best
+    return account_effective_plan_code(account_id)
 
 
 def link_telegram(account_id: str, telegram_user_id: int) -> None:
@@ -231,6 +223,12 @@ def link_telegram(account_id: str, telegram_user_id: int) -> None:
         conn.execute(
             "INSERT INTO account_telegram_links (telegram_user_id, account_id, linked_at) VALUES (?, ?, ?)",
             (telegram_user_id, account_id, _utc_now()),
+        )
+        # Usage from before the link joins the account's pool, so linking a
+        # Telegram account that has spent its own allowance cannot reset it.
+        conn.execute(
+            "UPDATE usage_events SET account_id = ? WHERE telegram_user_id = ? AND account_id IS NULL",
+            (account_id, telegram_user_id),
         )
         # Relinking the same Telegram account should not be punished, so its own
         # cooldown rows are cleared. Only a *different* account taking the freed
