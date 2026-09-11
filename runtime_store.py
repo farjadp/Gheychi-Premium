@@ -795,7 +795,7 @@ def evaluate_download_access(
     if not rule:
         return {
             "allowed": False,
-            "reason": f"{platform} در {plan['name']} فعال نیست.",
+            "reason": f"{platform_label(platform)} در {plan['name']} فعال نیست.",
             "snapshot": snapshot,
             "rule": None,
         }
