@@ -215,6 +215,54 @@ def fetch_media_from_rapidapi(url: str) -> dict:
         logger.error(f"RapidAPI Error: {str(e)}")
         return {"success": False, "error": f"خطا در ارتباط با RapidAPI: {str(e)[:100]}"}
 
+YOUTUBE_QUOTA_ALERT_UNITS = int(os.getenv("YOUTUBE_QUOTA_ALERT_UNITS", "100"))
+
+
+def _maybe_alert_low_quota(remaining) -> None:
+    """
+    Tell the operator, once a day, when the YouTube provider is close to its
+    daily allowance, in the backup channel they already watch. At four units a
+    download the default of 100 leaves about 25 downloads. Past zero the
+    provider refuses and YouTube links fail until the reset.
+
+    Every failure here is logged and dropped: an alert must never cost a download.
+    """
+    try:
+        left = int(remaining)
+    except (TypeError, ValueError):
+        return
+    if left > YOUTUBE_QUOTA_ALERT_UNITS:
+        return
+    import json as _json
+    import urllib.parse
+    from datetime import datetime, timezone
+    from pathlib import Path
+    from config import BOT_TOKEN, DATA_DIR, normalise_channel_id
+    channel = normalise_channel_id(os.getenv("BACKUP_CHANNEL_ID", ""))
+    if not (BOT_TOKEN and channel):
+        logger.warning("YouTube API units low (%s) and no BACKUP_CHANNEL_ID to alert", left)
+        return
+    state = Path(DATA_DIR) / "youtube_quota_alert.json"
+    today = datetime.now(timezone.utc).date().isoformat()
+    try:
+        if state.exists() and _json.loads(state.read_text()).get("date") == today:
+            return
+    except (OSError, ValueError):
+        pass
+    text = (f"⚠️ YouTube API: {left} units left today, about {left // 4} downloads. "
+            "Past zero, YouTube links fail until the daily reset. "
+            "If this keeps happening, upgrade the RapidAPI plan.")
+    try:
+        body = urllib.parse.urlencode({"chat_id": channel, "text": text}).encode()
+        with urlopen(Request(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=body), timeout=15):
+            pass
+        state.parent.mkdir(parents=True, exist_ok=True)
+        state.write_text(_json.dumps({"date": today, "remaining": left}))
+        logger.warning("YouTube API units low (%s): alert sent to the backup channel", left)
+    except Exception as e:
+        logger.warning("could not send the YouTube quota alert: %s", e)
+
+
 def fetch_media_from_youtube_fast_api(url: str, quality: str) -> dict:
     """
     Last resort for YouTube, reached only after every yt-dlp profile has failed.
@@ -266,6 +314,7 @@ def fetch_media_from_youtube_fast_api(url: str, quality: str) -> dict:
             # Roughly four units a request against a daily allowance, so this is
             # the number to watch before YouTube starts failing on quota alone.
             logger.info("YouTube API units remaining: %s", remaining)
+            _maybe_alert_low_quota(remaining)
 
         progress_url = job.get("progress_url")
         if not progress_url:
