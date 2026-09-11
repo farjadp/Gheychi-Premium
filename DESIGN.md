@@ -8,7 +8,7 @@ Recorded from the built site, not from intention. Source of truth: `website/styl
 
 It is the deliberate opposite of the site it replaced (dark ground, glass panels, indigo→violet gradient, emoji icons, "Lightning Fast"). Those devices are the anti-reference and must not return.
 
-Direction: candidate 5 of 7 on the grounded list, seed key `dd384b0b`. Every page carries the direction contract as an HTML comment directly inside `<body>`.
+Direction: candidate 5 of 7 on the grounded list, seed key `dd384b0b`. Each page's direction contract is recorded under [Page contracts](#page-contracts) below. It used to ship as an HTML comment inside `<body>`, where any visitor could read it in view-source.
 
 ## Color
 
@@ -97,3 +97,167 @@ break platform gating.
 - The 8 `repeating-stripes-gradient` findings (advisory) are the hazard stripe on `.restricted`, which is meaningful rather than decorative and is kept deliberately.
 - Screenshots at 1440 and 390 for all nine surfaces are in `.impeccable/review/`.
 - The shipped `impeccable-finish-reviewer` subagent is not available in this harness, so the finish review was not run; the inspection above was done in-thread. This is a disclosed substitution, not a completed review.
+
+## Page contracts
+
+The direction each page was built against, moved out of the shipped HTML.
+
+### `index.html`
+
+```text
+THESIS: A tool catalogue for a tool, not another dark SaaS landing with a glowing
+gradient. It refuses the hero-plus-three-feature-cards arrangement; the page is a
+spec sheet whose measured figures do the persuading.
+OWN-WORLD: Paper ground #EFEFEA, ink #16160F, one saturated tool-signal orange
+#D63C0B owning whole bands, hazard yellow reserved for restricted content only.
+Archivo for voice, JetBrains Mono for every measured value. Hairline rules,
+dotted spec leaders, dimension lines, no cards, no glass, no emoji.
+STORY: The visitor learns this bot reaches inside private Telegram channels that
+block saving — the one thing no competitor does — then opens the bot.
+FIRST VIEWPORT: Left, a catalogue title at display scale over a one-line offer
+and the primary action. Right, a measured figure plate diagramming the restricted
+channel to file path, its dimension lines drawing once on entry, over a spec
+table of real figures.
+FORM: Precision instrument / engineering trade catalogue; candidate 5 of 7 on my
+grounded list; seed key dd384b0b.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+```
+
+### `features.html`
+
+```text
+THESIS: A tool catalogue for a tool, not another dark SaaS landing with a glowing
+gradient. It refuses the hero-plus-three-feature-cards arrangement; the page is a
+spec sheet whose measured figures do the persuading.
+OWN-WORLD: Paper ground #EFEFEA, ink #16160F, one saturated tool-signal orange
+#D63C0B owning whole bands, hazard yellow reserved for restricted content only.
+Archivo for voice, JetBrains Mono for every measured value. Hairline rules,
+dotted spec leaders, dimension lines, no cards, no glass, no emoji.
+STORY: The visitor learns this bot reaches inside private Telegram channels that
+block saving - the one thing no competitor does - then opens the bot.
+FIRST VIEWPORT: A masthead over three grouped capability lists, restricted Telegram content first, closing on an honest limits table.
+FORM: Precision instrument / engineering trade catalogue; candidate 5 of 7 on my
+grounded list; seed key dd384b0b.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+```
+
+### `pricing.html`
+
+```text
+THESIS: A tool catalogue for a tool, not another dark SaaS landing with a glowing
+gradient. It refuses the hero-plus-three-feature-cards arrangement; the page is a
+spec sheet whose measured figures do the persuading.
+OWN-WORLD: Paper ground #EFEFEA, ink #16160F, one saturated tool-signal orange
+#D63C0B owning whole bands, hazard yellow reserved for restricted content only.
+Archivo for voice, JetBrains Mono for every measured value. Hairline rules,
+dotted spec leaders, dimension lines, no cards, no glass, no emoji.
+STORY: The visitor learns this bot reaches inside private Telegram channels that
+block saving - the one thing no competitor does - then opens the bot.
+FIRST VIEWPORT: A masthead over a four-column ruled tier table, then the honest payment note and mechanics.
+FORM: Precision instrument / engineering trade catalogue; candidate 5 of 7 on my
+grounded list; seed key dd384b0b.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+```
+
+### `about-product.html`
+
+```text
+THESIS: A tool catalogue for a tool, not another dark SaaS landing with a glowing
+gradient. It refuses the hero-plus-three-feature-cards arrangement; the page is a
+spec sheet whose measured figures do the persuading.
+OWN-WORLD: Paper ground #EFEFEA, ink #16160F, one saturated tool-signal orange
+#D63C0B owning whole bands, hazard yellow reserved for restricted content only.
+Archivo for voice, JetBrains Mono for every measured value. Hairline rules,
+dotted spec leaders, dimension lines, no cards, no glass, no emoji.
+STORY: The visitor learns this bot reaches inside private Telegram channels that
+block saving - the one thing no competitor does - then opens the bot.
+FIRST VIEWPORT: A masthead over a ruled version ledger with honest status tags, then the reasoning behind the product.
+FORM: Precision instrument / engineering trade catalogue; candidate 5 of 7 on my
+grounded list; seed key dd384b0b.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+```
+
+### `about-us.html`
+
+```text
+THESIS: A tool catalogue for a tool, not another dark SaaS landing with a glowing
+gradient. It refuses the hero-plus-three-feature-cards arrangement; the page is a
+spec sheet whose measured figures do the persuading.
+OWN-WORLD: Paper ground #EFEFEA, ink #16160F, one saturated tool-signal orange
+#D63C0B owning whole bands, hazard yellow reserved for restricted content only.
+Archivo for voice, JetBrains Mono for every measured value. Hairline rules,
+dotted spec leaders, dimension lines, no cards, no glass, no emoji.
+STORY: The visitor learns this bot reaches inside private Telegram channels that
+block saving - the one thing no competitor does - then opens the bot.
+FIRST VIEWPORT: A masthead over a two-column document layout: label rail at left, prose measure at right.
+FORM: Precision instrument / engineering trade catalogue; candidate 5 of 7 on my
+grounded list; seed key dd384b0b.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+```
+
+### `contact.html`
+
+```text
+THESIS: A tool catalogue for a tool, not another dark SaaS landing with a glowing
+gradient. It refuses the hero-plus-three-feature-cards arrangement; the page is a
+spec sheet whose measured figures do the persuading.
+OWN-WORLD: Paper ground #EFEFEA, ink #16160F, one saturated tool-signal orange
+#D63C0B owning whole bands, hazard yellow reserved for restricted content only.
+Archivo for voice, JetBrains Mono for every measured value. Hairline rules,
+dotted spec leaders, dimension lines, no cards, no glass, no emoji.
+STORY: The visitor learns this bot reaches inside private Telegram channels that
+block saving - the one thing no competitor does - then opens the bot.
+FIRST VIEWPORT: A masthead over a ruled channel list at left and a what-to-include panel at right.
+FORM: Precision instrument / engineering trade catalogue; candidate 5 of 7 on my
+grounded list; seed key dd384b0b.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+```
+
+### `privacy.html`
+
+```text
+THESIS: A tool catalogue for a tool, not another dark SaaS landing with a glowing
+gradient. It refuses the hero-plus-three-feature-cards arrangement; the page is a
+spec sheet whose measured figures do the persuading.
+OWN-WORLD: Paper ground #EFEFEA, ink #16160F, one saturated tool-signal orange
+#D63C0B owning whole bands, hazard yellow reserved for restricted content only.
+Archivo for voice, JetBrains Mono for every measured value. Hairline rules,
+dotted spec leaders, dimension lines, no cards, no glass, no emoji.
+STORY: The visitor learns this bot reaches inside private Telegram channels that
+block saving - the one thing no competitor does - then opens the bot.
+FIRST VIEWPORT: A masthead over a two-column document: sticky section rail at left, prose at right.
+FORM: Precision instrument / engineering trade catalogue; candidate 5 of 7 on my
+grounded list; seed key dd384b0b.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+```
+
+### `terms.html`
+
+```text
+THESIS: A tool catalogue for a tool, not another dark SaaS landing with a glowing
+gradient. It refuses the hero-plus-three-feature-cards arrangement; the page is a
+spec sheet whose measured figures do the persuading.
+OWN-WORLD: Paper ground #EFEFEA, ink #16160F, one saturated tool-signal orange
+#D63C0B owning whole bands, hazard yellow reserved for restricted content only.
+Archivo for voice, JetBrains Mono for every measured value. Hairline rules,
+dotted spec leaders, dimension lines, no cards, no glass, no emoji.
+STORY: The visitor learns this bot reaches inside private Telegram channels that
+block saving - the one thing no competitor does - then opens the bot.
+FIRST VIEWPORT: A masthead over a two-column document: sticky section rail at left, prose at right.
+FORM: Precision instrument / engineering trade catalogue; candidate 5 of 7 on my
+grounded list; seed key dd384b0b.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+```
+
+### `supported-sites.html`
+
+```text
+THESIS: The supported-sites page is the catalogue's parts index: a spec table for
+the platforms that matter, then every site set in mono columns under ruled letters.
+OWN-WORLD: Paper #EFEFEA, ink #16160F, signal orange #D63C0B for letter heads and
+actions only. Archivo for voice, JetBrains Mono for every domain and figure.
+STORY: The visitor checks whether their site is covered, sees what they get and on
+which plan, reads why this beats a downloader website, then opens the bot.
+FIRST VIEWPORT: Title, a direct answer in the first sentence, an at-a-glance spec list.
+FORM: Precision instrument / engineering trade catalogue; seed dd384b0b.
+```
