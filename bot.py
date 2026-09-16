@@ -43,7 +43,7 @@ from downloader import (
     cleanup_file,
     VideoInfo,
 )
-from plans import build_plan_catalog_text, normalize_platform, platform_label
+from plans import build_plan_catalog_text, normalize_platform, period_label, plan_display_name, platform_label
 from runtime_store import (
     TELEGRAM_BOT_UPLOAD_LIMIT_MB,
     add_log,
@@ -62,7 +62,7 @@ from runtime_store import (
     cleanup_expired_requests,
     record_transaction,
 )
-from locales import get_text, MESSAGES as locales
+from locales import get_text, user_lang_of, MESSAGES as locales
 from concurrency import UserBusy, download_slot, is_busy, user_slot
 from tg_link_handler import handle_tg_link
 from userbot_client import is_tg_link
@@ -117,7 +117,7 @@ BOT_COMMANDS_EN = [
     BotCommand("start", "Start and show main menu"),
     BotCommand("menu", "Show quick menu"),
     BotCommand("dashboard", "Open web dashboard"),
-    BotCommand("lang", "Change Language | تغییر زبان"),
+    BotCommand("lang", "Change language"),
     BotCommand("plans", "View packages"),
     BotCommand("myplan", "View current plan"),
     BotCommand("usage", "View usage and quota"),
@@ -243,7 +243,7 @@ def build_home_keyboard(user_id: int, lang: str = "fa") -> InlineKeyboardMarkup:
                 InlineKeyboardButton(get_text("btn_support", lang), callback_data="util|support"),
             ],
             [
-                InlineKeyboardButton(get_text("btn_lang", lang) if "btn_lang" in locales[lang] else "🌐 Language / زبان", callback_data="lang|choose"),
+                InlineKeyboardButton(get_text("btn_lang", lang) if "btn_lang" in locales[lang] else "🌐 Language", callback_data="lang|choose"),
                 InlineKeyboardButton(get_text("btn_dashboard", lang), callback_data="util|dashboard")
             ]
         ]
@@ -264,7 +264,7 @@ def build_usage_text(user_id: int, lang: str = "fa") -> str:
         if rule.get("max_duration_seconds"):
             extra = f" | {rule['max_duration_seconds'] // 60}m"
         lines.append(
-            f"• {platform_label(rule['platform'], lang)}: {rule['used']}/{rule['limit']} ({rule['period_label']}) | {rule['remaining']}{extra}"
+            f"• {platform_label(rule['platform'], lang)}: {rule['used']}/{rule['limit']} ({period_label(rule['period'], lang)}) | {rule['remaining']}{extra}"
         )
     return "\n".join(lines)
 
@@ -329,7 +329,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             language_code=user.language_code,
         )
     subscription = get_bot_user(user.id) if user else None
-    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    user_lang = user_lang_of(subscription)
     settings = load_settings()
     platforms = "\n".join(f"• {p}" for p in settings["allowed_platforms"])
     text = get_text("bot_start", user_lang, plan_name=subscription["effective_plan"].get(f"name_{user_lang}", subscription["effective_plan"]["name"]), platforms=platforms, max_mb=settings["max_file_size_mb"])
@@ -347,7 +347,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     subscription = get_bot_user(user.id) if user else None
-    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    user_lang = user_lang_of(subscription)
     text = get_text("menu_ready", user_lang)
     await update.message.reply_text(text, reply_markup=build_home_keyboard(user.id, user_lang))
 
@@ -355,7 +355,7 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     subscription = get_bot_user(user.id) if user else None
-    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    user_lang = user_lang_of(subscription)
     text = build_plan_catalog_text(user_lang)
     from plans import get_subscription_plans
     all_plans = get_subscription_plans()
@@ -367,7 +367,7 @@ async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for plan in sorted_plans:
         code = plan.get("code")
         price = plan.get("price_usd", 0)
-        name = plan.get(f"name_{user_lang}", plan.get("name", "پکیج"))
+        name = plan_display_name(plan, user_lang)
         
         # Don't show buy button for Free packages (price == 0)
         if price > 0:
@@ -393,7 +393,7 @@ async def myplan_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         language_code=user.language_code,
     )
     subscription = get_bot_user(user.id)
-    user_lang = subscription.get("language_code", "fa")
+    user_lang = user_lang_of(subscription)
     await update.message.reply_text(build_myplan_text(user.id, user_lang), parse_mode=ParseMode.MARKDOWN)
 
 
@@ -409,7 +409,7 @@ async def usage_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         language_code=user.language_code,
     )
     subscription = get_bot_user(user.id)
-    user_lang = subscription.get("language_code", "fa")
+    user_lang = user_lang_of(subscription)
     await update.message.reply_text(build_usage_text(user.id, user_lang), parse_mode=ParseMode.MARKDOWN)
 
 
@@ -425,7 +425,7 @@ async def mylogs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         language_code=user.language_code,
     )
     subscription = get_bot_user(user.id)
-    user_lang = subscription.get("language_code", "fa")
+    user_lang = user_lang_of(subscription)
     await update.message.reply_text(build_user_logs_text(user.id, user_lang))
 
 
@@ -434,14 +434,14 @@ async def myid_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user:
         return
     subscription = get_bot_user(user.id)
-    user_lang = subscription.get("language_code", "fa")
+    user_lang = user_lang_of(subscription)
     await update.message.reply_text(get_text("my_id", user_lang, user_id=user.id), parse_mode=ParseMode.MARKDOWN)
 
 
 async def support_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     subscription = get_bot_user(user.id) if user else None
-    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    user_lang = user_lang_of(subscription)
     text, markup = build_support_contact(user_lang)
     await update.message.reply_text(text, reply_markup=markup)
 
@@ -453,7 +453,7 @@ async def handle_utility_callback(query, context: ContextTypes.DEFAULT_TYPE):
         return
         
     subscription = get_bot_user(user.id)
-    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    user_lang = user_lang_of(subscription)
 
     if action == "dashboard":
         dashboard_url = build_magic_link(user.id)
@@ -485,7 +485,7 @@ async def handle_utility_callback(query, context: ContextTypes.DEFAULT_TYPE):
             language_code=user.language_code,
         )
         subscription = get_bot_user(user.id)
-        user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+        user_lang = user_lang_of(subscription)
         await query.message.reply_text(build_myplan_text(user.id, user_lang), parse_mode=ParseMode.MARKDOWN)
         return
     if action == "usage":
@@ -497,7 +497,7 @@ async def handle_utility_callback(query, context: ContextTypes.DEFAULT_TYPE):
             language_code=user.language_code,
         )
         subscription = get_bot_user(user.id)
-        user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+        user_lang = user_lang_of(subscription)
         await query.message.reply_text(build_usage_text(user.id, user_lang), parse_mode=ParseMode.MARKDOWN)
         return
     if action == "mylogs":
@@ -509,12 +509,12 @@ async def handle_utility_callback(query, context: ContextTypes.DEFAULT_TYPE):
             language_code=user.language_code,
         )
         subscription = get_bot_user(user.id)
-        user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+        user_lang = user_lang_of(subscription)
         await query.message.reply_text(build_user_logs_text(user.id, user_lang))
         return
     if action == "support":
         subscription = get_bot_user(user.id)
-        user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+        user_lang = user_lang_of(subscription)
         text, markup = build_support_contact(user_lang)
         await query.message.reply_text(text, reply_markup=markup)
         return
@@ -533,7 +533,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
             language_code=user.language_code,
         )
     subscription = get_bot_user(user.id) if user else None
-    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    user_lang = user_lang_of(subscription)
     settings = load_settings()
 
     if not settings["downloads_enabled"]:
@@ -645,7 +645,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_buy_plan(query, context, plan_code):
     user = query.from_user
     subscription = get_bot_user(user.id)
-    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    user_lang = user_lang_of(subscription)
     settings = load_settings()
     # The webhook already falls back to the environment; the purchase flow did
     # not, so with the key set as an env var the admin panel hid its input field
@@ -669,8 +669,8 @@ async def handle_buy_plan(query, context, plan_code):
                 'price_data': {
                     'currency': 'usd',
                     'product_data': {
-                        'name': plan['name'],
-                        'description': get_text("stripe_product_description", user_lang, plan_name=plan.get(f"name_{user_lang}", plan['name'])),
+                        'name': plan_display_name(plan, user_lang),
+                        'description': get_text("stripe_product_description", user_lang, plan_name=plan_display_name(plan, user_lang)),
                     },
                     'unit_amount': int(plan['price_usd'] * 100),
                 },
@@ -698,7 +698,7 @@ async def handle_buy_plan(query, context, plan_code):
         
         
         keyboard = [[InlineKeyboardButton(get_text("btn_pay_stripe", user_lang), url=session.url)]]
-        plan_name_localized = plan.get(f"name_{user_lang}", plan['name'])
+        plan_name_localized = plan_display_name(plan, user_lang)
         await query.message.reply_text(
             get_text("invoice_created", user_lang, plan_name=plan_name_localized, price=plan['price_usd']),
             parse_mode=ParseMode.MARKDOWN,
@@ -737,7 +737,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     request_data = get_pending_request(request_token)
     user_id_query = query.from_user.id if query.from_user else 0
     subscription = get_bot_user(user_id_query) if user_id_query else None
-    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    user_lang = user_lang_of(subscription)
     
     if not request_data:
         await query.message.reply_text(get_text("expired_request", user_lang))
@@ -1058,7 +1058,7 @@ async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user:
         return
     subscription = get_bot_user(user.id)
-    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    user_lang = user_lang_of(subscription)
     keyboard = [
         [
             InlineKeyboardButton("🇬🇧 English", callback_data="lang|en"),
@@ -1090,7 +1090,7 @@ async def _offer_link(update: Update, user, secret: str, *, via_deep_link: bool)
         language_code=user.language_code,
     )
     subscription = get_bot_user(user.id)
-    lang = subscription.get("language_code", "fa") if subscription else "fa"
+    lang = user_lang_of(subscription)
 
     if via_deep_link:
         account_id = resolve_token(PURPOSE_LINK_DEEP, secret)
@@ -1132,7 +1132,7 @@ async def link_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user:
         return
     subscription = get_bot_user(user.id)
-    lang = subscription.get("language_code", "fa") if subscription else "fa"
+    lang = user_lang_of(subscription)
 
     code = (context.args[0].strip() if getattr(context, "args", None) else "")
     if not code.isdigit() or len(code) != 6:
@@ -1154,7 +1154,7 @@ async def handle_link_callback(query, context: ContextTypes.DEFAULT_TYPE):
     _, decision, account_id = query.data.split("|", 2)
     user = query.from_user
     subscription = get_bot_user(user.id) if user else None
-    lang = subscription.get("language_code", "fa") if subscription else "fa"
+    lang = user_lang_of(subscription)
 
     if decision != "yes":
         await query.edit_message_text(get_text("link_cancelled", lang))
@@ -1181,7 +1181,7 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user:
         return
     subscription = get_bot_user(user.id)
-    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    user_lang = user_lang_of(subscription)
     
     dashboard_url = build_magic_link(user.id)
     keyboard = [[InlineKeyboardButton(get_text("btn_dashboard", user_lang), url=dashboard_url)]]
@@ -1198,7 +1198,7 @@ async def handle_lang_callback(query, context: ContextTypes.DEFAULT_TYPE):
         return
         
     subscription = get_bot_user(user.id)
-    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    user_lang = user_lang_of(subscription)
     
     if action == "choose":
         keyboard = [

@@ -676,52 +676,35 @@ def confirm_transaction():
 
 
 def _format_payment_success_message(user: dict, plan: dict) -> str:
-    """Build a bilingual (fa + en) payment confirmation message with plan
-    name, expiry date and per-platform rules. Used by both the Stripe
-    webhook and the manual /finance/confirm endpoint."""
-    from locales import get_text
-    from plans import format_rule
+    """
+    The payment confirmation, in the buyer's own language.
 
+    It used to send both halves to everyone, so an English buyer got a Persian
+    message stapled to theirs. Used by the Stripe webhook and by the manual
+    /finance/confirm endpoint.
+    """
+    from locales import get_text, user_lang_of
+    from plans import format_rule, plan_display_name
+
+    lang = user_lang_of(user)
     expiry_iso = user.get("plan_expires_at")
     if expiry_iso:
-        # ISO timestamp in UTC; show only the date for clarity
-        expiry_short = expiry_iso.split("T", 1)[0]
-        expiry_fa = expiry_short
-        expiry_en = expiry_short
+        expiry = expiry_iso.split("T", 1)[0]          # ISO timestamp in UTC; the date is the useful part
     else:
-        expiry_fa = get_text("payment_success_unlimited_expiry", "fa")
-        expiry_en = get_text("payment_success_unlimited_expiry", "en")
+        expiry = get_text("payment_success_unlimited_expiry", lang)
 
-    rules_fa = "\n".join(f"• {format_rule(r, 'fa')}" for r in plan.get("rules", [])) or "—"
-    rules_en = "\n".join(f"• {format_rule(r, 'en')}" for r in plan.get("rules", [])) or "—"
-
-    plan_name_fa = plan.get("name_fa") or plan.get("name", "")
-    plan_name_en = plan.get("name_en") or plan.get("name", "")
-    price = plan.get("price_usd", 0)
-
-    fa_part = (
-        f"{get_text('payment_success_title', 'fa')}\n\n"
+    rules = "\n".join(f"• {format_rule(r, lang)}" for r in plan.get("rules", [])) or "—"
+    return (
+        f"{get_text('payment_success_title', lang)}\n\n"
         + get_text(
             "payment_success_body",
-            "fa",
-            plan_name=plan_name_fa,
-            expiry=expiry_fa,
-            price=price,
-            rules=rules_fa,
+            lang,
+            plan_name=plan_display_name(plan, lang),
+            expiry=expiry,
+            price=plan.get("price_usd", 0),
+            rules=rules,
         )
     )
-    en_part = (
-        f"{get_text('payment_success_title', 'en')}\n\n"
-        + get_text(
-            "payment_success_body",
-            "en",
-            plan_name=plan_name_en,
-            expiry=expiry_en,
-            price=price,
-            rules=rules_en,
-        )
-    )
-    return f"{fa_part}\n\n━━━━━━━━━━━━━━\n\n{en_part}"
 
 
 def _send_telegram_message(chat_id: int, text: str) -> bool:

@@ -14,7 +14,7 @@ from telegram.ext import ContextTypes
 
 from concurrency import UserBusy, download_slot, is_busy, user_slot
 from config import DOWNLOAD_DIR
-from locales import get_text
+from locales import get_text, user_lang_of
 from runtime_store import (
     add_log,
     evaluate_download_access,
@@ -52,7 +52,7 @@ async def handle_tg_link(update: Update, context: ContextTypes.DEFAULT_TYPE, url
         )
 
     subscription = get_bot_user(user.id) if user else None
-    user_lang = subscription.get("language_code", "fa") if subscription else "fa"
+    user_lang = user_lang_of(subscription)
 
     # ── بررسی آماده بودن UserBot
     if not userbot.is_ready:
@@ -100,12 +100,12 @@ async def _run(update, context, url: str, user, user_lang: str) -> None:
     async def _progress_cb(status: str):
         if status == "downloading":
             try:
-                await status_msg.edit_text(get_text("tg_fetching", user_lang) + "\\n⬇️ در حال دانلود از تلگرام...")
+                await status_msg.edit_text(get_text("tg_fetching", user_lang) + "\n" + get_text("tg_downloading", user_lang))
             except:
                 pass
         elif status == "uploading_to_dump":
             try:
-                await status_msg.edit_text("🔄 فایل بزرگ است. در حال آپلود به سرور واسطه (برای دور زدن محدودیت ۵۰ مگابایت)...")
+                await status_msg.edit_text(get_text("tg_large_relay", user_lang))
             except:
                 pass
 
@@ -128,7 +128,7 @@ async def _run(update, context, url: str, user, user_lang: str) -> None:
     # ── ارسال فایل(ها) به کاربر
     try:
         if content.dump_message_ids and content.dump_chat_id:
-            await status_msg.edit_text("✅ در حال ارسال فایل به شما...")
+            await status_msg.edit_text(get_text("tg_sending", user_lang))
             for msg_id in content.dump_message_ids:
                 await context.bot.copy_message(chat_id=message.chat_id, from_chat_id=content.dump_chat_id, message_id=msg_id)
         elif content.is_album and len(content.files) > 1:
