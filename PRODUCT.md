@@ -40,6 +40,7 @@ Everything else the product does — 1000+ sites via yt-dlp, quality selection, 
 **Working today:**
 - Download from YouTube, Instagram, Twitter/X, TikTok, LinkedIn, Reddit, Facebook, Vimeo, Dailymotion, Twitch, SoundCloud and 1000+ other sites via yt-dlp
 - Quality selection per request; audio-only (MP3) extraction
+- GIF conversion for clips of 10 seconds or less; the button appears only when the platform reports a duration inside that limit
 - Save Restricted Content from private Telegram channels, groups, and topics, including full albums
 - Per-plan quotas by platform, with daily / weekly / monthly periods and per-platform duration caps
 - An other-sites allowance on every plan (Free 3/month, Starter 13/month, Standard and Pro unlimited) that covers any site no plan names on its own; platforms a plan leaves out on purpose, such as YouTube on Free, stay excluded. Adult sites are excluded from it on every plan (the list is generated into `adult_sites.json`); PornHub keeps its own operator-set rules

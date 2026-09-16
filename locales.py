@@ -48,6 +48,9 @@ MESSAGES = {
         "btn_best_quality": "بهترین کیفیت",
         "btn_worst_quality": "کمترین حجم",
         "btn_audio_only": "فقط صدا (MP3)",
+        "btn_gif": "🎞 تبدیل به GIF",
+        "gif_too_long": "GIF فقط برای ویدئوهای زیر {seconds} ثانیه ساخته می‌شود.",
+        "gif_failed": "تبدیل به GIF انجام نشد. ویدئو را می‌توانی به‌صورت معمولی بگیری.",
         "btn_dashboard": "🖥 داشبورد من",
         "btn_lang": "🌐 تغییر زبان",
         
@@ -178,6 +181,9 @@ MESSAGES = {
         "btn_best_quality": "Best Quality",
         "btn_worst_quality": "Smallest Size",
         "btn_audio_only": "Audio Only (MP3)",
+        "btn_gif": "🎞 Make a GIF",
+        "gif_too_long": "A GIF is only made for videos under {seconds} seconds.",
+        "gif_failed": "The GIF could not be made. The video itself still downloads normally.",
         "btn_dashboard": "🖥 My Dashboard",
         "btn_lang": "🌐 Language",
         

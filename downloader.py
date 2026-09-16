@@ -19,7 +19,7 @@ import yt_dlp
 
 from config import DOWNLOAD_DIR, DATA_DIR
 from plans import normalize_platform
-from runtime_store import get_max_file_size_bytes
+from runtime_store import get_max_file_size_bytes, TELEGRAM_BOT_UPLOAD_LIMIT_MB
 from api_client import get_direct_media_url, is_cobalt_supported_url
 import logging
 
@@ -743,6 +743,108 @@ async def download_video(
         return result
 
     return DownloadResult(success=False, error="فایل دانلود نشد.", direct_url=last_direct_url)
+
+
+GIF_MAX_SECONDS = 10
+# Width and frame rate, tried in order. A GIF has no inter-frame compression,
+# so size falls off a cliff with both; the first rung that fits is used.
+GIF_LADDER = ((320, 12), (240, 10), (200, 8))
+
+
+def gif_eligible(duration_seconds: int | None) -> bool:
+    """
+    Whether a clip may be turned into a GIF. Unknown duration counts as no:
+    some platforms report none, and a GIF of an hour-long video is not worth
+    finding out about after the download.
+    """
+    return bool(duration_seconds) and 0 < duration_seconds <= GIF_MAX_SECONDS
+
+
+def _probe_duration(path) -> Optional[float]:
+    try:
+        out = subprocess.check_output(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=nw=1:nk=1", str(path)],
+            text=True, timeout=15,
+        )
+        return float(out.strip())
+    except Exception:
+        return None
+
+
+def _probe_dimensions(path) -> tuple[Optional[int], Optional[int]]:
+    """Dimensions of the finished GIF, so Telegram lays it out before it loads."""
+    try:
+        out = subprocess.check_output(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
+             "-of", "csv=p=0:s=x", str(path)],
+            text=True, timeout=15,
+        ).strip()
+        w, h = out.split("x")[:2]
+        return int(w), int(h)
+    except Exception:
+        return None, None
+
+
+def _run_gif_ffmpeg(source, dest, width: int, fps: int) -> None:
+    """
+    Two passes over one input: build a palette from the clip, then map the
+    frames onto it. A GIF is limited to 256 colours, and the default palette
+    makes real footage band badly.
+    """
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-y", "-t", str(GIF_MAX_SECONDS), "-i", str(source),
+         "-vf", f"fps={fps},scale={width}:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse",
+         "-loop", "0", str(dest)],
+        check=True, capture_output=True, timeout=180,
+    )
+
+
+async def download_gif(
+    url: str,
+    progress_callback: Optional[Callable[[int], None]] = None,
+) -> DownloadResult:
+    """
+    Download a short clip and convert it to a GIF.
+
+    480p is more than enough for a 320px-wide GIF and keeps the conversion
+    quick. The length is checked again after the download, because the duration
+    the platform reported before it is not always true.
+    """
+    result = await download_video(url, quality="480", progress_callback=progress_callback)
+    if not result.success or not result.file_path:
+        return result
+
+    source = Path(result.file_path)
+    dest = source.with_suffix(".gif")
+    loop = asyncio.get_running_loop()
+    try:
+        duration = await loop.run_in_executor(None, lambda: _probe_duration(source))
+        if duration is not None and duration > GIF_MAX_SECONDS + 0.5:
+            cleanup_file(str(source))
+            return DownloadResult(success=False, error=f"gif_too_long:{int(duration)}")
+
+        # A GIF never takes the dump-channel route: it has to fit what a bot may
+        # upload on its own, so the ladder keeps shrinking until it does.
+        ceiling = min(get_max_file_size_bytes(), TELEGRAM_BOT_UPLOAD_LIMIT_MB * 1024 * 1024)
+        for width, fps in GIF_LADDER:
+            await loop.run_in_executor(None, lambda w=width, f=fps: _run_gif_ffmpeg(source, dest, w, f))
+            size = dest.stat().st_size if dest.exists() else 0
+            if 0 < size <= ceiling:
+                width_px, height_px = _probe_dimensions(dest)
+                cleanup_file(str(source))
+                return DownloadResult(
+                    success=True, file_path=str(dest), title=result.title or "GIF",
+                    source=result.source, duration=int(duration or 0),
+                    width=width_px, height=height_px,
+                )
+            logger.info("GIF at %spx/%sfps is %s bytes, over the %s ceiling", width, fps, size, ceiling)
+        cleanup_file(str(source)); cleanup_file(str(dest))
+        return DownloadResult(success=False, error="gif_too_large")
+    except Exception as e:
+        logger.error("GIF conversion failed: %s", e)
+        cleanup_file(str(source)); cleanup_file(str(dest))
+        return DownloadResult(success=False, error="gif_failed")
 
 
 async def download_audio(
