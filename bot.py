@@ -35,8 +35,11 @@ import stripe
 from config import STRIPE_SECRET_KEY, ALLOWED_PLATFORMS, BOT_TOKEN, BOT_USERNAME, BOT_LINK, SUPPORT_CONTACT, FLASK_SECRET_KEY, BASE_URL
 from downloader import (
     get_video_info,
+    gif_eligible,
+    GIF_MAX_SECONDS,
     download_video,
     download_audio,
+    download_gif,
     cleanup_file,
     VideoInfo,
 )
@@ -135,8 +138,17 @@ def format_duration(seconds: Optional[int], lang: str = "fa") -> str:
     return f"{m:02d}:{s:02d}"
 
 
+def _media_kind(quality: str) -> str:
+    """What was delivered, for the history row and the panel's resend button."""
+    return {"audio": "audio", "gif": "gif"}.get(quality, "video")
+
+
 def public_download_error(error: str | None, platform: str, lang: str) -> str:
     """Return a stable user-facing message while raw details stay in logs."""
+    if (error or "").startswith("gif_too_long"):
+        return get_text("gif_too_long", lang, seconds=GIF_MAX_SECONDS)
+    if (error or "").startswith("gif_"):
+        return get_text("gif_failed", lang)
     if error in YOUTUBE_ERROR_CODES or platform.lower() == "youtube":
         return get_text("download_error_youtube", lang)
     return get_text("download_error", lang)
@@ -163,6 +175,9 @@ def build_quality_keyboard(info: VideoInfo, request_token: str, lang: str = "fa"
     else:
         buttons.append([InlineKeyboardButton(get_text("btn_best_quality", lang), callback_data=f"dl|best|{request_token}")])
         buttons.append([InlineKeyboardButton(get_text("btn_worst_quality", lang), callback_data=f"dl|worst|{request_token}")])
+
+    if gif_eligible(info.duration):
+        buttons.append([InlineKeyboardButton(get_text("btn_gif", lang), callback_data=f"dl|gif|{request_token}")])
 
     buttons.append([InlineKeyboardButton(get_text("btn_audio_only", lang), callback_data=f"dl|audio|{request_token}")])
 
@@ -784,6 +799,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as exc:
             logger.debug("status edit skipped (%s): %s", key, exc)
 
+    # Checked again here: the button was built from the duration the platform
+    # reported, and a stale or forwarded callback can still carry gif.
+    if quality == "gif" and not gif_eligible(duration_seconds):
+        await query.message.reply_text(get_text("gif_too_long", user_lang, seconds=GIF_MAX_SECONDS))
+        return
+
     try:
         async with user_slot(user_id):
             if is_busy():
@@ -792,6 +813,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await _status("downloading")
                 if quality == "audio":
                     result = await download_audio(url, progress_callback=on_progress)
+                elif quality == "gif":
+                    result = await download_gif(url, progress_callback=on_progress)
                 else:
                     result = await download_video(url, quality=quality, progress_callback=on_progress)
     except UserBusy:
@@ -888,7 +911,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         platform=platform_name, url=url,
                         metadata={"source": "تلگرام ربات", "telegram_user_id": user_id})
                 record_usage_event(user_id, platform=platform_name, url=url,
-                                   media_kind="audio" if quality == "audio" else "video",
+                                   media_kind=_media_kind(quality),
                                    quality=quality, duration_seconds=duration_seconds,
                                    metadata={"source": "تلگرام ربات", "title": caption},
                                    delivery=delivery_details(
@@ -899,7 +922,18 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
             logger.warning("large-file relay unavailable, falling back to a direct send")
 
-        if quality == "audio":
+        if quality == "gif":
+            await status_msg.chat.send_action(ChatAction.UPLOAD_VIDEO)
+            with open(file_path, "rb") as f:
+                await query.message.reply_animation(
+                    animation=f,
+                    caption=get_text("document_caption", user_lang, title=caption),
+                    connect_timeout=TELEGRAM_CONNECT_TIMEOUT,
+                    pool_timeout=TELEGRAM_POOL_TIMEOUT,
+                    write_timeout=TELEGRAM_UPLOAD_TIMEOUT,
+                    read_timeout=TELEGRAM_UPLOAD_TIMEOUT,
+                )
+        elif quality == "audio":
             await status_msg.chat.send_action(ChatAction.UPLOAD_VOICE)
             
             # Use physical rename to prevent python-telegram-bot/httpx serialization issues
@@ -956,7 +990,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_id,
             platform=platform_name,
             url=url,
-            media_kind="audio" if quality == "audio" else "video",
+            media_kind=_media_kind(quality),
             quality=quality,
             duration_seconds=duration_seconds,
             metadata={"source": "تلگرام ربات", "title": caption},
