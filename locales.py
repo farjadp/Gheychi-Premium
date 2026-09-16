@@ -48,6 +48,13 @@ MESSAGES = {
         "btn_best_quality": "بهترین کیفیت",
         "btn_worst_quality": "کمترین حجم",
         "btn_audio_only": "فقط صدا (MP3)",
+        "quota_platform_not_active": "{platform} در {plan} فعال نیست.",
+        "quota_duration_cap": "در {plan}، ویدئوهای {platform} باید زیر {minutes} دقیقه باشند.",
+        "quota_exhausted": "سهمیه {platform} شما در {period} جاری تمام شده است ({used}/{limit}).",
+        "tg_large_relay": "🔄 فایل بزرگ است. در حال آپلود به سرور واسطه برای عبور از محدودیت ۵۰ مگابایت...",
+        "period_day": "روز",
+        "period_week": "هفته",
+        "period_month": "ماه",
         "btn_gif": "🎞 تبدیل به GIF",
         "gif_too_long": "GIF فقط برای ویدئوهای زیر {seconds} ثانیه ساخته می‌شود.",
         "gif_failed": "تبدیل به GIF انجام نشد. ویدئو را می‌توانی به‌صورت معمولی بگیری.",
@@ -164,7 +171,7 @@ MESSAGES = {
         "invalid_package": "❌ This package is invalid or direct purchase is not available.",
         "invoice_created": "Official invoice created for **{plan_name}**.\n\nAmount: `${price}`\n\nPlease proceed to payment using the button below. Your subscription will be activated immediately after payment.",
         "stripe_error": "❌ Error creating Stripe invoice:\n`{error}`",
-        "lang_prompt": "لطفاً زبان خود را انتخاب کنید:\nPlease choose your language:",
+        "lang_prompt": "Please choose your language:",
         "lang_changed": "Language successfully changed to English. 🇬🇧",
         
         # Buttons
@@ -181,6 +188,13 @@ MESSAGES = {
         "btn_best_quality": "Best Quality",
         "btn_worst_quality": "Smallest Size",
         "btn_audio_only": "Audio Only (MP3)",
+        "quota_platform_not_active": "{platform} is not included in {plan}.",
+        "quota_duration_cap": "On {plan}, {platform} videos have to be under {minutes} minutes.",
+        "quota_exhausted": "You have used your {platform} allowance for this {period} ({used}/{limit}).",
+        "tg_large_relay": "🔄 This file is large. Sending it another way to get past Telegram's 50 MB limit...",
+        "period_day": "day",
+        "period_week": "week",
+        "period_month": "month",
         "btn_gif": "🎞 Make a GIF",
         "gif_too_long": "A GIF is only made for videos under {seconds} seconds.",
         "gif_failed": "The GIF could not be made. The video itself still downloads normally.",
@@ -269,10 +283,25 @@ MESSAGES = {
     }
 }
 
+def normalize_lang(code: str | None) -> str:
+    """
+    Persian for Persian speakers, English for everyone else.
+
+    Telegram sends a language code like "fa", "fa-IR", "en-GB" or "de". Anything
+    that is not Persian resolves to English: falling back to Persian used to
+    show a German user a Persian bot.
+    """
+    tag = str(code or "").strip().lower().replace("_", "-")
+    return "fa" if tag == "fa" or tag.startswith("fa-") else "en"
+
+
+def user_lang_of(subscription: dict | None) -> str:
+    """The language for this user's messages, from whatever the bot has stored."""
+    return normalize_lang((subscription or {}).get("language_code"))
+
+
 def get_text(key: str, lang: str = "fa", **kwargs) -> str:
-    # Fallback to fa if lang not supported
-    if lang not in MESSAGES:
-        lang = "fa"
+    lang = normalize_lang(lang)
     text = MESSAGES[lang].get(key, MESSAGES["fa"].get(key, key))
 
     # The bot handle is supplied here rather than at every call site: format()

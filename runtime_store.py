@@ -11,7 +11,8 @@ from pathlib import Path
 from typing import Any
 
 from config import OTHER_SITES_PLATFORM, ALLOWED_PLATFORMS, DATA_DIR, DEFAULT_MAX_FILE_SIZE_MB, DUMP_CHANNEL_ID
-from plans import PERIOD_LABELS, get_plan, get_plan_rule, named_platforms, platform_label
+from locales import get_text, normalize_lang
+from plans import PERIOD_LABELS, get_plan, get_plan_rule, named_platforms, period_label, plan_display_name, platform_label
 
 SETTINGS_FILE = DATA_DIR / "settings.json"
 LOGS_DB = DATA_DIR / "activity.db"
@@ -879,11 +880,13 @@ def evaluate_download_access(
 ) -> dict[str, Any]:
     snapshot = get_usage_snapshot(telegram_user_id)
     plan = snapshot["plan"]
+    lang = normalize_lang(get_bot_user(telegram_user_id).get("language_code"))
+    plan_name = plan_display_name(plan, lang)
     rule = get_plan_rule(plan["code"], platform)
     if not rule:
         return {
             "allowed": False,
-            "reason": f"{platform_label(platform)} در {plan['name']} فعال نیست.",
+            "reason": get_text("quota_platform_not_active", lang, platform=platform_label(platform, lang), plan=plan_name),
             "snapshot": snapshot,
             "rule": None,
         }
@@ -892,7 +895,7 @@ def evaluate_download_access(
     if max_duration and duration_seconds and duration_seconds > max_duration:
         return {
             "allowed": False,
-            "reason": f"در {plan['name']}، ویدئوهای {platform} باید زیر {max_duration // 60} دقیقه باشند.",
+            "reason": get_text("quota_duration_cap", lang, plan=plan_name, platform=platform_label(platform, lang), minutes=max_duration // 60),
             "snapshot": snapshot,
             "rule": rule,
         }
@@ -909,7 +912,11 @@ def evaluate_download_access(
     if used >= rule["limit"]:
         return {
             "allowed": False,
-            "reason": f"سهمیه {platform_label(rule['platform']) if rule['platform'] == OTHER_SITES_PLATFORM else platform} شما در {PERIOD_LABELS[rule['period']]} جاری تمام شده است ({used}/{rule['limit']}).",
+            "reason": get_text(
+                "quota_exhausted", lang,
+                platform=platform_label(rule["platform"] if rule["platform"] == OTHER_SITES_PLATFORM else platform, lang),
+                period=period_label(rule["period"], lang), used=used, limit=rule["limit"],
+            ),
             "snapshot": snapshot,
             "rule": rule,
         }

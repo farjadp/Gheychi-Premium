@@ -217,11 +217,24 @@ def named_platforms() -> set[str]:
         names.add("yt")
     return names
 
+def period_label(period: str | None, lang: str = "fa") -> str:
+    from locales import get_text
+    return get_text(f"period_{period}", lang) if period else ""
+
+
+def plan_display_name(plan: dict, lang: str = "fa") -> str:
+    """The plan's name as this reader should see it; every plan carries name_en."""
+    return (plan.get("name_en") or plan.get("name") or "") if lang == "en" else (plan.get("name") or "")
+
+
 def platform_label(platform: str, lang: str = "fa") -> str:
     if platform == OTHER_SITES_PLATFORM:
         return "سایر سایت‌ها" if lang == "fa" else "Other sites"
     if platform == ADULT_PLATFORM:
         return "سایت‌های بزرگسال" if lang == "fa" else "Adult sites"
+    from locales import get_text
+    if platform == get_text("unknown", "fa"):
+        return get_text("unknown", lang)
     return platform
 
 def get_plan_rule(plan_code: str, platform: str) -> Optional[dict]:
