@@ -114,7 +114,7 @@ async def _run(update, context, url: str, user, user_lang: str) -> None:
 
     if not content.success:
         error_text = _map_error_to_text(content.error, user_lang)
-        await status_msg.edit_text(error_text)
+        await _safe_edit(status_msg, error_text)
         add_log(
             "ERROR",
             "tg_fetch_failed",
@@ -124,11 +124,10 @@ async def _run(update, context, url: str, user, user_lang: str) -> None:
         )
         return
 
-    await status_msg.edit_text(get_text("tg_sending", user_lang))
+    await _safe_edit(status_msg, get_text("tg_sending", user_lang))
     # ── ارسال فایل(ها) به کاربر
     try:
         if content.dump_message_ids and content.dump_chat_id:
-            await status_msg.edit_text(get_text("tg_sending", user_lang))
             for msg_id in content.dump_message_ids:
                 await context.bot.copy_message(chat_id=message.chat_id, from_chat_id=content.dump_chat_id, message_id=msg_id)
         elif content.is_album and len(content.files) > 1:
@@ -136,10 +135,13 @@ async def _run(update, context, url: str, user, user_lang: str) -> None:
         elif content.files:
             await _send_single(update, context, content.files[0], user_lang)
         else:
-            await status_msg.edit_text(get_text("tg_download_failed", user_lang))
+            await _safe_edit(status_msg, get_text("tg_download_failed", user_lang))
             return
 
-        await status_msg.delete()
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
         record_usage_event(
             user.id,
             platform=PLATFORM,
@@ -157,7 +159,7 @@ async def _run(update, context, url: str, user, user_lang: str) -> None:
         )
     except Exception as e:
         logger.error("خطا در ارسال محتوای TG: %s", e, exc_info=True)
-        await status_msg.edit_text(get_text("tg_download_failed", user_lang))
+        await _safe_edit(status_msg, get_text("tg_download_failed", user_lang))
         add_log(
             "ERROR",
             "tg_send_failed",
@@ -173,6 +175,21 @@ async def _run(update, context, url: str, user, user_lang: str) -> None:
                     os.remove(tg_file.file_path)
             except Exception:
                 pass
+
+
+async def _safe_edit(status_msg, text: str) -> None:
+    """
+    پیام وضعیت را ویرایش می‌کند، بدون اینکه خطای ویرایش جریان ارسال را بشکند.
+
+    تلگرام ویرایش به همان متن قبلی را با BadRequest «Message is not modified»
+    رد می‌کند. پیش از این، همین خطا در مسیر فایل‌های بزرگ (dump channel) کل
+    ارسال را به «دانلود ناموفق» تبدیل می‌کرد، در حالی که فایل آماده بود.
+    """
+    try:
+        await status_msg.edit_text(text)
+    except Exception as e:
+        if "not modified" not in str(e).lower():
+            logger.warning("ویرایش پیام وضعیت ناموفق بود: %s", e)
 
 
 # ────────────────────────────────────────────────────
