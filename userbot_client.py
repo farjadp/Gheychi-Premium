@@ -188,7 +188,7 @@ class UserBotClient:
         chat_id, message_id = parsed
 
         try:
-            msg = await self._client.get_messages(chat_id, message_id)
+            msg = await self._get_message_with_peer_warmup(chat_id, message_id)
             if not msg or msg.empty:
                 return TGContent(success=False, error="message_not_found")
             if msg.media_group_id:
@@ -202,12 +202,32 @@ class UserBotClient:
                 m = _re.search(r"(\d+)", err_str)
                 seconds = m.group(1) if m else "60"
                 return TGContent(success=False, error=f"flood_wait:{seconds}")
-            if any(x in err_str.upper() for x in ["CHANNEL_PRIVATE", "CHAT_ADMIN_REQUIRED", "FORBIDDEN"]):
+            if any(x in err_str.upper() for x in ["CHANNEL_PRIVATE", "CHANNEL_INVALID", "CHAT_ADMIN_REQUIRED", "FORBIDDEN", "ID NOT FOUND"]):
                 return TGContent(success=False, error="access_denied")
             if any(x in err_str.upper() for x in ["USERNAME_INVALID", "MESSAGE_ID_INVALID"]):
                 return TGContent(success=False, error="invalid_link")
             logger.error("fetch_content خطا: %s", e, exc_info=True)
             return TGContent(success=False, error="download_failed")
+
+    async def _get_message_with_peer_warmup(self, chat_id, message_id):
+        """
+        get_messages با یک بار تلاش مجدد پس از گرم کردن peer cache.
+
+        کلاینت با in_memory=True اجرا می‌شود، پس بعد از هر redeploy کش peerها
+        خالی است. Pyrogram برای یک chat_id عددی که در کش نیست، channels.GetChannels
+        را بدون access_hash می‌فرستد و تلگرام CHANNEL_INVALID برمی‌گرداند — حتی
+        وقتی اکانت عضو همان کانال است. یک بار پیمایش دیالوگ‌ها کش را پر می‌کند.
+        """
+        try:
+            return await self._client.get_messages(chat_id, message_id)
+        except Exception as e:
+            err = str(e).upper()
+            if not any(x in err for x in ["CHANNEL_INVALID", "PEER_ID_INVALID", "ID NOT FOUND"]):
+                raise
+            logger.info("peer %s در کش نیست؛ در حال گرم کردن کش دیالوگ‌ها.", chat_id)
+            async for _ in self._client.get_dialogs():
+                pass
+            return await self._client.get_messages(chat_id, message_id)
 
     async def _fetch_single(self, msg, download_dir: str, progress_callback=None) -> TGContent:
         if not _has_media(msg):
