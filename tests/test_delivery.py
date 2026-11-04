@@ -106,10 +106,6 @@ class DeliveryPersistenceTests(unittest.TestCase):
         self.assertEqual(row, (None, None))
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
-
-
 class ResendEndpointTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -203,3 +199,7 @@ class ResendEndpointTests(unittest.TestCase):
         links = sorted((r["jump_link"] or "") for r in stats.account_history(acct))
         self.assertEqual(links[0], "")
         self.assertIn("tg://openmessage?chat_id=111&message_id=9", links[1])
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
