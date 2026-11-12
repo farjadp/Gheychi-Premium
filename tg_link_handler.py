@@ -56,7 +56,8 @@ async def handle_tg_link(update: Update, context: ContextTypes.DEFAULT_TYPE, url
 
     # ── بررسی آماده بودن UserBot
     if not userbot.is_ready:
-        await message.reply_text(get_text("tg_userbot_disabled", user_lang))
+        key = "tg_userbot_unavailable" if userbot.session_dead else "tg_userbot_disabled"
+        await message.reply_text(get_text(key, user_lang))
         add_log(
             "WARNING",
             "tg_userbot_disabled",
@@ -359,5 +360,7 @@ def _map_error_to_text(error: str, user_lang: str) -> str:
         return get_text("tg_no_media", user_lang)
     if error == "userbot_not_ready":
         return get_text("tg_userbot_disabled", user_lang)
+    if error == "userbot_session_dead":
+        return get_text("tg_userbot_unavailable", user_lang)
 
     return get_text("tg_download_failed", user_lang)

@@ -123,6 +123,7 @@ class UserBotClient:
     def __init__(self):
         self._client = None
         self._started = False
+        self.session_dead = False
         self._lock = asyncio.Lock()
 
     async def start(self, api_id: int, api_hash: str, session_string: str) -> bool:
@@ -197,6 +198,16 @@ class UserBotClient:
                 return await self._fetch_single(msg, download_dir, progress_callback)
         except Exception as e:
             err_str = str(e)
+            if any(x in err_str.upper() for x in _DEAD_SESSION_ERRORS):
+                # Telegram dropped the session's auth key. Nothing works until
+                # TG_SESSION_STRING is regenerated, so stop claiming readiness.
+                logger.critical(
+                    "UserBot session is dead (%s). Regenerate TG_SESSION_STRING "
+                    "with generate_session.py and redeploy.", err_str[:200]
+                )
+                self._started = False
+                self.session_dead = True
+                return TGContent(success=False, error="userbot_session_dead")
             if "FLOOD_WAIT" in err_str.upper():
                 import re as _re
                 m = _re.search(r"(\d+)", err_str)
@@ -442,6 +453,16 @@ class UserBotClient:
 # ────────────────────────────────────────────────────
 #  Helper Functions
 # ────────────────────────────────────────────────────
+
+_DEAD_SESSION_ERRORS = (
+    "AUTH_KEY_UNREGISTERED",
+    "AUTH_KEY_INVALID",
+    "AUTH_KEY_DUPLICATED",
+    "SESSION_REVOKED",
+    "SESSION_EXPIRED",
+    "USER_DEACTIVATED",
+)
+
 
 def _has_media(msg) -> bool:
     return bool(
