@@ -41,16 +41,27 @@ class BackupScheduleTests(unittest.TestCase):
         self._write_state(now - timedelta(minutes=4))
         wait = self.backup.seconds_until_due(now)
         self.assertGreater(wait, 0)
-        self.assertAlmostEqual(wait, 24 * 3600 - 240, delta=2)
+        self.assertAlmostEqual(wait, self.backup.BACKUP_INTERVAL_SECONDS - 240, delta=2)
 
     def test_a_backup_becomes_due_again_after_the_interval(self):
         now = datetime.now(timezone.utc)
-        self._write_state(now - timedelta(hours=24, minutes=1))
+        interval = timedelta(seconds=self.backup.BACKUP_INTERVAL_SECONDS)
+        self._write_state(now - interval - timedelta(minutes=1))
         self.assertEqual(self.backup.seconds_until_due(now), 0.0)
+
+    def test_the_default_interval_is_monthly(self):
+        if "BACKUP_INTERVAL_SECONDS" in os.environ:
+            self.skipTest("interval overridden by env")
+        self.assertEqual(self.backup.BACKUP_INTERVAL_SECONDS, 30 * 24 * 3600)
+
+    def test_a_backup_a_week_ago_is_not_due_yet(self):
+        now = datetime.now(timezone.utc)
+        self._write_state(now - timedelta(days=7))
+        self.assertGreater(self.backup.seconds_until_due(now), 0)
 
     def test_a_long_outage_still_backs_up_on_return(self):
         now = datetime.now(timezone.utc)
-        self._write_state(now - timedelta(days=9))
+        self._write_state(now - timedelta(days=45))
         self.assertEqual(self.backup.seconds_until_due(now), 0.0)
 
     def test_a_corrupt_or_missing_state_file_falls_back_to_backing_up(self):

@@ -28,7 +28,11 @@ logger = logging.getLogger(__name__)
 # API wants it prefixed with -100. Normalising here means either form works in
 # the env var, instead of failing at send time a day later.
 BACKUP_CHANNEL_ID = normalise_channel_id(os.getenv("BACKUP_CHANNEL_ID", ""))
-BACKUP_INTERVAL_SECONDS = int(os.getenv("BACKUP_INTERVAL_SECONDS", str(24 * 3600)))
+# Monthly by default (30 days). The data is small and changes slowly; a daily
+# archive was mostly channel noise. Override with BACKUP_INTERVAL_SECONDS.
+BACKUP_INTERVAL_SECONDS = int(os.getenv("BACKUP_INTERVAL_SECONDS", str(30 * 24 * 3600)))
+# A failed run must not wait a whole interval for its next attempt.
+BACKUP_RETRY_SECONDS = int(os.getenv("BACKUP_RETRY_SECONDS", str(3600)))
 TELEGRAM_UPLOAD_LIMIT_BYTES = 50 * 1024 * 1024
 
 # Cookie files are re-created from the COOKIES_*_B64 env vars on every boot, so
@@ -210,7 +214,13 @@ def run_backup_loop() -> None:
             time.sleep(wait)
             continue
         try:
-            run_backup_once()
+            ok = run_backup_once()
         except Exception as exc:
             logger.error("Backup: run failed: %s", exc)
-        time.sleep(BACKUP_INTERVAL_SECONDS)
+            ok = False
+        if not ok:
+            # A success records its time, so the next pass waits the full
+            # interval from state. A failure records nothing — retry soon
+            # instead of going a month (or two) without a backup.
+            logger.warning("Backup: retrying in %.1f h", BACKUP_RETRY_SECONDS / 3600)
+            time.sleep(BACKUP_RETRY_SECONDS)
