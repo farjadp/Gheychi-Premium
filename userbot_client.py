@@ -252,14 +252,14 @@ class UserBotClient:
             if progress_callback:
                 await progress_callback("downloading")
             
-            file_path, media_type, meta = await self._download_message(msg, download_dir)
+            file_path, media_type, meta = await self._download_message(msg, download_dir, progress_callback)
             if not file_path:
                 return TGContent(success=False, error="download_failed")
                 
             if progress_callback:
                 await progress_callback("uploading_to_dump")
                 
-            dump_msg = await self._upload_to_dump(file_path, media_type, msg.caption or "", meta)
+            dump_msg = await self._upload_to_dump(file_path, media_type, msg.caption or "", meta, progress_callback)
             try:
                 os.remove(file_path)
             except:
@@ -273,7 +273,7 @@ class UserBotClient:
         if progress_callback:
             await progress_callback("downloading")
             
-        file_path, media_type, meta = await self._download_message(msg, download_dir)
+        file_path, media_type, meta = await self._download_message(msg, download_dir, progress_callback)
         if not file_path:
             return TGContent(success=False, error="download_failed")
 
@@ -322,11 +322,11 @@ class UserBotClient:
             dump_ids = []
             dump_chat_id = None
             for m in group_msgs:
-                fp, mt, meta = await self._download_message(m, download_dir)
+                fp, mt, meta = await self._download_message(m, download_dir, progress_callback)
                 if fp:
                     if progress_callback:
                         await progress_callback("uploading_to_dump")
-                    d_msg = await self._upload_to_dump(fp, mt, m.caption or "", meta)
+                    d_msg = await self._upload_to_dump(fp, mt, m.caption or "", meta, progress_callback)
                     if d_msg:
                         dump_ids.append(d_msg.id)
                         dump_chat_id = d_msg.chat.id
@@ -342,7 +342,7 @@ class UserBotClient:
             await progress_callback("downloading")
 
         for m in group_msgs:
-            file_path, media_type, meta = await self._download_message(m, download_dir)
+            file_path, media_type, meta = await self._download_message(m, download_dir, progress_callback)
             if file_path:
                 files.append(TGMediaFile(
                     file_path=file_path,
@@ -356,7 +356,7 @@ class UserBotClient:
 
         return TGContent(success=True, files=files, caption=caption, is_album=len(files) > 1)
 
-    async def _download_message(self, msg, download_dir: str):
+    async def _download_message(self, msg, download_dir: str, progress_callback=None):
         """
         فایل مدیا یک پیام را دانلود می‌کند.
         Returns: (file_path, media_type, metadata_dict)
@@ -383,7 +383,10 @@ class UserBotClient:
         try:
             ext = _guess_extension(media_type, meta.get("mime_type"), meta.get("file_name"))
             tmp_path = os.path.join(download_dir, f"tg_{msg.chat.id}_{msg.id}{ext}")
-            downloaded = await self._client.download_media(msg, file_name=tmp_path)
+            downloaded = await self._client.download_media(
+                msg, file_name=tmp_path,
+                progress=make_transfer_progress(progress_callback, "downloading"),
+            )
             if not downloaded:
                 return None, media_type, meta
             return str(downloaded), media_type, meta
@@ -415,7 +418,7 @@ class UserBotClient:
             return None
         return msg.chat.id, msg.id
 
-    async def _upload_to_dump(self, file_path, media_type, caption, meta):
+    async def _upload_to_dump(self, file_path, media_type, caption, meta, progress_callback=None):
         from config import DUMP_CHANNEL_ID
         try:
             from config import DUMP_CHANNEL_ID_RAW
@@ -430,21 +433,23 @@ class UserBotClient:
             # present and None comes straight through — and Pyrogram then calls
             # to_bytes on it. Callers that pass unknown metadata as None used to
             # fail here with "'NoneType' object has no attribute 'to_bytes'".
+            up = make_transfer_progress(progress_callback, "uploading_to_dump")
+
             def _num(key):
                 return int(meta.get(key) or 0)
 
             if media_type == "video":
-                return await self._client.send_video(dump_target, video=file_path, caption=caption, duration=_num("duration"), width=_num("width"), height=_num("height"))
+                return await self._client.send_video(dump_target, video=file_path, caption=caption, progress=up, duration=_num("duration"), width=_num("width"), height=_num("height"))
             elif media_type == "audio":
-                return await self._client.send_audio(dump_target, audio=file_path, caption=caption, duration=_num("duration"))
+                return await self._client.send_audio(dump_target, audio=file_path, caption=caption, progress=up, duration=_num("duration"))
             elif media_type == "photo":
-                return await self._client.send_photo(dump_target, photo=file_path, caption=caption)
+                return await self._client.send_photo(dump_target, photo=file_path, caption=caption, progress=up)
             elif media_type == "animation":
-                return await self._client.send_animation(dump_target, animation=file_path, caption=caption)
+                return await self._client.send_animation(dump_target, animation=file_path, caption=caption, progress=up)
             elif media_type == "voice":
-                return await self._client.send_voice(dump_target, voice=file_path, caption=caption, duration=_num("duration"))
+                return await self._client.send_voice(dump_target, voice=file_path, caption=caption, progress=up, duration=_num("duration"))
             else:
-                return await self._client.send_document(dump_target, document=file_path, caption=caption)
+                return await self._client.send_document(dump_target, document=file_path, caption=caption, progress=up)
         except Exception as e:
             logger.error("Error uploading to dump channel: %s", e)
             return None
@@ -453,6 +458,39 @@ class UserBotClient:
 # ────────────────────────────────────────────────────
 #  Helper Functions
 # ────────────────────────────────────────────────────
+
+PROGRESS_INTERVAL_SECONDS = 5.0
+
+
+def make_transfer_progress(callback, stage: str, interval: float = PROGRESS_INTERVAL_SECONDS, clock=None):
+    """
+    Turn Pyrogram's per-chunk progress(current, total) into a throttled
+    callback(stage, current, total).
+
+    Restricted transfers can take minutes on a non-Premium account; without
+    this the status message sits on "Downloading..." and looks stuck. Telegram
+    rate-limits message edits, so report at most once per `interval` seconds,
+    plus the final chunk. A failing callback never breaks the transfer.
+    """
+    if callback is None:
+        return None
+    import time
+    clock = clock or time.monotonic
+    last = [None]
+
+    async def progress(current, total):
+        now = clock()
+        done = bool(total) and current >= total
+        if last[0] is not None and now - last[0] < interval and not done:
+            return
+        last[0] = now
+        try:
+            await callback(stage, current, total)
+        except Exception as e:
+            logger.debug("progress callback failed: %s", e)
+
+    return progress
+
 
 _DEAD_SESSION_ERRORS = (
     "AUTH_KEY_UNREGISTERED",

@@ -98,17 +98,9 @@ async def _run(update, context, url: str, user, user_lang: str) -> None:
     await message.chat.send_action(ChatAction.TYPING)
     status_msg = await message.reply_text(get_text("tg_fetching", user_lang))
 
-    async def _progress_cb(status: str):
-        if status == "downloading":
-            try:
-                await status_msg.edit_text(get_text("tg_fetching", user_lang) + "\n" + get_text("tg_downloading", user_lang))
-            except:
-                pass
-        elif status == "uploading_to_dump":
-            try:
-                await status_msg.edit_text(get_text("tg_large_relay", user_lang))
-            except:
-                pass
+    async def _progress_cb(status: str, current=None, total=None):
+        if status in _STAGE_TEXT:
+            await _safe_edit(status_msg, _progress_text(status, current, total, user_lang))
 
     # ── دریافت محتوا از UserBot
     content = await userbot.fetch_content(url, download_dir=DOWNLOAD_DIR, progress_callback=_progress_cb)
@@ -176,6 +168,31 @@ async def _run(update, context, url: str, user, user_lang: str) -> None:
                     os.remove(tg_file.file_path)
             except Exception:
                 pass
+
+
+_STAGE_TEXT = {
+    "downloading": "tg_downloading",
+    "uploading_to_dump": "tg_large_relay",
+}
+_BAR_SLOTS = 10
+_MB = 1024 * 1024
+
+
+def _progress_text(stage: str, current, total, user_lang: str) -> str:
+    """
+    Status text for a transfer stage. With (current, total) it adds a bar,
+    percentage and megabytes so a slow multi-minute transfer visibly moves.
+    """
+    lines = [get_text("tg_fetching", user_lang), get_text(_STAGE_TEXT[stage], user_lang)]
+    if current is not None:
+        if total:
+            pct = min(100, int(current * 100 / total))
+            filled = pct * _BAR_SLOTS // 100
+            bar = "▓" * filled + "░" * (_BAR_SLOTS - filled)
+            lines.append(f"{bar} {pct}% · {current / _MB:.1f} / {total / _MB:.1f} MB")
+        else:
+            lines.append(f"{current / _MB:.1f} MB")
+    return "\n".join(lines)
 
 
 async def _safe_edit(status_msg, text: str) -> None:
